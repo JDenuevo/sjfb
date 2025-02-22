@@ -1,0 +1,247 @@
+[17-Dec-2024 03:55:56 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 03:56:10 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 03:57:20 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:02:03 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:06:35 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:08:44 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:09:10 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:10:16 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:10:26 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:10:28 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:10:28 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:14:43 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:15:02 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:22:14 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:23:08 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 05:23:40 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/backend/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/backend/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/backend/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:40:29 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:40:34 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:42:30 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:44:04 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:45:02 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:45:11 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:45:36 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:48:31 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:50:35 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(18): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 06:57:54 UTC] PHP Warning:  require(./phpmailer/PHPMailerAutoload.php): Failed to open stream: No such file or directory in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 06:57:54 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './phpmailer/PHPMailerAutoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ky6hgjrucwpo/public_html/send_email.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 06:58:07 UTC] PHP Warning:  require(./phpmailer/PHPMailerAutoload.php): Failed to open stream: No such file or directory in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 06:58:07 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './phpmailer/PHPMailerAutoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ky6hgjrucwpo/public_html/send_email.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 06:58:12 UTC] PHP Warning:  require(./phpmailer/PHPMailerAutoload.php): Failed to open stream: No such file or directory in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 06:58:12 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './phpmailer/PHPMailerAutoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ky6hgjrucwpo/public_html/send_email.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/send_email.php on line 18
+[17-Dec-2024 07:16:49 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(22): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 07:18:05 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(22): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 07:36:38 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(22): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30
+[17-Dec-2024 07:36:49 UTC] PHP Fatal error:  Uncaught Dotenv\Exception\InvalidFileException: Failed to parse dotenv file. Encountered unexpected whitespace at [ruom tpqq whiq ztud]. in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php:30
+Stack trace:
+#0 /home/ky6hgjrucwpo/public_html/vendor/graham-campbell/result-type/src/Error.php(119): Dotenv\Parser\Parser::Dotenv\Parser\{closure}()
+#1 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php(29): GrahamCampbell\ResultType\Error->mapError()
+#2 /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Dotenv.php(222): Dotenv\Parser\Parser->parse()
+#3 /home/ky6hgjrucwpo/public_html/send_email.php(22): Dotenv\Dotenv->load()
+#4 {main}
+  thrown in /home/ky6hgjrucwpo/public_html/vendor/vlucas/phpdotenv/src/Parser/Parser.php on line 30

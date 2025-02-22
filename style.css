@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.lexend-thin {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 100; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-extralight {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 200; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-light { 
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 300; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-regular {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 400; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-medium {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 500; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-semibold {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 600; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-bold {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 700; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-extrabold {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 800; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+.lexend-black {
+    font-family: "Lexend", system-ui;
+    font-optical-sizing: auto;
+    font-weight: 900; /* Adjust weight as needed */
+    font-style: normal;
+}
+
+#top-page {
+    border-top-left-radius: 700px;
+    border-top-right-radius: 700px;
+  
+}
+
+@media screen and (max-width: 768px) {
+    #top-page {
+        border-top-left-radius: 50px;
+        border-top-right-radius: 50px;
+    }
+}
+
+#bottom-page{
+    border-bottom-left-radius: 200px;
+    border-bottom-right-radius: 200px;
+}
+
+@media screen and (max-width: 768px){
+    
+#bottom-page{
+    border-bottom-left-radius: 50px;
+    border-bottom-right-radius: 50px;
+    }
+    
+}
+
+@layer base {
+    h1 {
+      @apply text-4xl font-bold;
+    }
+    h2 {
+      @apply text-2xl font-semibold;
+    }
+  }
+
+@layer components {
+    .btn-blue {
+      @apply bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded;
+    }
+    .primary-text{
+        @apply text-orange-500;
+    }
+    .secondary-text{
+        @apply text-gray-500;
+    }
+    .primary-btn{
+        @apply bg-orange-500 hover:bg-orange-500 hover:outline-gray-500 text-white font-bold py-2 px-4 rounded;
+    }
+    .secondary-btn{
+        @apply bg-gray-500 hover:bg-gray-700 hover:outline-gray-500 text-white font-bold py-2 px-4 rounded;
+    }
+  }
+
+
+  
