@@ -54,13 +54,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <h1 id="phrase" class="text-5xl font-bold text-white mb-44 opacity-100">Your Fresh Seafood Connection</h1>
       </div>
     </div>
-   
-    <div>
-        <?php include('./components/core_values.php'); ?>
-    </div>
-
+  
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
-        <?php include('./components/company_events.php'); ?>
+        <?php include('./components/products.php'); ?>
     </div>
 
   </section>
@@ -113,6 +109,5 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <?php include('live_chat.php'); ?>
   
-
 </body>
 </html>

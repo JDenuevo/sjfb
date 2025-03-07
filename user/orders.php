@@ -37,10 +37,6 @@
       <!-- Monitoring Card Grid -->
         <?php include('./components/products.php'); ?>
       <!-- Monitoring Card End -->
-        
-      <!-- Table Card -->
-      
-      <!-- Table End -->
 
     </div>
   </div>

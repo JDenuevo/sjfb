@@ -1,9 +1,6 @@
 <?php
 include './conn.php';
    
-
-include './checker.php';
-
 ?>
 <!-- Modal -->
 <div id="hs-modal-signin" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
@@ -28,10 +25,10 @@ include './checker.php';
       <!-- Form -->
       <form action="../functions/checker.php" method="POST">
         <div class="grid gap-y-4">
-          <!-- Email Field -->
+          <!-- username Field -->
           <div>
-            <label for="email" class="block mb-2 text-sm text-gray-700 font-medium">Email</label>
-            <input type="email" name="email" id="email" placeholder="Email" autocomplete="email" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <label for="username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
+            <input type="username" name="username" id="username" placeholder="Username" autocomplete="username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Password Field -->
@@ -48,7 +45,7 @@ include './checker.php';
       </form>
     </div>
     <div class="mt-5 text-center">
-      Don't have an account? <a href="javascript:void(0);" onclick="toggleModals()">Sign up here</a>
+      Don't have an account? <a href="register.php" class="hover:underline transition-all duration-300">Sign up here</a>
     </div>
   </div>
 </div>

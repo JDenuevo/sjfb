@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | St. Joseph Fish Brokerage Inc.</title>
+  <title>Orders | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -27,7 +27,7 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-neutral-900">
-
+  
   <!-- Header -->
   <?php include('./components/header.php'); ?>
 
@@ -69,13 +69,22 @@
   <!-- Content -->
   <div class="w-full lg:ps-64">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <?php
+        if (isset($_SESSION['message'])) {
+          $message = $_SESSION['message'];
+          $alertType = ($message['type'] == 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
 
-      <!-- Monitoring Card Grid -->
-      <?php include('./components/monitoring.php'); ?>
-      <!-- Monitoring Card End -->
-        
+          echo '
+          <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert" tabindex="-1">
+              <span class="font-bold">' . ucfirst($message['type']) . '!</span> ' . $message['text'] . '
+          </div>';
+
+          // Clear the message after displaying it
+          unset($_SESSION['message']);
+        }
+      ?>
       <!-- Table Card -->
-      
+      <?php include('./components/order_list.php'); ?>
       <!-- Table End -->
 
     </div>
