@@ -1,6 +1,4 @@
 <?php
-session_start();
-
 // Check if cart exists in session
 $cart = isset($_SESSION['cart']) ? $_SESSION['cart'] : [];
 ?>

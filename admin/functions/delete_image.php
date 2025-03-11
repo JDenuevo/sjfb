@@ -1,6 +1,16 @@
 <?php
 include '../../conn.php'; // Database connection
 
+// Function to redirect with a session message
+function redirectWithMessage($location, $message, $type = 'success') {
+    $_SESSION['message'] = [
+        'text' => $message,
+        'type' => $type // success or error
+    ];
+    header("Location: $location");
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['image_id']) && isset($_POST['product_id'])) {
     $image_id = intval($_POST['image_id']);
 

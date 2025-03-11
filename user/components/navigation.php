@@ -4,8 +4,8 @@
     <div class="flex items-center justify-between w-full py-1 md:ps-6 md:order-1 md:col-span-2">
       <!-- Logo on the left -->
       <div class="md:hidden">
-        <a href="index" class="relative inline-block focus:outline-none">
-          <img src="../../../assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+        <a href="../../../index.php" class="relative inline-block focus:outline-none">
+          <img src="../../sjfbi-js/assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
         </a>
       </div>
       
@@ -34,18 +34,17 @@
       <div class="flex flex-col gap-y-4 gap-x-0 mt-5 md:flex-row md:justify-between md:items-center md:gap-y-0 md:gap-x-7 md:mt-0 justify-between">
         <!-- Router Links -->
         <div class="hidden md:block">
-          <a href="index.php">
-            <img src="../../../assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+          <a href="../../index.php">
+            <img src="../../sjfbi-js/assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
           </a>
         </div>
 
         <div class="flex-grow"></div>
 
         <div class="flex flex-row">
-          <a href="aboutus.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">About us</a>
-          <a href="sustainability.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Sustainability</a>
-          <a href="services.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Services</a>
-          <a href="careers.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Careers</a>
+          <a href="orders.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Orders</a>
+          <a href="order_status.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Order Status</a>
+          <a href="account.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Account</a>
         </div>
 
         <div class="flex-grow"></div>
@@ -59,14 +58,6 @@
             </svg>
           </button>
         
-          <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" data-hs-overlay="#hs-modal-signin">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-              <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-              <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-            </svg>
-          </button>
-        
           <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -77,6 +68,10 @@
             </svg>
             (<span id="cart-count">0</span>)
           </button>
+
+          <a href="./logout.php" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-logout"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" /><path d="M9 12h12l-3 -3" /><path d="M18 15l3 -3" /></svg>
+          </a>
         </div>
       </div>
     </div>

@@ -4,11 +4,8 @@ ob_start(); // Start output buffering
 session_start(); // Ensure session is started
 
 // Function to redirect with a session message
-function redirectWithMessage($location, $message, $type = 'success') {
-    $_SESSION['message'] = [
-        'text' => $message,
-        'type' => $type // success or error
-    ];
+function redirectWithMessage($location, $message, $type) {
+    $_SESSION['message'] = ['text' => $message, 'type' => $type];
     header("Location: $location");
     exit();
 }
@@ -19,8 +16,8 @@ if (isset($_POST['add_product'])) {
     $product_size = mysqli_real_escape_string($conn, $_POST['product_size']);
     $category_id = intval($_POST['product_category']); // Ensure it's an integer
     $price = floatval($_POST['product_price']); // Ensure it's a float
-    $discount_price = floatval($_POST['discount_price']); 
-    $stock = intval($_POST['product_stock']); 
+    $discount_price = floatval($_POST['discount_price']);
+    $stock = intval($_POST['product_stock']);
 
     // Check for duplicate product name
     $check_sql = "SELECT COUNT(*) FROM products WHERE product_name = ?";
@@ -44,32 +41,40 @@ if (isset($_POST['add_product'])) {
     $product_id = $stmt->insert_id; // Get the newly inserted product's ID
     $stmt->close();
 
-    // Insert multiple images after adding a product
+    // Image upload validation
+    $max_file_size = 5 * 1024 * 1024; // 5MB
+    $upload_errors = []; // Store errors
+    $upload_dir = "../uploads/products/";
+
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+
+    $is_first_image = true; // Mark the first image as primary
+
     if ($product_id > 0 && !empty($_FILES['product_images']['name'][0])) {
-        $upload_dir = "../uploads/products/";
-
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-
-        $is_first_image = true; // Mark the first image as primary
-
         foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
             $file_name = time() . "_" . basename($_FILES['product_images']['name'][$key]);
             $file_path = $upload_dir . $file_name;
             $db_path = $file_name;
 
             // Validate file type
-            $allowed_types = ['jpg', 'jpeg', 'png'];
+            $allowed_types = ['jpg', 'jpeg', 'png']; // Only lowercase needed
             $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
+            // Check if the file extension is allowed and the image type is valid
             if (!in_array($file_ext, $allowed_types) || !in_array(exif_imagetype($tmp_name), [IMAGETYPE_JPEG, IMAGETYPE_PNG])) {
+                $upload_errors[] = "File '{$file_name}' has an invalid file type.";
                 continue;
             }
 
             // Validate file size (Max: 5MB)
-            if ($_FILES['product_images']['size'][$key] > 5 * 1024 * 1024) continue;
+            if ($_FILES['product_images']['size'][$key] > $max_file_size) {
+                $upload_errors[] = "File '{$file_name}' is too large (Max: 5MB).";
+                continue;
+            }
 
+            // Move and store in database
             if (move_uploaded_file($tmp_name, $file_path)) {
                 $is_primary = $is_first_image ? 1 : 0; // First image is primary
                 $is_first_image = false;
@@ -82,13 +87,18 @@ if (isset($_POST['add_product'])) {
             }
         }
     } else {
-        // Insert default image
+        // Insert default image if no images uploaded
         $default_image = "uploads/products/default.png";
         $img_sql = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, 1)";
         $img_stmt = $conn->prepare($img_sql);
         $img_stmt->bind_param("is", $product_id, $default_image);
         $img_stmt->execute();
         $img_stmt->close();
+    }
+
+    // Store error messages in session
+    if (!empty($upload_errors)) {
+        $_SESSION['upload_errors'] = $upload_errors;
     }
 
     redirectWithMessage("../products.php", "Product added successfully", "success");

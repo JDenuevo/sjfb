@@ -1,7 +1,3 @@
-<?php
-include './conn.php';
-   
-?>
 <!-- Modal -->
 <div id="hs-modal-signin" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
   <div id="signin-white-bg" class="bg-white rounded-lg shadow-lg p-6 relative">
@@ -23,7 +19,7 @@ include './conn.php';
       </div>
 
       <!-- Form -->
-      <form action="../functions/checker.php" method="POST">
+      <form action="./functions/checker.php" method="POST">
         <div class="grid gap-y-4">
           <!-- username Field -->
           <div>

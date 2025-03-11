@@ -1,3 +1,17 @@
+<?php
+session_start();
+include '../conn.php';
+
+// Check if the user is logged in as user and account_id exists
+if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true || !isset($_SESSION['account_id'])) {
+    header("Location: ../../index.php");
+    exit;
+}
+
+// Retrieve the logged-in user's account_id
+$account_id = $_SESSION['account_id'];
+
+?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -19,8 +33,8 @@
   <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 
   <!-- CSS Files -->
-  <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+  <link href="../output.css" rel="stylesheet">
 
   <!-- CSS Preline -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">

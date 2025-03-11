@@ -2,25 +2,25 @@
 session_start();
 include '../conn.php';
 
-// Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+// Check if the supadmin is logged in as supadmin and account_id exists
+if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
 
-// Retrieve the logged-in admin's account_id
+// Retrieve the logged-in supadmin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM accounts WHERE role = 'customer' OR role = 'guest'";
+$query = "SELECT * FROM product_categories"; // Adjust table name if necessary
 $result = $conn->query($query);
-
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Accounts | St. Joseph Fish Brokerage Inc.</title>
+  <title>Category | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -65,14 +65,14 @@ $result = $conn->query($query);
 
       <!-- Breadcrumb -->
       <ol class="ms-3 flex items-center whitespace-nowrap">
-        <li class="flex items-center text-sm text-gray-800">
+        <li class="flex items-center text-sm text-gray-800 ">
           Application Layout
           <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </li>
-        <li class="text-sm font-semibold text-gray-800 truncate" aria-current="page">
-          Accounts
+        <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
+          Category
         </li>
       </ol>
       <!-- End Breadcrumb -->
@@ -87,22 +87,22 @@ $result = $conn->query($query);
   <div class="w-full lg:ps-64">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <?php
-        if (!empty($_SESSION['message'])) {
+      if (isset($_SESSION['message'])) {
           $message = $_SESSION['message'];
-          $alertType = ($message['type'] === 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
-      
+          $alertType = ($message['type'] == 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
+
           echo '
-          <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert">
+          <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert" tabindex="-1">
               <span class="font-bold">' . ucfirst($message['type']) . '!</span> ' . $message['text'] . '
           </div>';
-      
-          // Clear message after displaying it
+
+          // Clear the message after displaying it
           unset($_SESSION['message']);
-        }
+      }
       ?>
-    
+
       <!-- Table Card -->
-      <?php include('./components/account_list.php'); ?>
+      <?php include('./components/category_list.php'); ?>
       <!-- Table End -->
 
     </div>
@@ -110,21 +110,43 @@ $result = $conn->query($query);
   <!-- End Content -->
 
   
-  <script>
-    document.querySelectorAll('[data-modal-target]').forEach(button => {
-      button.addEventListener('click', function() {
-        const modalId = this.getAttribute('data-modal-target');
-        document.getElementById(modalId).classList.remove('hidden');
-      });
+<!-- Add Category Modal -->
+<div id="addCategoryModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+    <h3 class="text-lg font-semibold mb-4">Add New Category</h3>
+    <form action="./functions/add.php" method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="block text-sm font-medium">Category Name</label>
+        <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg">
+      </div>
+      <div class="mb-3">
+        <label class="block text-sm font-medium">Category Description</label>
+        <input type="text" name="category_description" required class="w-full px-3 py-2 border rounded-lg">
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="document.getElementById('addCategoryModal').classList.add('hidden')">Cancel</button>
+        <button type="submit" name="add_category" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+  document.querySelectorAll('[data-modal-target]').forEach(button => {
+    button.addEventListener('click', function() {
+      const modalId = this.getAttribute('data-modal-target');
+      document.getElementById(modalId).classList.remove('hidden');
     });
+  });
 
-    function closeModal(modalId) {
-      document.getElementById(modalId).classList.add('hidden');
-    }
-  </script>
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+  }
+</script>
 
 
-  <?php $conn->close(); ?>
+<?php $conn->close(); ?>
 
   <!-- JS Implementing Plugins -->
 
@@ -135,8 +157,12 @@ $result = $conn->query($query);
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <!-- Apexcharts -->
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://preline.co/assets/js/hs-apexcharts-helpers.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
-  
 </body>
 </html>
 

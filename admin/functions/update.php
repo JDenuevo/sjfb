@@ -2,6 +2,13 @@
 session_start();
 include '../../conn.php';
 
+// Function to redirect with a session message
+function redirectWithMessage($location, $message, $type) {
+    $_SESSION['message'] = ['text' => $message, 'type' => $type];
+    header("Location: $location");
+    exit();
+}
+
 if (isset($_POST['update_product'])) {
     $product_id = $_POST['product_id'];
     $product_name = $_POST['product_name'];
@@ -84,11 +91,10 @@ if (isset($_POST['update_category'])) {
     $category_description = trim($_POST['category_description']);
 
     if (empty($category_name)) {
-        $_SESSION['message_type'] = "fail";
-        header("Location: ../categories.php");
-        exit();
+        redirectWithMessage("../category.php", "Category name is required", "error");
     }
 
+    // Check for duplicate category name (excluding the current category)
     $check_sql = "SELECT COUNT(*) FROM product_categories WHERE category_name = ? AND category_id != ?";
     $check_stmt = $conn->prepare($check_sql);
     $check_stmt->bind_param("si", $category_name, $category_id);
@@ -98,22 +104,18 @@ if (isset($_POST['update_category'])) {
     $check_stmt->close();
 
     if ($count > 0) {
-        $_SESSION['message_type'] = "fail";
-        header("Location: ../categories.php");
-        exit();
+        redirectWithMessage("../category.php", "Category name already exists", "error");
     }
 
+    // Update category
     $sql = "UPDATE product_categories SET category_name = ?, category_description = ? WHERE category_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ssi", $category_name, $category_description, $category_id);
 
     if ($stmt->execute()) {
-        $_SESSION['message_type'] = "success";
+        redirectWithMessage("../category.php", "Category updated successfully", "success");
     } else {
-        $_SESSION['message_type'] = "fail";
+        redirectWithMessage("../category.php", "Failed to update category", "error");
     }
-
-    header("Location: ../categories.php");
-    exit();
 }
 ?>

@@ -2,14 +2,13 @@
 session_start();
 include '../conn.php';
 
-// Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+// Check if the supadmin is logged in as supadmin and account_id exists
+if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
 
-
-// Retrieve the logged-in admin's account_id
+// Retrieve the logged-in supadmin's account_id
 $account_id = $_SESSION['account_id'];
 
 ?>
@@ -29,6 +28,10 @@ $account_id = $_SESSION['account_id'];
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="../style.css" rel="stylesheet">
@@ -106,6 +109,10 @@ $account_id = $_SESSION['account_id'];
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
+  <!-- Apexcharts -->
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://preline.co/assets/js/hs-apexcharts-helpers.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
 </body>
 </html>

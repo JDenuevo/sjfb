@@ -1,3 +1,17 @@
+<?php
+session_start();
+include '../conn.php';
+
+// Check if the user is logged in as user and account_id exists
+if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true || !isset($_SESSION['account_id'])) {
+    header("Location: ../../index.php");
+    exit;
+}
+
+// Retrieve the logged-in user's account_id
+$account_id = $_SESSION['account_id'];
+
+?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -19,8 +33,8 @@
   <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 
   <!-- CSS Files -->
-  <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+  <link href="../output.css" rel="stylesheet">
 
   <!-- CSS Preline -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
@@ -35,7 +49,7 @@
   <div class="w-full lg:ps-64">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <!-- Monitoring Card Grid -->
-        <?php include('./components/products.php'); ?>
+        <?php include('./components/order_list.php'); ?>
       <!-- Monitoring Card End -->
 
     </div>

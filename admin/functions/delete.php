@@ -1,6 +1,13 @@
 <?php
 include '../../conn.php'; // Database connection
 
+// Function to redirect with a session message
+function redirectWithMessage($location, $message, $type) {
+    $_SESSION['message'] = ['text' => $message, 'type' => $type];
+    header("Location: $location");
+    exit();
+}
+
 // DELETE PRODUCT
 if (isset($_POST['delete_product'], $_POST['product_id'])) {
     $product_id = $_POST['product_id'];
@@ -36,32 +43,6 @@ if (isset($_POST['delete_product'], $_POST['product_id'])) {
     exit();
 }
 
-// DELETE CATEGORY
-elseif (isset($_POST['delete_category'], $_POST['category_id'])) {
-    $category_id = $_POST['category_id'];
-
-    // Check if category exists before deletion
-    $query = "SELECT * FROM product_categories WHERE category_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $category_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $delete_category = "DELETE FROM categories WHERE category_id = ?";
-        $stmt = $conn->prepare($delete_category);
-        $stmt->bind_param("i", $category_id);
-        $stmt->execute();
-        $stmt->close();
-
-        header("Location: ../categories.php?success=Category deleted successfully");
-        exit();
-    } else {
-        header("Location: ../categories.php?error=Category not found");
-        exit();
-    }
-}
-
 // DELETE IMAGE
 if (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id'])) {
     $image_id = $_POST['image_id'];
@@ -95,6 +76,30 @@ if (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id'])) {
     } else {
         header("Location: ../products.php?error=Image not found");
         exit();
+    }
+}
+
+// DELETE CATEGORY
+if (isset($_POST['delete_category'], $_POST['category_id'])) {
+    $category_id = intval($_POST['category_id']);
+
+    // Check if category exists before deletion
+    $query = "SELECT * FROM product_categories WHERE category_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $category_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        $delete_category = "DELETE FROM product_categories WHERE category_id = ?";
+        $stmt = $conn->prepare($delete_category);
+        $stmt->bind_param("i", $category_id);
+        $stmt->execute();
+        $stmt->close();
+
+        redirectWithMessage("../category.php", "Category deleted successfully", "success");
+    } else {
+        redirectWithMessage("../category.php", "Category not found", "error");
     }
 }
 

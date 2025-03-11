@@ -2,16 +2,16 @@
 session_start();
 include '../conn.php';
 
-// Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+// Check if the supadmin is logged in as supadmin and account_id exists
+if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
 
-// Retrieve the logged-in admin's account_id
+// Retrieve the logged-in supadmin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM accounts WHERE role = 'customer' OR role = 'guest'";
+$query = "SELECT * FROM accounts";
 $result = $conn->query($query);
 
 ?>
@@ -109,6 +109,75 @@ $result = $conn->query($query);
   </div>
   <!-- End Content -->
 
+  <!-- Add Account Modal -->
+  <div id="addAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-95 hover:scale-100">
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Account</h3>
+      <form action="./functions/add.php" method="POST">
+        <div class="grid grid-cols-2 gap-x-2">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Username</label>
+            <input type="text" name="username" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Role</label>
+            <select name="role" required class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="" disabled selected>Select a role</option>
+              <option value="admin">Admin</option>
+              <option value="customer">Customer</option>
+              <option value="guest">Guest</option>
+            </select>          
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-x-2">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" name="password" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input type="password" name="confirm_password" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-x-2">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">First Name</label>
+            <input type="text" name="first_name" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Last Name</label>
+            <input type="text" name="last_name" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" name="email" required class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+          <input type="number" name="phone_number" required class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700">Address</label>
+          <textarea class="w-full px-3 py-2 border rounded-lg" name="address" required></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-x-2">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">City</label>
+            <input type="text" name="city" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">Postal Code</label>
+            <input type="number" name="postal" required class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="submit" name="add_account" class="px-4 py-2 w-full bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Add Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
   
   <script>
     document.querySelectorAll('[data-modal-target]').forEach(button => {
@@ -135,8 +204,12 @@ $result = $conn->query($query);
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <!-- Apexcharts -->
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://preline.co/assets/js/hs-apexcharts-helpers.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
-  
 </body>
 </html>
 
