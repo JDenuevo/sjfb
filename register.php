@@ -2,7 +2,11 @@
 session_start();
 include 'conn.php';
 
+// Retrieve the logged-in account_id
+$account_id = $_SESSION['account_id'];
+
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 

@@ -1,3 +1,9 @@
+<?php
+session_start();
+include 'conn.php';
+
+?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 

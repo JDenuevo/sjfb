@@ -2,7 +2,7 @@
 session_start();
 include '../conn.php';
 
-// // Check if the admin is logged in as admin and account_id exists
+// Check if the admin is logged in as admin and account_id exists
 if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
@@ -105,7 +105,6 @@ $result = $conn->query($query);
   </div>
   <!-- End Content -->
 
-  
 <!-- Add Category Modal -->
 <div id="addCategoryModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
   <div class="bg-white p-6 rounded-lg shadow-lg w-96">

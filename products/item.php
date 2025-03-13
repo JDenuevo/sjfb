@@ -54,7 +54,7 @@
         
         <div class="flex flex-col product-container">
             <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Fresh Alaskan King Crab Legs 1" class="product-image rounded-lg mb-4 active">
-            <img src="https://imgs.search.brave.com/HqJepWbvcZZ9r1BlcvggjtmUrUymd7YO-SfRoamm0Jg/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/YWxhc2thbmtpbmdj/cmFiLmNvbS9jZG4v/c2hvcC9maWxlcy9B/bGFza2FuLUtpbmct/Q3JhYi1Dby1Ib21l/cGFnZV84MDB4Xzgx/NWMwYTg1LTZmNTYt/NDE3NC1hMGIzLTlh/MmJiNWZkN2Y4OF84/MDB4LndlYnA_dj0x/NzAxODA1NTEyP2Zv/cm1hdD13ZWJw" alt="Fresh Alaskan King Crab Legs 2" class="product-image rounded-lg mb-4">
+            <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Fresh Alaskan King Crab Legs 2" class="product-image rounded-lg mb-4">
             <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Fresh Alaskan King Crab Legs 3" class="product-image rounded-lg mb-4">
             <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Fresh Alaskan King Crab Legs 4" class="product-image rounded-lg mb-4">
             
@@ -63,7 +63,7 @@
 
             <div class="flex space-x-2">
                 <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Thumbnail 1" class="thumbnail rounded-lg cursor-pointer active" onclick="showImage(0)">
-                <img src="https://imgs.search.brave.com/HqJepWbvcZZ9r1BlcvggjtmUrUymd7YO-SfRoamm0Jg/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/YWxhc2thbmtpbmdj/cmFiLmNvbS9jZG4v/c2hvcC9maWxlcy9B/bGFza2FuLUtpbmct/Q3JhYi1Dby1Ib21l/cGFnZV84MDB4Xzgx/NWMwYTg1LTZmNTYt/NDE3NC1hMGIzLTlh/MmJiNWZkN2Y4OF84/MDB4LndlYnA_dj0x/NzAxODA1NTEyP2Zv/cm1hdD13ZWJw" alt="Thumbnail 2" class="thumbnail rounded-lg cursor-pointer" onclick="showImage(1)">
+                <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Thumbnail 2" class="thumbnail rounded-lg cursor-pointer" onclick="showImage(1)">
                 <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Thumbnail 3" class="thumbnail rounded-lg cursor-pointer" onclick="showImage(2)">
                 <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" alt="Thumbnail 4" class="thumbnail rounded-lg cursor-pointer" onclick="showImage(3)">
             </div>
@@ -76,8 +76,7 @@
                 <span class="text-red-600 font-bold ml-2">₱8,499.99</span>
                 <span class="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full ml-2">SAVE 65%</span>
             </div>
-            <p class="text-sm text-gray-600 mb-2">36 People are viewing this right now</p>
-            <p class="text-sm text-gray-600 mb-2">Order in the next <span id="timer"></span> to get it by March 5! FREE Shipping On Orders Above ₱7,500</p>
+            <p class="text-sm text-gray-600 mb-2">36 people are viewing this right now <!--Realtime of how many accounts in session has been viewing this product--> </p>
 
             <div class="flex items-center mb-4">
                 <span class="mr-2">Quantity</span>
@@ -86,28 +85,18 @@
                 <button class="bg-gray-200 px-3 py-1 rounded">+</button>
             </div>
 
-            <div class="flex items-center mb-4">
-                <input type="checkbox" id="scallops" class="mr-2">
-                <label for="scallops">Add 2Kg Half Shell Scallops worth 1300 for ONLY 950</label>
-                <span class="text-green-600 font-bold ml-auto">₱950.00</span>
-            </div>
-            <p class="text-xs text-gray-600 mb-4">93% customers are saving extra 450 with this</p>
-
             <div class="flex flex-col space-y-2 mb-4">
-                <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">ADD TO CART</button>
-                <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">BUY IT NOW</button>
+                <button class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded">ADD TO CART</button>
+                <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">BUY IT NOW</button>
             </div>
-
-            <p class="text-sm text-gray-600 mb-2">Get a notification when price drops below ₱8,499.99 PHP</p>
-            <button class="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full mb-4">SUBSCRIBE</button>
 
             <p class="text-center text-sm">Secure Checkout With</p>
             <div class="flex justify-center space-x-2">
-                <img src="visa.png" alt="Visa" class="h-6">
-                <img src="mastercard.png" alt="Mastercard" class="h-6">
-                <img src="paypal.png" alt="PayPal" class="h-6">
-                <img src="cash-on-delivery.png" alt="Cash on Delivery" class="h-6">
-                <img src="satisfaction.png" alt="100% Satisfaction" class="h-6">
+                <img src="./assets/visa.png" alt="Visa" class="h-6">
+                <img src="./assets/mastercard.png" alt="Mastercard" class="h-6">
+                <img src="./assets/paypal.png" alt="PayPal" class="h-6">
+                <img src="./assets/cash-on-delivery.png" alt="Cash on Delivery" class="h-6">
+                <img src="./assets/satisfaction.png" alt="100% Satisfaction" class="h-6">
             </div>
         </div>
     </div>

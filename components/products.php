@@ -7,69 +7,112 @@
   </div>
 
   <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    <!-- Product Card -->
-    <div class="bg-white shadow-lg rounded-lg p-4 relative group">
-      <img src="https://fisherscart.com/cdn/shop/files/Bostonlobster_1024x1024@2x.png?v=1735189606" 
-        alt="Product" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
+      <?php
 
-      <h3 class="text-lg font-semibold text-gray-800">Fresh Boston Lobster (~1kg: 1-2 pcs)</h3>
-      <p class="text-sm text-gray-500">Fresh</p>
-      <p class="text-gray-600 text-lg font-semibold">₱4199.99</p>
+      $query = "SELECT p.product_name, 
+            GROUP_CONCAT(DISTINCT p.product_id ORDER BY p.product_size ASC) AS product_ids,
+            GROUP_CONCAT(DISTINCT p.product_size ORDER BY p.product_size ASC) AS sizes,
+            GROUP_CONCAT(DISTINCT p.product_description ORDER BY p.product_size ASC) AS descriptions,
+            GROUP_CONCAT(DISTINCT p.product_price ORDER BY p.product_size ASC) AS prices,
+            GROUP_CONCAT(DISTINCT p.discount_price ORDER BY p.product_size ASC) AS discount_prices,
+            (SELECT image_path FROM product_images WHERE product_id = MIN(p.product_id) LIMIT 1) AS image_path 
+      FROM products p
+      GROUP BY p.product_name;";
 
-      <div class="flex items-center">
-        <label for="quantity" class="mr-2 text-gray-700 px-2">Qty:</label>
+      $result = mysqli_query($conn, $query);
 
-        <!-- Quantity Input -->
-        <div class="flex items-center mt-2">
-          <button class="px-3 py-1 rounded-l text-sm bg-gray-200 hover:bg-orange-600 hover:text-white transition">
-            -
-          </button>
-          <input type="number" class="quantity w-12 px-1 py-1 text-center text-sm border-0 focus:outline-none focus:ring-0" 
-            id="quantity" name="quantity" min="1" value="1">
-          <button class="px-3 py-1 rounded-r text-sm bg-gray-200 hover:bg-orange-600 hover:text-white transition">
-            +
-          </button>
-        </div>
+      while ($row = mysqli_fetch_assoc($result)) {
+          $product_name = $row['product_name'];
+          $image_url = !empty($row['image_path']) ? "http://localhost/sjfbi-js/admin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.jpg";
+          
+          $product_ids = explode(',', $row['product_ids']);
+          $sizes = explode(',', $row['sizes']);
+          $descriptions = explode(',', $row['descriptions']);
+          $prices = explode(',', $row['prices']);
+          $discount_prices = explode(',', $row['discount_prices']);
+      
+          $default_description = $descriptions[0];
+          $default_price = number_format($prices[0], 2);
+          $default_discount_price = !empty($discount_prices[0]) ? number_format($discount_prices[0], 2) : null;
+      ?>
+      
+      <div class="bg-white shadow-lg rounded-lg p-4 relative group">
+        <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($product_name) ?>" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
+        
+        <h3 class="text-xl font-semibold text-gray-800"><?= htmlspecialchars($product_name) ?></h3>
+        <p class="text-md text-gray-500 description" data-product-id="<?= $product_ids[0] ?>">
+            <?= htmlspecialchars($default_description) ?>
+        </p>
+
+        <label class="block text-sm font-medium text-gray-700 mt-2">Select Size:</label>
+        <select class="block w-full p-2 border rounded size-selector" 
+                data-product-id="<?= $product_ids[0] ?>">
+            <?php foreach ($sizes as $index => $size) { ?>
+                <option value="<?= htmlspecialchars($size) ?>"><?= htmlspecialchars($size) ?></option>
+            <?php } ?>
+        </select>
+
+        <p id="price_<?= $product_ids[0] ?>" class="text-gray-600 text-lg font-semibold mt-3 price-display">
+            <?php if ($default_discount_price > 0) { ?>
+                <span class="line-through text-gray-500 original-price">₱<?= $default_price ?></span>
+                <span class="text-red-600 font-bold ml-2 my-5 discount-price">₱<?= $default_discount_price ?></span>
+            <?php } else { ?>
+                <span class="text-gray-800 font-bold original-price">₱<?= $default_price ?></span>
+            <?php } ?>
+        </p>
+
+        <button name="add_to_cart" class="mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none">
+            Add to Cart
+        </button>
       </div>
 
-      <!-- Add to Cart Button -->
-      <button name="add_to_cart" class="mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-          <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-          <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-          <path d="M17 17h-11v-14h-2" />
-          <path d="M6 5l14 1l-1 7h-13" />
-        </svg>    
-        Add to Cart
-      </button>
-    </div>
-
+      <?php } ?>
   </div>
 </div>
-<!-- End Product Card -->
-
-<style>
-  input[type=number]::-webkit-inner-spin-button, 
-  input[type=number]::-webkit-outer-spin-button { 
-    -webkit-appearance: none; 
-    margin: 0; 
-  }
-</style>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".bg-white .flex.items-center .px-3").forEach(button => {
-        button.addEventListener("click", function () {
-            let input = this.parentElement.querySelector(".quantity");
-            let currentValue = parseInt(input.value);
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.size-selector').forEach(select => {
+        select.addEventListener('change', function () {
+            let productName = this.closest('.group').querySelector('h3').innerText.trim(); // Get product name
+            let selectedSize = this.value;
 
-            if (this.textContent.trim() === "+") {
-                input.value = currentValue + 1;
-            } else if (this.textContent.trim() === "-" && currentValue > 1) {
-                input.value = currentValue - 1;
+            if (selectedSize !== "") {
+                fetch('./functions/fetch_price.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `product_name=${encodeURIComponent(productName)}&size=${encodeURIComponent(selectedSize)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Fetched Data:", data);
+
+                    let priceDisplay = this.closest('.group').querySelector('.price-display');
+                    let descriptionDisplay = this.closest('.group').querySelector('.description');
+
+                    if (data.error) {
+                        console.error("Error:", data.error);
+                        descriptionDisplay.innerText = "Product not found!";
+                        priceDisplay.innerHTML = `<span class="text-red-600 font-bold">₱0.00</span>`;
+                        return;
+                    }
+
+                    descriptionDisplay.innerText = data.product_description || "No description available";
+
+                    let originalPrice = parseFloat(data.product_price).toFixed(2);
+                    let discountPrice = data.discount_price ? parseFloat(data.discount_price).toFixed(2) : null;
+
+                    if (discountPrice > 0) {
+                        priceDisplay.innerHTML = `<span class="line-through text-gray-500">₱${originalPrice}</span>
+                                                  <span class="text-red-600 font-bold ml-2 my-5">₱${discountPrice}</span>`;
+                    } else {
+                        priceDisplay.innerHTML = `<span class="text-gray-800 font-bold">₱${originalPrice}</span>`;
+                    }
+                })
+                .catch(error => console.error('Fetch Error:', error));
             }
         });
     });
-  });
+});
+
 </script>

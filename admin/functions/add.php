@@ -20,16 +20,16 @@ if (isset($_POST['add_product'])) {
     $stock = intval($_POST['product_stock']);
 
     // Check for duplicate product name
-    $check_sql = "SELECT COUNT(*) FROM products WHERE product_name = ?";
+    $check_sql = "SELECT COUNT(*) FROM products WHERE product_name = ? AND product_description = ? AND product_size = ?";
     $check_stmt = $conn->prepare($check_sql);
-    $check_stmt->bind_param("s", $product_name);
+    $check_stmt->bind_param("sss", $product_name, $product_description, $product_size);
     $check_stmt->execute();
     $check_stmt->bind_result($count);
     $check_stmt->fetch();
     $check_stmt->close();
 
     if ($count > 0) {
-        redirectWithMessage("../products.php", "Product name already exists", "error");
+        redirectWithMessage("../products.php", "The product you tried to add already exists", "error");
     }
 
     // Insert new product

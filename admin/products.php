@@ -246,7 +246,7 @@ $result = $conn->query($query);
         const removeBtn = document.createElement("button");
         removeBtn.innerHTML = "X";
         removeBtn.classList.add(
-          "absolute", "top-0", "right-0", "bg-red-600", "text-white",
+          "absolute", "top-0", "right-0", "bg-red-600", "text-dark",
           "rounded-full", "text-xs", "w-5", "h-5", "flex", "items-center", "justify-center"
         );
         removeBtn.addEventListener("click", function () {
