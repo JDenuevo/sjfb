@@ -2,7 +2,6 @@
 session_start();
 include '../../conn.php';
 
-// Function to redirect with a session message
 function redirectWithMessage($location, $message, $type) {
     $_SESSION['message'] = ['text' => $message, 'type' => $type];
     header("Location: $location");
@@ -10,82 +9,96 @@ function redirectWithMessage($location, $message, $type) {
 }
 
 if (isset($_POST['update_product'])) {
-    $product_id = $_POST['product_id'];
-    $product_name = $_POST['product_name'];
-    $product_description = $_POST['product_description'];
-    $product_size = $_POST['product_size'];
-    $category_id = (int)$_POST['product_category'];
-    $price = floatval($_POST['product_price']);
-    $discount_price = floatval($_POST['discount_price']);
-    $stock = (int)$_POST['product_stock'];
+    // Sanitize inputs
+    $product_id = intval($_POST['product_id']);
+    $product_name = htmlspecialchars(trim($_POST['product_name']));
+    $product_description = htmlspecialchars(trim($_POST['product_description']));
+    $product_category = intval($_POST['product_category']);
 
-    $sql = "UPDATE products SET product_name = ?, product_description = ?, product_size = ?, product_category = ?, product_price = ?, discount_price = ?, product_stock = ? WHERE product_id = ?";
-    $stmt = $conn->prepare($sql);
+    // Validate required fields
+    if (empty($product_name) || empty($product_description) || empty($product_category)) {
+        redirectWithMessage("../products.php", "All fields are required.", "danger");
+    }
 
-    if ($stmt) {
-        $stmt->bind_param("sssiddii", $product_name, $product_description, $product_size, $category_id, $price, $discount_price, $stock, $product_id);
-        if ($stmt->execute()) {
-            $_SESSION['message_type'] = "success";
-        } else {
-            $_SESSION['message_type'] = "fail";
-        }
+    // Start transaction
+    $conn->begin_transaction();
+
+    try {
+        // Update product details
+        $update_product_query = "UPDATE products SET product_name = ?, product_description = ?, product_category = ? WHERE product_id = ?";
+        $stmt = $conn->prepare($update_product_query);
+        $stmt->bind_param("ssii", $product_name, $product_description, $product_category, $product_id);
+        $stmt->execute();
         $stmt->close();
-    } else {
-        $_SESSION['message_type'] = "fail";
-    }
 
-    if (!empty($_POST['delete_images'])) {
-        foreach ($_POST['delete_images'] as $image_id) {
-            $get_image = "SELECT image_path FROM product_images WHERE image_id = ?";
-            $img_stmt = $conn->prepare($get_image);
-            $img_stmt->bind_param("i", $image_id);
-            $img_stmt->execute();
-            $result = $img_stmt->get_result();
+        // Handle variants
+        if (isset($_POST['variant_name']) && is_array($_POST['variant_name'])) {
+            $variant_ids = $_POST['variant_id'];
+            $variant_names = $_POST['variant_name'];
+            $stock_quantities = $_POST['stock_quantity'];
+            $variant_prices = $_POST['variant_price'];
+            $discount_prices = isset($_POST['discount_price']) ? $_POST['discount_price'] : [];
 
-            if ($result->num_rows > 0) {
-                $row = $result->fetch_assoc();
-                $image_path = "../../" . $row['image_path'];
+            for ($i = 0; $i < count($variant_names); $i++) {
+                $variant_id = !empty($variant_ids[$i]) ? intval($variant_ids[$i]) : null;
+                $variant_name = htmlspecialchars(trim($variant_names[$i]));
+                $stock_quantity = intval($stock_quantities[$i]);
+                $variant_price = floatval($variant_prices[$i]);
+                $discount_price = (!empty($discount_prices[$i]) && $discount_prices[$i] != "0") ? floatval($discount_prices[$i]) : null;
 
-                if (file_exists($image_path)) {
-                    unlink($image_path);
+                if ($variant_id) {
+                    // Update existing variant
+                    $update_variant_query = "UPDATE product_variants SET variant_name = ?, stock_quantity = ?, variant_price = ?, discount_price = ? WHERE variant_id = ?";
+                    $stmt = $conn->prepare($update_variant_query);
+                    $stmt->bind_param("siddi", $variant_name, $stock_quantity, $variant_price, $discount_price, $variant_id);
+                } else {
+                    // Insert new variant
+                    $insert_variant_query = "INSERT INTO product_variants (product_id, variant_name, stock_quantity, variant_price, discount_price) VALUES (?, ?, ?, ?, ?)";
+                    $stmt = $conn->prepare($insert_variant_query);
+                    $stmt->bind_param("isidd", $product_id, $variant_name, $stock_quantity, $variant_price, $discount_price);
                 }
-
-                $delete_image = "DELETE FROM product_images WHERE image_id = ?";
-                $del_stmt = $conn->prepare($delete_image);
-                $del_stmt->bind_param("i", $image_id);
-                $del_stmt->execute();
-                $del_stmt->close();
-            }
-            $img_stmt->close();
-        }
-    }
-
-    if (!empty($_FILES['product_images']['name'][0])) {
-        $upload_dir = "../uploads/products/";
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-
-        foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
-            $file_name = time() . "_" . basename($_FILES['product_images']['name'][$key]);
-            $file_path = $upload_dir . $file_name;
-            $db_path = "uploads/products/" . $file_name;
-
-            if (move_uploaded_file($tmp_name, $file_path)) {
-                $insert_image = "INSERT INTO product_images (product_id, image_path) VALUES (?, ?)";
-                $img_stmt = $conn->prepare($insert_image);
-                $img_stmt->bind_param("is", $product_id, $db_path);
-                $img_stmt->execute();
-                $img_stmt->close();
+                $stmt->execute();
+                $stmt->close();
             }
         }
-    }
 
-    header("Location: ../products.php");
-    exit();
+        // Handle image uploads
+        if (!empty($_FILES['product_images']['name'][0])) {
+            $target_dir = "../uploads/products/";
+            foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
+                $file_name = basename($_FILES['product_images']['name'][$key]);
+                $file_size = $_FILES['product_images']['size'][$key];
+                $file_type = mime_content_type($tmp_name);
+
+                // Validate file type and size
+                if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) { // 5MB limit
+                    $unique_file_name = uniqid() . '_' . $file_name;
+                    $target_file = $target_dir . $unique_file_name;
+
+                    if (move_uploaded_file($tmp_name, $target_file)) {
+                        // Insert new image into the database
+                        $insert_image_query = "INSERT INTO product_images (product_id, image_path) VALUES (?, ?)";
+                        $stmt = $conn->prepare($insert_image_query);
+                        $stmt->bind_param("is", $product_id, $unique_file_name);
+                        $stmt->execute();
+                        $stmt->close();
+                    }
+                }
+            }
+        }
+
+        // Commit transaction
+        $conn->commit();
+        redirectWithMessage("../products.php", "Product updated successfully!", "success");
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $conn->rollback();
+        error_log("Error updating product: " . $e->getMessage());
+        redirectWithMessage("../products.php", "Failed to update product.", "danger");
+    }
 }
 
-if (isset($_POST['update_category'])) {
+elseif (isset($_POST['update_category'])) {
     $category_id = intval($_POST['category_id']);
     $category_name = trim($_POST['category_name']);
     $category_description = trim($_POST['category_description']);

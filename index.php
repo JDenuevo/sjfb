@@ -62,7 +62,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
-        <?php include('./components/products.php'); ?>
     </div>
 
   </section>

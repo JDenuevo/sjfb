@@ -7,36 +7,35 @@
   </div>
 
   <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <?php
+    <?php
+		$query = "SELECT p.product_name, 
+				GROUP_CONCAT(DISTINCT p.product_id ORDER BY p.product_size ASC) AS product_ids,
+				GROUP_CONCAT(DISTINCT p.product_size ORDER BY p.product_size ASC) AS sizes,
+				GROUP_CONCAT(DISTINCT p.product_description ORDER BY p.product_size ASC) AS descriptions,
+				GROUP_CONCAT(DISTINCT p.product_price ORDER BY p.product_size ASC) AS prices,
+				GROUP_CONCAT(DISTINCT p.discount_price ORDER BY p.product_size ASC) AS discount_prices,
+				(SELECT image_path FROM product_images WHERE product_id = MIN(p.product_id) LIMIT 1) AS image_path 
+		FROM products p
+		GROUP BY p.product_name;";
 
-      $query = "SELECT p.product_name, 
-            GROUP_CONCAT(DISTINCT p.product_id ORDER BY p.product_size ASC) AS product_ids,
-            GROUP_CONCAT(DISTINCT p.product_size ORDER BY p.product_size ASC) AS sizes,
-            GROUP_CONCAT(DISTINCT p.product_description ORDER BY p.product_size ASC) AS descriptions,
-            GROUP_CONCAT(DISTINCT p.product_price ORDER BY p.product_size ASC) AS prices,
-            GROUP_CONCAT(DISTINCT p.discount_price ORDER BY p.product_size ASC) AS discount_prices,
-            (SELECT image_path FROM product_images WHERE product_id = MIN(p.product_id) LIMIT 1) AS image_path 
-      FROM products p
-      GROUP BY p.product_name;";
+		$result = mysqli_query($conn, $query);
 
-      $result = mysqli_query($conn, $query);
+    while ($row = mysqli_fetch_assoc($result)) {
+        $product_name = $row['product_name'];
+        $image_url = !empty($row['image_path']) ? "http://localhost/sjfbi-js/admin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.jpg";
 
-      while ($row = mysqli_fetch_assoc($result)) {
-          $product_name = $row['product_name'];
-          $image_url = !empty($row['image_path']) ? "http://localhost/sjfbi-js/admin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.jpg";
-          
-          $product_ids = explode(',', $row['product_ids']);
-          $sizes = explode(',', $row['sizes']);
-          $descriptions = explode(',', $row['descriptions']);
-          $prices = explode(',', $row['prices']);
-          $discount_prices = explode(',', $row['discount_prices']);
-      
-          $default_description = $descriptions[0];
-          $default_price = number_format($prices[0], 2);
-          $default_discount_price = !empty($discount_prices[0]) ? number_format($discount_prices[0], 2) : null;
-      ?>
-      
-      <div class="bg-white shadow-lg rounded-lg p-4 relative group">
+        $product_ids = explode(',', $row['product_ids']);
+        $sizes = explode(',', $row['sizes']);
+        $descriptions = explode(',', $row['descriptions']);
+        $prices = explode(',', $row['prices']);
+        $discount_prices = explode(',', $row['discount_prices']);
+
+        $default_description = $descriptions[0];
+        $default_price = number_format($prices[0], 2);
+        $default_discount_price = !empty($discount_prices[0]) ? number_format($discount_prices[0], 2) : null;
+    ?>
+
+    <a href="item.php?id=<?= $product_ids[0] ?>" class="bg-white shadow-lg rounded-lg p-4 relative group block">
         <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($product_name) ?>" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
         
         <h3 class="text-xl font-semibold text-gray-800"><?= htmlspecialchars($product_name) ?></h3>
@@ -45,8 +44,7 @@
         </p>
 
         <label class="block text-sm font-medium text-gray-700 mt-2">Select Size:</label>
-        <select class="block w-full p-2 border rounded size-selector" 
-                data-product-id="<?= $product_ids[0] ?>">
+        <select class="block w-full p-2 border rounded size-selector" data-product-id="<?= $product_ids[0] ?>">
             <?php foreach ($sizes as $index => $size) { ?>
                 <option value="<?= htmlspecialchars($size) ?>"><?= htmlspecialchars($size) ?></option>
             <?php } ?>
@@ -60,14 +58,15 @@
                 <span class="text-gray-800 font-bold original-price">₱<?= $default_price ?></span>
             <?php } ?>
         </p>
-
-        <button name="add_to_cart" class="mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none">
+				<button name="add_to_cart" class="mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none">
             Add to Cart
         </button>
-      </div>
+     
+    </a>
 
-      <?php } ?>
-  </div>
+    <?php } ?>
+</div>
+
 </div>
 
 <script>

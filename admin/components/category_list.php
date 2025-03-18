@@ -34,8 +34,6 @@
             <tr>
               <th scope="col" class="px-6 py-3 text-start">Category ID</th>
               <th scope="col" class="ps-6 py-3 text-start">Category Name</th>
-              <th scope="col" class="px-6 py-3 text-start">Category Description</th>
-              <th scope="col" class="px-6 py-3 text-start">Date Added</th>
               <th scope="col" class="px-6 py-3 text-end"></th>
             </tr>
           </thead>
@@ -53,18 +51,12 @@
               <td class="px-6 py-3">
                 <span class="block text-sm font-semibold text-gray-800 "><?= $row['category_name'] ?></span>
               </td>
-              <td class="px-6 py-3">
-                <span class="block text-sm font-semibold text-gray-800 "><?= $row['category_description'] ?></span>
-              </td>
               
-              <td class="px-6 py-3">
-                <span class="text-sm text-gray-500 "><?= date("F j, Y, g:i a", strtotime($row['created_at'])) ?></span>
-              </td>
               <td class="px-6 py-3 inline-flex gap-1 items-center">
-                <button class="px-3 py-2 bg-blue-500 text-white rounded-xl" onclick="document.getElementById('editCategoryModal<?php echo $row['category_id']; ?>').classList.remove('hidden')">
+                <button class="px-3 py-2 bg-blue-500 text-dark rounded-xl" onclick="document.getElementById('editCategoryModal<?php echo $row['category_id']; ?>').classList.remove('hidden')">
                   <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
                 </button>
-                <button class="px-3 py-2 bg-red-500 text-white rounded-xl" data-modal-target="deleteCategoryModal<?php echo $row['category_id']; ?>">
+                <button class="px-3 py-2 bg-red-500 text-dark rounded-xl" data-modal-target="deleteCategoryModal<?php echo $row['category_id']; ?>">
                   <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>                </a>
                 </button>
               </td>
@@ -82,10 +74,7 @@
                     <label class="block text-sm font-medium">Category Name</label>
                     <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_name']); ?>">
                   </div>
-                  <div class="mb-3">
-                    <label class="block text-sm font-medium">Category Description</label>
-                    <input type="text" name="category_description" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_description']); ?>">
-                  </div>
+                  
                   <div class="flex justify-end space-x-3 mt-4">
                     <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('editCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
                     <button type="submit" name="update_category" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Update Category</button>
@@ -105,11 +94,7 @@
                     <label class="block text-sm font-medium">Category Name</label>
                     <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_name']); ?>">
                   </div>
-                  <div class="mb-3">
-                    <label class="block text-sm font-medium">Category Description</label>
-                    <input type="text" name="category_description" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_description']); ?>">
-                  </div>
-              
+                  
                   <div class="flex justify-end space-x-3 mt-4">
                     <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('deleteCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
                     <button type="submit" name="delete_category" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Delete Category</button>
