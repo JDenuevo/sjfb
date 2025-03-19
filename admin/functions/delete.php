@@ -1,4 +1,5 @@
 <?php
+session_start(); // Ensure session is started
 include '../../conn.php'; // Database connection
 
 // Function to redirect with a session message
@@ -10,43 +11,74 @@ function redirectWithMessage($location, $message, $type) {
 
 // DELETE PRODUCT
 if (isset($_POST['delete_product'], $_POST['product_id'])) {
-    $product_id = $_POST['product_id'];
+    $product_id = intval($_POST['product_id']); // Ensure product_id is an integer
 
-    // Delete product images first (to remove files from the server)
-    $query = "SELECT image_path FROM product_images WHERE product_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $product_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    while ($row = $result->fetch_assoc()) {
-        $image_path = '../uploads/products/' . $row['image_path']; // Ensure correct path
-        if (file_exists($image_path)) {
-            unlink($image_path); // Delete image file
-        }
+    // Validate product_id
+    if ($product_id <= 0) {
+        redirectWithMessage("../products.php", "Invalid product ID", "error");
     }
 
-    // Delete images from the database
-    $delete_images = "DELETE FROM product_images WHERE product_id = ?";
-    $stmt = $conn->prepare($delete_images);
-    $stmt->bind_param("i", $product_id);
-    $stmt->execute();
+    // Begin transaction for atomicity
+    $conn->begin_transaction();
 
-    // Delete the product itself
-    $delete_product = "DELETE FROM products WHERE product_id = ?";
-    $stmt = $conn->prepare($delete_product);
-    $stmt->bind_param("i", $product_id);
-    $stmt->execute();
+    try {
+        // Step 1: Fetch and delete product images
+        $imageQuery = "SELECT image_path FROM product_images WHERE product_id = ?";
+        $imageStmt = $conn->prepare($imageQuery);
+        $imageStmt->bind_param("i", $product_id);
+        $imageStmt->execute();
+        $imageResult = $imageStmt->get_result();
 
-    $stmt->close();
-    header("Location: ../products.php?success=Product deleted successfully");
+        // Delete image files from the server
+        while ($imageRow = $imageResult->fetch_assoc()) {
+            $image_path = '../uploads/products/' . $imageRow['image_path']; // Adjust path if needed
+            if (file_exists($image_path)) {
+                unlink($image_path); // Delete the file
+            }
+        }
+
+        // Delete image records from the database
+        $deleteImagesQuery = "DELETE FROM product_images WHERE product_id = ?";
+        $deleteImagesStmt = $conn->prepare($deleteImagesQuery);
+        $deleteImagesStmt->bind_param("i", $product_id);
+        $deleteImagesStmt->execute();
+        $deleteImagesStmt->close();
+
+        // Step 2: Delete product variants
+        $deleteVariantsQuery = "DELETE FROM product_variants WHERE product_id = ?";
+        $deleteVariantsStmt = $conn->prepare($deleteVariantsQuery);
+        $deleteVariantsStmt->bind_param("i", $product_id);
+        $deleteVariantsStmt->execute();
+        $deleteVariantsStmt->close();
+
+        // Step 3: Delete the product
+        $deleteProductQuery = "DELETE FROM products WHERE product_id = ?";
+        $deleteProductStmt = $conn->prepare($deleteProductQuery);
+        $deleteProductStmt->bind_param("i", $product_id);
+        $deleteProductStmt->execute();
+        $deleteProductStmt->close();
+
+        // Commit the transaction
+        $conn->commit();
+
+        redirectWithMessage("../products.php", "Product and associated data deleted successfully", "success");
+    } catch (Exception $e) {
+        // Rollback the transaction on error
+        $conn->rollback();
+        redirectWithMessage("../products.php", "Failed to delete product: " . $e->getMessage(), "error");
+    }
     exit();
 }
 
 // DELETE IMAGE
 if (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id'])) {
-    $image_id = $_POST['image_id'];
-    $product_id = $_POST['product_id'];
+    $image_id = intval($_POST['image_id']); // Ensure image_id is an integer
+    $product_id = intval($_POST['product_id']); // Ensure product_id is an integer
+
+    // Validate image_id and product_id
+    if ($image_id <= 0 || $product_id <= 0) {
+        redirectWithMessage("../products.php", "Invalid image or product ID", "error");
+    }
 
     // Fetch image path
     $query = "SELECT image_path FROM product_images WHERE image_id = ? AND product_id = ?";
@@ -57,11 +89,13 @@ if (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id'])) {
 
     if ($result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        $image_path = '../uploads/products/' . $row['image_path']; // Ensure correct path
+        $image_path = '../uploads/products/' . $row['image_path'];
 
-        // Delete the image file
+        // Delete the image file from the server
         if (file_exists($image_path)) {
-            unlink($image_path);
+            if (!unlink($image_path)) {
+                redirectWithMessage("../products.php", "Failed to delete image file", "error");
+            }
         }
 
         // Delete from the database
@@ -71,17 +105,21 @@ if (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id'])) {
         $stmt->execute();
         $stmt->close();
 
-        header("Location: ../products.php?success=Image deleted successfully");
-        exit();
+        redirectWithMessage("../products.php", "Image deleted successfully", "success");
     } else {
-        header("Location: ../products.php?error=Image not found");
-        exit();
+        redirectWithMessage("../products.php", "Image not found", "error");
     }
+    exit();
 }
 
 // DELETE CATEGORY
 if (isset($_POST['delete_category'], $_POST['category_id'])) {
-    $category_id = intval($_POST['category_id']);
+    $category_id = intval($_POST['category_id']); // Ensure category_id is an integer
+
+    // Validate category_id
+    if ($category_id <= 0) {
+        redirectWithMessage("../category.php", "Invalid category ID", "error");
+    }
 
     // Check if category exists before deletion
     $query = "SELECT * FROM product_categories WHERE category_id = ?";
@@ -91,6 +129,7 @@ if (isset($_POST['delete_category'], $_POST['category_id'])) {
     $result = $stmt->get_result();
 
     if ($result->num_rows > 0) {
+        // Delete category
         $delete_category = "DELETE FROM product_categories WHERE category_id = ?";
         $stmt = $conn->prepare($delete_category);
         $stmt->bind_param("i", $category_id);
@@ -101,6 +140,9 @@ if (isset($_POST['delete_category'], $_POST['category_id'])) {
     } else {
         redirectWithMessage("../category.php", "Category not found", "error");
     }
+    exit();
 }
 
+// Default redirect if no valid action is found
+redirectWithMessage("../products.php", "Invalid request", "error");
 ?>

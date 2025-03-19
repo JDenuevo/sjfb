@@ -16,7 +16,7 @@ $query = "SELECT
     p.product_name,
     p.product_description,
     c.category_name,
-    MAX(v.stock_status) AS stock_status, -- Assuming at least one variant exists
+    IFNULL(MAX(v.stock_status), 'Out of Stock') AS stock_status,
     GROUP_CONCAT(DISTINCT v.variant_name ORDER BY v.created_at DESC SEPARATOR ', ') AS variants,
     GROUP_CONCAT(DISTINCT v.variant_price ORDER BY v.created_at DESC SEPARATOR ', ') AS prices,
     GROUP_CONCAT(DISTINCT v.discount_price ORDER BY v.created_at DESC SEPARATOR ', ') AS discount_prices,
@@ -25,7 +25,6 @@ $query = "SELECT
 FROM products p
 LEFT JOIN product_categories c ON p.product_category = c.category_id
 LEFT JOIN product_variants v ON p.product_id = v.product_id
-LEFT JOIN product_images i ON p.product_id = i.product_id -- Join product_images table
 GROUP BY p.product_id, p.product_name, p.product_description, c.category_name
 ORDER BY last_updated DESC;";
 
@@ -268,8 +267,8 @@ $result = $conn->query($query);
                   </div>
                   <!-- Delete Variant Button -->
                   <div class="flex items-end">
-                      <button type="button" class="removeVariant px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
-                          Delete
+                      <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
+                            🗑 Delete
                       </button>
                   </div>
               </div>
@@ -416,8 +415,8 @@ $result = $conn->query($query);
 
                       <!-- Delete Variant Button -->
                       <div class="flex items-end">
-                          <button type="button" class="removeVariant px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
-                              Delete
+                          <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
+                            🗑 Delete
                           </button>
                       </div>
                   </div>
