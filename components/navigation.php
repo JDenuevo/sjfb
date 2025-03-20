@@ -1,7 +1,4 @@
 <?php
-// functions/cart.php
-
-session_start();
 $cart = $_SESSION['cart'] ?? [];
 ?>
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">

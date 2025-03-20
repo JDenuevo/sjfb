@@ -56,18 +56,19 @@
             <input type="hidden" name="image_url" value="<?= htmlspecialchars($image_url) ?>">
             <input type="hidden" name="quantity" value="1">
 
-
             <!-- Quantity Selector -->
-            <div class="flex items-center border border-gray-300 rounded">
-                <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600">-</button>
-                <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
-                <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
+            <div class="flex items-center justify-start">
+                <div class="flex items-center border border-gray-300 rounded">
+                    <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600">-</button>
+                    <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
+                    <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
+                </div>
             </div>
 
             <!-- Variant Buttons -->
             <div class="mt-2">
                 <label class="block text-sm font-medium text-gray-700">Select Size:</label>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-4">
                     <?php foreach ($variants as $variant) { ?>
                         <button type="button" 
                                 class="variant-button px-4 py-2 border rounded-lg text-sm font-medium 
@@ -113,7 +114,7 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
     // Handle variant selection
     document.querySelectorAll('.variant-button').forEach(button => {
         button.addEventListener('click', function() {
@@ -147,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle quantity changes
+    // Handle quantity changes in the product form
     document.querySelectorAll('.decrease-quantity').forEach(button => {
         button.addEventListener('click', function() {
             const form = button.closest('.add-to-cart-form');
@@ -170,41 +171,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Handle form submission (Add to Cart)
     document.querySelectorAll('.add-to-cart-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-        const formData = new FormData(form);
+            const formData = new FormData(form);
 
-        // Log form data for debugging
-        for (let [key, value] of formData.entries()) {
-            console.log(key, value);
-        }
-
-        fetch('./functions/add_to_cart.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert('Product added to cart');
-                fetchCart(); // Refresh the cart sidebar
-            } else {
-                alert('Failed to add product to cart: ' + data.message);
+            // Log form data for debugging
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+
+            fetch('./functions/add_to_cart.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Product added to cart');
+                    fetchCart(); // Refresh the cart sidebar
+                } else {
+                    alert('Failed to add product to cart: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
         });
     });
-});
-  function fetchCart() {
-      fetch('./components/cart.php')
-          .then(response => response.text())
-          .then(data => {
-              document.getElementById('cart-items-list').innerHTML = data;
-          });
+
+    // Function to fetch and update the cart
+    function fetchCart() {
+        fetch('./components/cart.php')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('cart-items-list').innerHTML = data;
+            });
     }
 });
 </script>

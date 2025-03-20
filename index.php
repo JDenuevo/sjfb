@@ -73,9 +73,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
       <?php include('./components/products.php'); ?>
-
     </div>
 
+    <br><br><br>
   </section>
   
   <?php include('./components/footer.php'); ?>
