@@ -29,7 +29,7 @@ $cart = $_SESSION['cart'] ?? [];
                                         <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600" 
                                                 data-product-id="<?= $item['product_id'] ?>" 
                                                 data-variant-id="<?= $item['variant_id'] ?>">-</button>
-                                        <input type="text" class="new-quantity w-12 px-1 py-0.5 text-center text-sm border-0" 
+                                        <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" 
                                                value="<?= $item['quantity'] ?>" readonly 
                                                data-product-id="<?= $item['product_id'] ?>" 
                                                data-variant-id="<?= $item['variant_id'] ?>">
@@ -37,7 +37,9 @@ $cart = $_SESSION['cart'] ?? [];
                                                 data-product-id="<?= $item['product_id'] ?>" 
                                                 data-variant-id="<?= $item['variant_id'] ?>">+</button>
                                     </div>
-                                    <span class="price ml-4 font-medium text-sm">₱<?= number_format($item['price'] * $item['quantity'], 2) ?></span>
+                                    <span class="price ml-4 font-medium text-sm" data-price-per-unit="<?= $item['price'] ?>">
+                                        ₱<?= number_format($item['price'] * $item['quantity'], 2) ?>
+                                    </span>
                                 </div>
                             </div>
                             <button type="button" class="remove text-red-500 hover:text-red-700 ml-4" 
@@ -128,80 +130,135 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
 
-        // Handle update quantity in cart
-        if (e.target.classList.contains('increase-quantity') || e.target.classList.contains('decrease-quantity')) {
+        // Handle increase quantity in cart
+        if (e.target.classList.contains('increase-quantity')) {
+            console.log('Increase quantity button clicked'); // Debugging
             const button = e.target;
             const cartItem = button.closest('.cart-item');
-            const productId = button.dataset.productId;
-            const variantId = button.dataset.variantId;
-            const quantityInput = cartItem.querySelector('.new-quantity');
-            let quantity = parseInt(quantityInput.value);
+            console.log('Cart item:', cartItem); // Debugging
 
-            if (button.classList.contains('increase-quantity')) {
-                quantity += 1;
-            } else if (button.classList.contains('decrease-quantity') && quantity > 1) {
-                quantity -= 1;
+            if (cartItem) {
+                const quantityInput = cartItem.querySelector('.quantity');
+                console.log('Quantity input:', quantityInput); // Debugging
+
+                if (quantityInput) {
+                    let quantity = parseInt(quantityInput.value);
+                    quantity += 1;
+                    quantityInput.value = quantity;
+
+                    // Update the price
+                    const priceElement = cartItem.querySelector('.price');
+                    const pricePerUnit = parseFloat(priceElement.dataset.pricePerUnit || 0);
+                    if (priceElement && !isNaN(pricePerUnit)) {
+                        priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
+                    }
+
+                    // Send update to the server
+                    const productId = button.dataset.productId;
+                    const variantId = button.dataset.variantId;
+
+                    fetch('./functions/update_cart.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            variant_id: variantId,
+                            quantity: quantity
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            fetchCart(); // Refresh the cart sidebar
+                        } else {
+                            alert('Failed to update cart: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
             }
+        }
 
-            fetch('./functions/update_cart.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    product_id: productId,
-                    variant_id: variantId,
-                    quantity: quantity
-                })
-            })
+        // Handle decrease quantity in cart
+        if (e.target.classList.contains('decrease-quantity')) {
+            console.log('Decrease quantity button clicked'); // Debugging
+            const button = e.target;
+            const cartItem = button.closest('.cart-item');
+            console.log('Cart item:', cartItem); // Debugging
+
+            if (cartItem) {
+                const quantityInput = cartItem.querySelector('.quantity');
+                console.log('Quantity input:', quantityInput); // Debugging
+
+                if (quantityInput && quantityInput.value > 1) {
+                    let quantity = parseInt(quantityInput.value);
+                    quantity -= 1;
+                    quantityInput.value = quantity;
+
+                    // Update the price
+                    const priceElement = cartItem.querySelector('.price');
+                    const pricePerUnit = parseFloat(priceElement.dataset.pricePerUnit || 0);
+                    if (priceElement && !isNaN(pricePerUnit)) {
+                        priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
+                    }
+
+                    // Send update to the server
+                    const productId = button.dataset.productId;
+                    const variantId = button.dataset.variantId;
+
+                    fetch('./functions/update_cart.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            variant_id: variantId,
+                            quantity: quantity
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            fetchCart(); // Refresh the cart sidebar
+                        } else {
+                            alert('Failed to update cart: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            }
+        }
+    });
+
+    // Function to fetch and update the cart
+    function fetchCart() {
+        console.log('Fetching cart...'); // Debugging
+        fetch('./functions/fetch_cart_items.php')
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    fetchCart(); // Refresh the cart sidebar
-                } else {
-                    alert('Failed to update cart: ' + data.message);
-                }
+                console.log('Fetched cart data:', data); // Debugging
+
+                // Update the cart items list
+                document.getElementById('cart-items-list').innerHTML = data.cart_items;
+
+                // Update the cart subtotal
+                const cartTotalElement = document.getElementById('cart-total-sidebar');
+                cartTotalElement.textContent = `₱${data.cart_total.toFixed(2)}`;
+
+                // Update the cart count
+                const cartCountElement = document.getElementById('cart-count-sidebar');
+                cartCountElement.textContent = data.cart_count;
             })
             .catch(error => {
                 console.error('Error:', error);
             });
-        }
-    });
-
-    // Function to update the price of a cart item
-    function updateCartItemPrice(cartItem, newPrice) {
-        const priceElement = cartItem.querySelector('.price');
-        priceElement.textContent = `₱${newPrice.toFixed(2)}`;
     }
-
-    // Function to update the cart subtotal
-    function updateCartTotal(cartTotal) {
-        const cartTotalElement = document.getElementById('cart-total-sidebar');
-        cartTotalElement.textContent = `₱${cartTotal.toFixed(2)}`;
-    }
-
-    // Function to fetch and update the cart
-    function fetchCart() {
-      console.log('Fetching cart...'); // Debugging
-      fetch('./functions/fetch_cart_items.php')
-          .then(response => response.json())
-          .then(data => {
-              console.log('Fetched cart data:', data); // Debugging
-
-              // Update the cart items list
-              document.getElementById('cart-items-list').innerHTML = data.cart_items;
-
-              // Update the cart subtotal
-              const cartTotalElement = document.getElementById('cart-total-sidebar');
-              cartTotalElement.textContent = `₱${data.cart_total.toFixed(2)}`;
-
-              // Update the cart count
-              const cartCountElement = document.getElementById('cart-count-sidebar');
-              cartCountElement.textContent = data.cart_count;
-          })
-          .catch(error => {
-              console.error('Error:', error);
-          });
-    }
-  });
+});
 </script>
