@@ -21,18 +21,18 @@
       <!-- Form -->
       <form action="./functions/checker.php" method="POST">
         <div class="grid gap-y-4">
-          <!-- username Field -->
+          <!-- Username Field -->
           <div>
-            <label for="username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
-            <input type="username" name="username" id="username" placeholder="Username" autocomplete="username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <label for="Username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
+            <input type="username" name="username" id="Username" placeholder="Username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Password Field -->
           <div>
             <div class="flex justify-between items-center">
-              <label for="password" class="block text-sm mb-2">Password</label>
+              <label for="Password" class="block text-sm mb-2">Password</label>
             </div>
-            <input type="password" id="password" name="password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <input type="password" name="password" id="Password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Sign In Button -->

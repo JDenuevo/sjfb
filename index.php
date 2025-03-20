@@ -2,6 +2,16 @@
 session_start();
 include 'conn.php';
 
+// Fetch all products with their primary image and variants
+$query = "SELECT p.product_id, p.product_name, p.product_description, 
+            pi.image_path, 
+            v.variant_id, v.variant_name, v.variant_price, v.discount_price
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
+    LEFT JOIN product_variants v ON p.product_id = v.product_id
+    ORDER BY p.created_at DESC";
+
+$result = $conn->query($query);
 ?>
 
 <!DOCTYPE html>
@@ -62,6 +72,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
+      <?php include('./components/products.php'); ?>
+
     </div>
 
   </section>
@@ -90,7 +102,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                   phraseElement.text(phrases[index]); // Update phrase
                   phraseElement.removeClass('fade-out').addClass('fade-in'); // Fade in
               }, 1000); // 1-second duration
-          }, 8000); // Change every 8 seconds
+          }, 4000); // Change every 8 seconds
       }
 
       // Call Phrase Transition on Load

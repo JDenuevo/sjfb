@@ -87,7 +87,7 @@
 
 <?php include('./components/sign_up.php'); ?>
 
-<?php include('./components/user_cart.php'); ?>
+<?php include('./components/cart.php'); ?>
 
 <style>
   /* Glass Effect */
