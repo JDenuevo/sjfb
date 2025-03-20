@@ -7,35 +7,9 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-function addToCart($product_id, $variant_id, $product_name, $variant_name, $price, $image_url, $quantity) {
-    if (!isset($_SESSION['cart'])) {
-        $_SESSION['cart'] = [];
-    }
-
-    // Check if the product with the same variant already exists in the cart
-    $found = false;
-    foreach ($_SESSION['cart'] as &$item) {
-        if ($item['product_id'] == $product_id && $item['variant_id'] == $variant_id) {
-            $item['quantity'] += $quantity; // Update quantity if already exists
-            $found = true;
-            break;
-        }
-    }
-
-    // If not found, add a new item to the cart
-    if (!$found) {
-        $cart_item = [
-            'product_id' => $product_id,
-            'variant_id' => $variant_id,
-            'product_name' => $product_name,
-            'variant_name' => $variant_name,
-            'price' => $price,
-            'image_url' => $image_url,
-            'quantity' => $quantity
-        ];
-        $_SESSION['cart'][] = $cart_item;
-    }
-}
+// Log request method and data for debugging
+error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+error_log("Request data: " . print_r($_POST, true));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     // Validate and sanitize input
@@ -51,7 +25,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     error_log("Received data: " . print_r($_POST, true));
 
     if ($product_id && $variant_id && $product_name && $variant_name && $price && $image_url && $quantity) {
-        addToCart($product_id, $variant_id, $product_name, $variant_name, $price, $image_url, $quantity);
+        // Add to cart logic here
+        if (!isset($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
+
+        $found = false;
+        foreach ($_SESSION['cart'] as &$item) {
+            if ($item['product_id'] == $product_id && $item['variant_id'] == $variant_id) {
+                $item['quantity'] += $quantity;
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            $cart_item = [
+                'product_id' => $product_id,
+                'variant_id' => $variant_id,
+                'product_name' => $product_name,
+                'variant_name' => $variant_name,
+                'price' => $price,
+                'image_url' => $image_url,
+                'quantity' => $quantity
+            ];
+            $_SESSION['cart'][] = $cart_item;
+        }
 
         // Log session state for debugging
         error_log("Session cart: " . print_r($_SESSION['cart'], true));

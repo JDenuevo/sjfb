@@ -47,13 +47,15 @@
 
         <!-- Add to Cart Form -->
         <form class="add-to-cart-form" data-product-id="<?= $product_id ?>">
+            <input type="hidden" name="add_to_cart" value="1"> <!-- Add this line -->
             <input type="hidden" name="product_id" value="<?= $product_id ?>">
             <input type="hidden" name="variant_id" value="">
             <input type="hidden" name="product_name" value="<?= htmlspecialchars($product_name) ?>">
             <input type="hidden" name="variant_name" value="">
             <input type="hidden" name="price" value="">
             <input type="hidden" name="image_url" value="<?= htmlspecialchars($image_url) ?>">
-            <input type="hidden" name="quantity" value="1"> <!-- Hidden quantity input -->
+            <input type="hidden" name="quantity" value="1">
+
 
             <!-- Quantity Selector -->
             <div class="flex items-center border border-gray-300 rounded">
@@ -169,36 +171,36 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.querySelectorAll('.add-to-cart-form').forEach(form => {
-      form.addEventListener('submit', function(e) {
-          e.preventDefault();
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
 
-          const formData = new FormData(form);
+        const formData = new FormData(form);
 
-          // Log form data for debugging
-          for (let [key, value] of formData.entries()) {
-              console.log(key, value);
-          }
+        // Log form data for debugging
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
 
-          fetch('./functions/add_to_cart.php', {
-              method: 'POST',
-              body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-              if (data.status === 'success') {
-                  alert('Product added to cart');
-                  fetchCart(); // Refresh the cart sidebar
-              } else {
-                  alert('Failed to add product to cart: ' + data.message);
-              }
-          })
-          .catch(error => {
-              console.error('Error:', error);
-          });
-      });
-  });
+        fetch('./functions/add_to_cart.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Product added to cart');
+                fetchCart(); // Refresh the cart sidebar
+            } else {
+                alert('Failed to add product to cart: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    });
+});
   function fetchCart() {
-      fetch('./functions/cart.php')
+      fetch('./components/cart.php')
           .then(response => response.text())
           .then(data => {
               document.getElementById('cart-items-list').innerHTML = data;

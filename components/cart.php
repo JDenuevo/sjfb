@@ -5,8 +5,8 @@ session_start();
 $cart = $_SESSION['cart'] ?? [];
 ?>
 
-<div id="hs-cart-sidebar" class="fixed inset-0 z-50 w-full bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
-    <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-96">
+<div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
+    <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto" style="width: 450px;">
         <div class="flex flex-col h-full">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
                 <h2 class="font-bold text-xl">Your Cart <span id="cart-count-sidebar"><?php echo count($cart); ?></span></h2>
@@ -53,7 +53,7 @@ $cart = $_SESSION['cart'] ?? [];
                   <div class="flex justify-between items-center">
                       <span class="font-bold">Subtotal:</span>
                       <span id="cart-total-sidebar" class="font-medium">
-                          ₱<?php echo number_format(array_sum(array_map(fn($item) => $item['product_price'] * $item['quantity'], $cart)), 2); ?>
+                          ₱<?php echo number_format(array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart)), 2); ?>
                       </span>
                   </div>
                   <p class="text-sm text-gray-500">Taxes and shipping calculated at checkout</p>

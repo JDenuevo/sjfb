@@ -1,3 +1,9 @@
+<?php
+// functions/cart.php
+
+session_start();
+$cart = $_SESSION['cart'] ?? [];
+?>
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">
   <nav class="relative max-w-5xl w-full flex flex-wrap basis-full items-center px-4 md:px-6 mx-auto">
     <!-- Button Group -->
@@ -75,7 +81,7 @@
               <path d="M17 17h-11v-14h-2" />
               <path d="M6 5l14 1l-1 7h-13" />
             </svg>
-            (<span id="cart-count">0</span>)
+            <span id="cart-count-sidebar"><?php echo count($cart); ?></span>
           </button>
         </div>
       </div>
