@@ -72,7 +72,7 @@
                     <?php foreach ($variants as $variant) { ?>
                         <button type="button" 
                                 class="variant-button px-4 py-2 border rounded-lg text-sm font-medium 
-                                      hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200"
+                                      hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 text-dark"
                                 data-product-id="<?= $product_id ?>"
                                 data-variant-id="<?= $variant['variant_id'] ?>"
                                 data-variant-name="<?= htmlspecialchars($variant['variant_name']) ?>"
@@ -98,9 +98,13 @@
 
             <!-- Add to Cart Button -->
             <button type="submit" name="add_to_cart" 
-                    class="mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none" disabled>
-                Add to Cart
+                    class="cursor-pointer mt-4 w-full size-10 rounded-full justify-center items-center inline-flex bg-orange-600 hover:bg-orange-400 text-white hover:scale-110 transition-all duration-500 focus:outline-none" disabled>
+                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
+                    Add to Cart
             </button>
+
+            <!-- Message to select a variant -->
+            <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
         </form>
     </div>
     <?php
@@ -114,7 +118,7 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Handle variant selection
     document.querySelectorAll('.variant-button').forEach(button => {
         button.addEventListener('click', function() {
@@ -124,8 +128,16 @@
             const variantPrice = button.dataset.variantPrice;
             const discountPrice = button.dataset.discountPrice;
 
-            // Update the form hidden fields
+            // Remove the selected class from all variant buttons for this product
             const form = document.querySelector(`.add-to-cart-form[data-product-id="${productId}"]`);
+            form.querySelectorAll('.variant-button').forEach(btn => {
+                btn.classList.remove('selected-variant');
+            });
+
+            // Add the selected class to the clicked variant button
+            button.classList.add('selected-variant');
+
+            // Update the form hidden fields
             form.querySelector('input[name="variant_id"]').value = variantId;
             form.querySelector('input[name="variant_name"]').value = variantName;
             form.querySelector('input[name="price"]').value = discountPrice > 0 ? discountPrice : variantPrice;
@@ -145,6 +157,9 @@
 
             // Enable the "Add to Cart" button
             form.querySelector('button[name="add_to_cart"]').disabled = false;
+
+            // Hide the variant message
+            form.querySelector('.variant-message').classList.add('hidden');
         });
     });
 
@@ -176,6 +191,14 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
+            const variantId = form.querySelector('input[name="variant_id"]').value;
+
+            if (!variantId) {
+                // Show the variant message if no variant is selected
+                form.querySelector('.variant-message').classList.remove('hidden');
+                return;
+            }
+
             const formData = new FormData(form);
 
             // Log form data for debugging
@@ -204,14 +227,13 @@
 
         });
     });
-
-    // Function to fetch and update the cart
-    function fetchCart() {
-        fetch('./components/cart.php')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('cart-items-list').innerHTML = data;
-            });
-    }
 });
 </script>
+
+<style>
+    .selected-variant {
+    background-color: #f59e0b; /* Light gray background */
+    border-color: #000000; /* Orange border */
+    color: #FFFFFF; /* Dark text */
+}
+</style>

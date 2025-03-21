@@ -101,7 +101,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener('click', function(e) {
         // Handle remove item from cart
         if (e.target.closest('.remove')) {
-            console.log('Remove button clicked'); // Debugging
             const removeButton = e.target.closest('.remove');
             const productId = removeButton.dataset.productId;
             const variantId = removeButton.dataset.variantId;
@@ -118,7 +117,6 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Server response:', data); // Debugging
                 if (data.status === 'success') {
                     fetchCart(); // Refresh the cart sidebar
                 } else {
@@ -128,18 +126,18 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(error => {
                 console.error('Error:', error);
             });
+            
+            location.reload();
+
         }
 
         // Handle increase quantity in cart
         if (e.target.classList.contains('increase-quantity')) {
-            console.log('Increase quantity button clicked'); // Debugging
             const button = e.target;
             const cartItem = button.closest('.cart-item');
-            console.log('Cart item:', cartItem); // Debugging
 
             if (cartItem) {
                 const quantityInput = cartItem.querySelector('.quantity');
-                console.log('Quantity input:', quantityInput); // Debugging
 
                 if (quantityInput) {
                     let quantity = parseInt(quantityInput.value);
@@ -185,14 +183,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Handle decrease quantity in cart
         if (e.target.classList.contains('decrease-quantity')) {
-            console.log('Decrease quantity button clicked'); // Debugging
             const button = e.target;
             const cartItem = button.closest('.cart-item');
-            console.log('Cart item:', cartItem); // Debugging
 
             if (cartItem) {
                 const quantityInput = cartItem.querySelector('.quantity');
-                console.log('Quantity input:', quantityInput); // Debugging
 
                 if (quantityInput && quantityInput.value > 1) {
                     let quantity = parseInt(quantityInput.value);
@@ -239,11 +234,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Function to fetch and update the cart
     function fetchCart() {
-        console.log('Fetching cart...'); // Debugging
         fetch('./functions/fetch_cart_items.php')
             .then(response => response.json())
             .then(data => {
-                console.log('Fetched cart data:', data); // Debugging
 
                 // Update the cart items list
                 document.getElementById('cart-items-list').innerHTML = data.cart_items;
@@ -259,6 +252,9 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(error => {
                 console.error('Error:', error);
             });
+            
+            location.reload();
+
     }
 });
 </script>
