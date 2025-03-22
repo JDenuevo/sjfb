@@ -24,7 +24,7 @@
                 <th scope="col" class="ps-6 py-3 text-start">
                   <div class="flex items-center gap-x-2">
                     <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                      ID
+                      Order ID
                     </span>
                   </div>
                 </th>
@@ -65,177 +65,71 @@
               </tr>
             </thead>
 
-            <tbody class="divide-y divide-gray-200 ">
-              <tr>
-                
-                <td class="size-px whitespace-nowrap">
-                  <div class="ps-6 ">
-                    <div class="flex items-center gap-x-3">
-                      <div class="grow">
-                        <span class="block text-sm font-semibold text-gray-800 ">1</span>
+            <tbody class="divide-y divide-gray-200">
+              <?php if (mysqli_num_rows($result) > 0): ?>
+                <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                  <tr>
+                    <!-- Order ID -->
+                    <td class="size-px whitespace-nowrap">
+                      <div class="ps-6">
+                        <div class="flex items-center gap-x-3">
+                          <div class="grow">
+                            <span class="block text-sm font-semibold text-gray-800"><?php echo $row['order_id']; ?></span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </td>
-                
-                <td class="size-px whitespace-nowrap">
-                  <div class="ps-6 lg:ps-3 xl:ps-0 pe-6 ">
-                    <div class="px-6 ">
-                      <span class="block text-sm font-semibold text-gray-800 ">Name of User or Guest</span>
-                    </div>
-                  </div>
-                </td>
-                <td class="h-px w-72 whitespace-nowrap">
-                  <div class="px-6 ">
-                    <div class="flex items-center gap-x-3">
-                      <div class="grow">
-                        <span class="block text-sm font-semibold text-gray-800 ">User or Guest</span>
+                    </td>
+
+                    <!-- Ordered By -->
+                    <td class="size-px whitespace-nowrap">
+                      <div class="ps-6 lg:ps-3 xl:ps-0 pe-6">
+                        <span class="block text-sm font-semibold text-gray-800">
+                          <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                </td>
-                <td class="h-px w-72 whitespace-nowrap">
-                  <div class="px-6 ">
-                    <div class="flex items-center gap-x-3">
-                      <div class="grow">
-                        <span class="block text-sm font-semibold text-gray-800 ">28 Dec, 12:12</span>
+                    </td>
+
+                    <!-- User Type -->
+                    <td class="h-px w-72 whitespace-nowrap">
+                      <div class="px-6">
+                        <span class="block text-sm font-semibold text-gray-800">
+                          <?php echo ucfirst($row['user_type']); ?>
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                </td>
-                <td class="size-px whitespace-nowrap">
-                  <div class="px-6 ">
-                    <span class="py-1 px-1.5 inline-flex items-center gap-x-1 text-xs font-medium bg-teal-100 text-teal-800 rounded-full">
-                      <svg class="size-2.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
-                      </svg>
-                      On process
-                    </span>
-                  </div>
-                </td>
-               
-                
-                <td class="size-px whitespace-nowrap">
-                  <div class="px-6 py-1.5">
-                    <a class="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-none focus:underline font-medium" href="#">
-                      View
-                    </a>
-                  </div>
-                </td>
-              </tr>
+                    </td>
 
-              <!-- Order List Modal -->
-              <div id="OrderListModal<?php echo $row['order_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-95 hover:scale-100">
-                  <h3 class="text-xl font-semibold mb-4 text-gray-800">Order</h3>
-                  
-                  <form action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-                    
-                    <!-- Hidden Product ID -->
-                    <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
-
-                    <!-- Product Name -->
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Product Name</label>
-                      <input type="text" name="product_name" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['product_name']); ?>" required>
-                    </div>
-
-                    <!-- Product Description -->
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Product Description</label>
-                      <textarea name="product_description" placeholder="Description" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"><?php echo htmlspecialchars($row['product_description']); ?></textarea>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                      <!-- Category -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Category</label>
-                        <select name="product_category" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="" disabled>Select a category</option>
-                            
-                            <?php
-                            // Fetch categories
-                            $cat_query = "SELECT * FROM product_categories";
-                            $cat_result = $conn->query($cat_query);
-
-                            while ($cat_row = $cat_result->fetch_assoc()) {
-                                $selected = ($cat_row['category_id'] == $row['product_category_id']) ? 'selected' : '';
-                                echo '<option value="' . htmlspecialchars($cat_row['category_id']) . '" ' . $selected . '>' . htmlspecialchars($cat_row['category_name']) . '</option>';
-                            }
-                            ?>
-
-                        </select>
+                    <!-- Date Ordered -->
+                    <td class="h-px w-72 whitespace-nowrap">
+                      <div class="px-6">
+                        <span class="block text-sm font-semibold text-gray-800">
+                          <?php echo date('F j, Y @ h:i A', strtotime($row['order_date'])); ?>
+                        </span>
                       </div>
+                    </td>
 
-                      <!-- Stock (If Editable) -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Stock</label>
-                        <input type="number" name="product_stock" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['product_stock']); ?>" required>
+                    <!-- Order Status -->
+                    <td class="size-px whitespace-nowrap">
+                      <div class="px-6">
+                        <span class="py-1 px-1.5 inline-flex items-center gap-x-1 text-xs font-medium 
+                          <?php echo ($row['order_status'] === 'Pending') ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-800'; ?> rounded-full">
+                          <?php echo htmlspecialchars($row['order_status']); ?>
+                        </span>
                       </div>
-                    </div>
+                    </td>
 
-                    <div class="grid grid-cols-2 gap-4">
-                      <!-- Price -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Price</label>
-                        <input type="text" name="product_price" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['product_price']); ?>" required>
+                    <!-- View Button -->
+                    <td class="size-px whitespace-nowrap">
+                      <div class="px-6 py-1.5">
+                        <a href="javascript:void(0)" onclick="openOrderModal(<?php echo $row['order_id']; ?>)" class="text-sm text-orange-600 hover:underline font-medium">View Orders</a>
                       </div>
-
-                      <!-- Discounted Price -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Discounted Price</label>
-                        <input type="text" name="discount_price" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['discount_price']); ?>" required>
-                      </div>
-                    </div>
-
-                    <!-- Product Images -->
-                    <div class="mt-4">
-                      <label class="block text-sm font-medium text-gray-700">Current Product Images</label>
-                      <div class="grid grid-cols-5 gap-2 mt-2">
-                          <?php
-                          $product_id = $row['product_id'];
-                          $img_query = "SELECT * FROM product_images WHERE product_id = ?";
-                          $img_stmt = $conn->prepare($img_query);
-                          $img_stmt->bind_param("i", $product_id);
-                          $img_stmt->execute();
-                          $img_result = $img_stmt->get_result();
-
-                          while ($img_row = $img_result->fetch_assoc()) {
-                              $image_path = $img_row['image_path'];
-                              echo '<div class="relative group">';
-                              echo '<img src="http://localhost/sjfbi-js/admin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-20 h-20 object-cover rounded-lg shadow">';
-                              echo '<label class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">';
-                              echo '<input type="checkbox" name="delete_images[]" value="' . $img_row['image_id'] . '" class="hidden">';
-                              echo '<span class="text-red-500 cursor-pointer">🗑</span>';
-                              echo '</label>';
-                              echo '</div>';
-                          }
-                          $img_stmt->close();
-                          ?>
-                      </div>
-                    </div>
-
-                    <!-- Upload New Images -->
-                    <div class="mt-4">
-                      <label class="block text-sm font-medium text-gray-700">Update New Images</label>
-                      <input type="file" id="newImageInput" name="product_images[]" multiple class="hidden" accept="image/*" onchange="previewImages(event)">
-                      <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('newImageInput').click()">📸 Select Images</button>
-                      <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
-                    </div>
-
-                    <!-- Preview Container -->
-                    <div id="newImagePreview" class="grid grid-cols-5 gap-2 mt-3"></div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex justify-end space-x-3 mt-4">
-                      <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('editProductModal<?php echo $row['product_id']; ?>')">Cancel</button>
-                      <button type="submit" name="update_product" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Update Product</button>
-                    </div>
-
-                  </form>
-                </div>
-              </div>
-
+                    </td>
+                  </tr>
+                  <?php endwhile; ?>
+                <?php else: ?>
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-gray-500">No orders found.</td>
+                </tr>
+              <?php endif; ?>
             </tbody>
           </table>
           <!-- End Table -->
@@ -271,3 +165,37 @@
       </div>
     </div>
   </div>
+
+
+<!-- View Orders Modal -->
+<div id="ViewOrdersModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto"> 
+  <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-3xl xl:max-w-3xl max-h-[50vh] flex flex-col modal-content">
+    <div class="overflow-y-auto max-h-[40vh]" id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+  function openOrderModal(orderId) {
+    fetch(`./functions/fetch_orders.php?order_id=${orderId}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const modal = document.getElementById('ViewOrdersModal');
+          document.getElementById('modalContent').innerHTML = `<p><strong>Order ID:</strong> ${data.order.order_id}</p>
+            <p><strong>Product Name:</strong> ${data.order.product_name}</p>
+            <p><strong>Product Price:</strong> ${data.order.product_price}</p>
+            <p><strong>Discount Price:</strong> ${data.order.discount_price || 'N/A'}</p>`;
+          modal.classList.remove('hidden');
+        } else {
+          alert('Failed to fetch order details.');
+        }
+      })
+      .catch(error => console.error('Error:', error));
+  }
+
+  document.getElementById('ViewOrdersModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.add('hidden');
+    }
+  });
+</script>

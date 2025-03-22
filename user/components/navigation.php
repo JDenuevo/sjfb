@@ -43,8 +43,8 @@
 
         <div class="flex flex-row">
           <a href="orders.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Orders</a>
-          <a href="order_status.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Order Status</a>
-          <a href="account.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Account</a>
+          <!-- <a href="order_status.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Order Status</a> -->
+          <!-- <a href="account.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Account</a> -->
         </div>
 
         <div class="flex-grow"></div>
@@ -66,7 +66,7 @@
               <path d="M17 17h-11v-14h-2" />
               <path d="M6 5l14 1l-1 7h-13" />
             </svg>
-            (<span id="cart-count">0</span>)
+            <span id="cart-count-sidebar"><?php echo count($cart); ?></span>
           </button>
 
           <a href="./logout.php" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
@@ -78,7 +78,7 @@
   </nav>
 </header>
 
-<?php include('./components/user_cart.php'); ?>
+<?php include('../../components/cart.php'); ?>
 
 <style>
   /* Glass Effect */

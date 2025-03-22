@@ -28,11 +28,11 @@ if (isset($_POST['update_new_account'])) {
   
     if ($stmt->execute()) {
       $_SESSION['success'] = "Details updated successfully!";
-      header("Location: details.php"); // Redirect to the same page to display the message
+      header("Location: ../index.php"); // Redirect to the same page to display the message
       exit();
     } else {
         $_SESSION['error'] = "Failed to update details. Try again!";
-        header("Location: details.php"); // Redirect back with error message
+        header("Location: ../index.php"); // Redirect back with error message
         exit();
     }
   

@@ -18,21 +18,29 @@
         <p class="text-gray-500">Log in to your account.</p>
       </div>
 
+       <?php if (!empty($_SESSION['error_message'])): ?>
+            <div style="color: white; background-color: #CC3333;" class="mt-2 text-sm rounded-lg p-4 text-center" role="alert">
+                <span class="font-bold">Error!</span> <?= $_SESSION['error_message']; ?>
+            </div>
+            <?php unset($_SESSION['error_message']); // Remove after displaying ?>
+        <?php endif; ?>
+
+
       <!-- Form -->
       <form action="./functions/checker.php" method="POST">
         <div class="grid gap-y-4">
-          <!-- Username Field -->
+          <!-- username Field -->
           <div>
-            <label for="Username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
-            <input type="username" name="username" id="Username" placeholder="Username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <label for="username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
+            <input type="username" name="username" id="username" placeholder="Username" autocomplete="username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Password Field -->
           <div>
             <div class="flex justify-between items-center">
-              <label for="Password" class="block text-sm mb-2">Password</label>
+              <label for="password" class="block text-sm mb-2">Password</label>
             </div>
-            <input type="password" name="password" id="Password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <input type="password" id="password" name="password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Sign In Button -->

@@ -3,15 +3,41 @@ session_start();
 include '../conn.php';
 
 // Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
 
-
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
+$query = "SELECT o.order_id, 
+            o.user_type, 
+            o.email, 
+            o.phone_number, 
+            o.first_name, 
+            o.last_name, 
+            o.address, 
+            o.postal_code, 
+            o.city, 
+            o.total_price, 
+            o.order_date, 
+            o.order_status,
+            oi.product_id, 
+            p.product_name, 
+            oi.quantity, 
+            oi.price, 
+            oi.discount
+          FROM orders o
+          LEFT JOIN order_items oi ON o.order_id = oi.order_id
+          LEFT JOIN products p ON oi.product_id = p.product_id
+          ORDER BY o.order_date DESC;";
+
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+  die("Query failed: " . mysqli_error($conn));
+}
 ?>
 
 <!DOCTYPE html>
@@ -107,13 +133,15 @@ $account_id = $_SESSION['account_id'];
 
   <!-- JS Implementing Plugins -->
 
+  
   <!-- JS PLUGINS -->
   <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-  <script src="node_modules/preline/dist/preline.js"></script>
+  <script src="../node_modules/preline/dist/preline.js"></script>
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
 </body>
 </html>

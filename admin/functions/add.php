@@ -63,23 +63,27 @@ if (isset($_POST['add_product'])) {
             }
         }
 
-        // Image Uploads
+        // Image Uploads with Primary Flag
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../uploads/products/";
+            $firstImage = true;
+
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
                 $file_name = basename($_FILES['product_images']['name'][$key]);
                 $file_size = $_FILES['product_images']['size'][$key];
                 $file_type = mime_content_type($tmp_name);
 
-                // Validate image (type and size)
                 if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) {
                     $unique_file_name = uniqid() . '_' . $file_name;
                     $target_file = $target_dir . $unique_file_name;
 
                     if (move_uploaded_file($tmp_name, $target_file)) {
-                        $insert_image_query = "INSERT INTO product_images (product_id, image_path) VALUES (?, ?)";
+                        $is_primary = $firstImage ? 1 : 0;
+                        $firstImage = false;
+
+                        $insert_image_query = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)";
                         $stmt = $conn->prepare($insert_image_query);
-                        $stmt->bind_param("is", $product_id, $unique_file_name);
+                        $stmt->bind_param("isi", $product_id, $unique_file_name, $is_primary);
                         $stmt->execute();
                         $stmt->close();
                     }

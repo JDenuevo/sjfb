@@ -111,6 +111,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       });
   </script>
 
+  
+ <script>
+  window.onload = function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('showModal')) {
+      openModal();
+      // Remove the showModal parameter from the URL after opening the modal
+      params.delete('showModal');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+</script>
+
   <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
   <script>
     AOS.init();

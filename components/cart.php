@@ -6,7 +6,7 @@ $cart = $_SESSION['cart'] ?? [];
     <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto" style="width: 450px;">
         <div class="flex flex-col h-full">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
-            <h2 class="font-bold text-xl">Your Cart <span id="cart-count-sidebar"><?php echo count($cart); ?></span></h2>                
+            <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="text-orange-500"><?php echo count($cart); ?></span></h2>                
                 <button type="button" class="btn btn-icon btn-sm btn-ghost" onclick="closeOffCanvas()">
                     <span class="sr-only">Close</span>
                     <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -65,12 +65,12 @@ $cart = $_SESSION['cart'] ?? [];
                     </span>
                 </div>
                 <p class="text-sm text-gray-500">Taxes and shipping calculated at checkout</p>
-                <button name="order" type="submit" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
+                <a href="checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
                     Checkout
-                </button>
+                </a>
+                
                 <div class="text-center my-5">
-                    <a href="cart.php" class="text-gray-500 hover:underline">View Cart</a><br>
-                    <a class="text-gray-500 hover:underline" onclick="closeOffCanvas()">Continue Shopping</a>
+                    <a class="text-blue-500 hover:underline cursor-pointer" onclick="closeOffCanvas()">Continue Shopping</a>
                 </div>
             </div>
         </div>
@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(error => {
                 console.error('Error:', error);
             });
-            
+
             location.reload();
 
         }
@@ -150,33 +150,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (priceElement && !isNaN(pricePerUnit)) {
                         priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
                     }
-
-                    // Send update to the server
-                    const productId = button.dataset.productId;
-                    const variantId = button.dataset.variantId;
-
-                    fetch('./functions/update_cart.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            variant_id: variantId,
-                            quantity: quantity
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            fetchCart(); // Refresh the cart sidebar
-                        } else {
-                            alert('Failed to update cart: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
                 }
             }
         }
@@ -200,36 +173,50 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (priceElement && !isNaN(pricePerUnit)) {
                         priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
                     }
-
-                    // Send update to the server
-                    const productId = button.dataset.productId;
-                    const variantId = button.dataset.variantId;
-
-                    fetch('./functions/update_cart.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            variant_id: variantId,
-                            quantity: quantity
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            fetchCart(); // Refresh the cart sidebar
-                        } else {
-                            alert('Failed to update cart: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
                 }
             }
         }
+    });
+
+    // Handle "Update Cart" button click
+    document.getElementById('update-cart-button').addEventListener('click', function() {
+        const cartItems = document.querySelectorAll('.cart-item');
+        const updates = [];
+
+        cartItems.forEach(cartItem => {
+            const productId = cartItem.querySelector('.quantity').dataset.productId;
+            const variantId = cartItem.querySelector('.quantity').dataset.variantId;
+            const quantity = parseInt(cartItem.querySelector('.quantity').value);
+
+            updates.push({
+                product_id: productId,
+                variant_id: variantId,
+                quantity: quantity
+            });
+        });
+
+        fetch('./functions/update_cart.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updates)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                fetchCart(); // Refresh the cart sidebar
+                alert('Cart updated successfully');
+            } else {
+                alert('Failed to update cart: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+
+        location.reload();
+
     });
 
     // Function to fetch and update the cart
@@ -237,7 +224,6 @@ document.addEventListener("DOMContentLoaded", function () {
         fetch('./functions/fetch_cart_items.php')
             .then(response => response.json())
             .then(data => {
-
                 // Update the cart items list
                 document.getElementById('cart-items-list').innerHTML = data.cart_items;
 
@@ -252,9 +238,6 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(error => {
                 console.error('Error:', error);
             });
-            
-            location.reload();
-
     }
 });
 </script>

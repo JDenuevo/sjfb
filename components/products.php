@@ -63,6 +63,7 @@
                     <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
                     <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
                 </div>
+                &nbsp; per Kg
             </div>
 
             <!-- Variant Buttons -->
@@ -232,8 +233,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
     .selected-variant {
-    background-color: #f59e0b; /* Light gray background */
-    border-color: #000000; /* Orange border */
-    color: #FFFFFF; /* Dark text */
+    background-color: #f59e0b;
+    border-color: #000000;
+    color: #FFFFFF;
 }
 </style>
