@@ -1,6 +1,7 @@
 <?php
   $cart = $_SESSION['cart'] ?? [];
 ?>
+
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">
   <nav class="relative max-w-5xl w-full flex flex-wrap basis-full items-center px-4 md:px-6 mx-auto">
     <!-- Button Group -->
@@ -23,7 +24,7 @@
                   <path d="M17 17h-11v-14h-2" />
                   <path d="M6 5l14 1l-1 7h-13" />
                 </svg>
-                <span id="cart-count-sidebar"><?php echo count($cart); ?></span>
+                <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span>
               </button>
           </div>
           <div class="md:hidden ml-4">
@@ -86,16 +87,18 @@
           </button>
 
         
-          <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" class="relative size-10 rounded-full inline-flex items-center justify-center hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-6">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
               <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
               <path d="M17 17h-11v-14h-2" />
               <path d="M6 5l14 1l-1 7h-13" />
             </svg>
-            <span id="cart-count-sidebar"><?php echo count($cart); ?></span>
+            <span id="cart-count-sidebar" class="cart-count absolute top-4 right-4 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"><?php echo count($cart); ?></span>
+            </span>
           </button>
+
         </div>
       </div>
     </div>

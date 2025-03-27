@@ -6,6 +6,8 @@
     </p>
   </div>
 
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 text-white" style="background-color: black;"></div>
+
   <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
     <?php
     if ($result->num_rows > 0) {
@@ -118,6 +120,8 @@
 </div>
 
 <script>
+    
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Handle variant selection
     document.querySelectorAll('.variant-button').forEach(button => {
@@ -162,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
             form.querySelector('.variant-message').classList.add('hidden');
         });
     });
-
+    
     // Handle quantity changes in the product form
     document.querySelectorAll('.decrease-quantity').forEach(button => {
         button.addEventListener('click', function() {
@@ -186,34 +190,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle form submission (Add to Cart)
+    // Enhanced add to cart handler
     document.querySelectorAll('.add-to-cart-form').forEach(form => {
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const variantId = form.querySelector('input[name="variant_id"]').value;
-
             if (!variantId) {
                 form.querySelector('.variant-message').classList.remove('hidden');
                 return;
             }
 
-            const formData = new FormData(form);
-
-            fetch('./functions/add_to_cart.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('./functions/add_to_cart.php', {
+                    method: 'POST',
+                    body: new FormData(form)
+                });
+                
+                const data = await response.json();
+                
                 if (data.status === 'success') {
-                    // Show success feedback (you can use a toast notification instead of alert)
                     showToast('Product added to cart');
+                    await updateCartUI();
                     
-                    // Update the cart count immediately
-                    updateCartCount();
-                    
-                    // Reset the form (optional)
+                    // Reset form
                     form.reset();
                     form.querySelector('button[name="add_to_cart"]').disabled = true;
                     form.querySelectorAll('.variant-button').forEach(btn => {
@@ -222,13 +222,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     showToast('Failed to add product: ' + data.message, 'error');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 showToast('An error occurred', 'error');
-            });
+            }
         });
     });
+
+    // Enhanced cart update function
+    async function updateCartUI() {
+        try {
+            const response = await fetch('./functions/fetch_cart_items.php');
+            const data = await response.json();
+            
+            // Update cart items list
+            document.getElementById('cart-items-list').innerHTML = data.cart_items;
+            
+            // Update cart sidebar/modal
+            const cartSidebar = document.getElementById('cart-sidebar');
+            if (cartSidebar) {
+                cartSidebar.innerHTML = data.cart_html;
+                initCartEventHandlers(); // Reinitialize event handlers for new elements
+            }
+            
+            // Update cart count in navbar
+            document.querySelectorAll('.cart-count').forEach(el => {
+                el.textContent = data.cart_count;
+                // Add animation
+                el.classList.add('animate-bounce');
+                setTimeout(() => el.classList.remove('animate-bounce'), 1000);
+            });
+            
+            // Update cart total
+            document.querySelectorAll('.cart-total').forEach(el => {
+                el.textContent = `₱${data.cart_total.toFixed(2)}`;
+            });
+        } catch (error) {
+            console.error('Error updating cart:', error);
+        }
+    }
     
     // Function to update just the cart count
     function updateCartCount() {
@@ -254,19 +286,53 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Simple toast notification function
+    // Initialize cart event handlers
+    function initCartEventHandlers() {
+        // Quantity handlers
+        document.querySelectorAll('.increase-quantity').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const item = this.closest('.cart-item');
+                await updateCartItemQuantity(item, 1);
+            });
+        });
+
+        document.querySelectorAll('.decrease-quantity').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const item = this.closest('.cart-item');
+                const currentQty = parseInt(item.querySelector('.new-quantity').value);
+                if (currentQty > 1) {
+                    await updateCartItemQuantity(item, -1);
+                }
+            });
+        });
+
+        // Remove item handlers
+        document.querySelectorAll('.remove').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const item = this.closest('.cart-item');
+                await removeCartItem(item);
+            });
+        });
+    }
+
+    // Initialize handlers on page load
+    initCartEventHandlers();
+
+    // Toast notification function
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white ${
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white bg-gray-500 ${
             type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        }`;
+        } animate-fade-in`;
         toast.textContent = message;
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
         
         setTimeout(() => {
-            toast.remove();
+            toast.classList.add('animate-fade-out');
+            setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
+
 });
 </script>
 
@@ -275,5 +341,33 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: #f59e0b;
     border-color: #000000;
     color: #FFFFFF;
+}
+
+/* Add these to your CSS */
+.animate-bounce {
+    animation: bounce 0.5s;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.5); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.animate-fade-out {
+    animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(10px); }
 }
 </style>

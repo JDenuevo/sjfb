@@ -46,7 +46,6 @@ $result = $conn->query($query);
 <!-- Our Story Section -->
 <section id="checkout-section">
     
-    <?php include('./components/navigation.php'); ?>
 
     <div>
         <?php include('./components/to_checkout.php'); ?>

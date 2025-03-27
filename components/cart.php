@@ -2,11 +2,14 @@
 $cart = $_SESSION['cart'] ?? [];
 ?>
 
+<!-- Add this container for toast messages (place it near the end of your body) -->
+<div id="toastContainer" class="fixed bottom-4 right-4 z-50 text-white" style="background-color: black;"></div>
+
 <div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
     <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto" style="width: 450px;">
         <div class="flex flex-col h-full">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
-            <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="text-orange-500"><?php echo count($cart); ?></span></h2>                
+                <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span></h2>
                 <button type="button" class="btn btn-icon btn-sm btn-ghost" onclick="closeOffCanvas()">
                     <span class="sr-only">Close</span>
                     <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -19,36 +22,30 @@ $cart = $_SESSION['cart'] ?? [];
             <div id="cart-items-list" class="p-4">
                 <?php if (!empty($cart)): ?>
                     <?php foreach ($cart as $index => $item): ?>
-                        <div class="cart-item flex items-start mb-4 pb-2 border-b border-gray-200">
+                        <div class="cart-item flex items-start mb-4 pb-2 border-b border-gray-200" 
+                             data-product-id="<?= $item['product_id'] ?>" 
+                             data-variant-id="<?= $item['variant_id'] ?>">
                             <img src="<?= $item['image_url'] ?>" alt="<?= $item['product_name'] ?>" class="w-24 h-24 p-2 object-cover rounded-3xl mr-6">
                             <div class="flex-grow">
                                 <h3 class="font-medium text-base mb-2 flex justify-between"><?= $item['product_name'] ?></h3>
                                 <p class="text-sm text-gray-500 mb-4"><?= $item['variant_name'] ?></p>
                                 <div class="flex items-center justify-between mt-2">
                                     <div class="flex items-center border border-gray-300 rounded">
-                                        <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600" 
-                                                data-product-id="<?= $item['product_id'] ?>" 
-                                                data-variant-id="<?= $item['variant_id'] ?>">-</button>
+                                        <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600">-</button>
                                         <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" 
-                                               value="<?= $item['quantity'] ?>" readonly 
-                                               data-product-id="<?= $item['product_id'] ?>" 
-                                               data-variant-id="<?= $item['variant_id'] ?>">
-                                        <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600" 
-                                                data-product-id="<?= $item['product_id'] ?>" 
-                                                data-variant-id="<?= $item['variant_id'] ?>">+</button>
+                                               value="<?= $item['quantity'] ?>" readonly> pcs.
+                                        <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
                                     </div>
                                     <span class="price ml-4 font-medium text-sm" data-price-per-unit="<?= $item['price'] ?>">
                                         ₱<?= number_format($item['price'] * $item['quantity'], 2) ?>
                                     </span>
                                 </div>
                             </div>
-                            <button type="button" class="remove text-red-500 hover:text-red-700 ml-4" 
-                                  data-product-id="<?= $item['product_id'] ?>" 
-                                  data-variant-id="<?= $item['variant_id'] ?>">
-                              <svg class="w-9 h-9" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M18 6 6 18"></path>
-                                  <path d="m6 6 12 12"></path>
-                              </svg>
+                            <button type="button" class="remove text-red-500 hover:text-red-700 ml-4">
+                                <svg class="w-9 h-9" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 6 6 18"></path>
+                                    <path d="m6 6 12 12"></path>
+                                </svg>
                             </button>
                         </div>
                     <?php endforeach; ?>
@@ -82,13 +79,24 @@ $cart = $_SESSION['cart'] ?? [];
   input[type=number]::-webkit-outer-spin-button { 
     -webkit-appearance: none; 
     margin: 0; 
-  } 
+  }
+
+  .animate-bounce {
+    animation: bounce 0.5s;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.5); }
+  }
 </style>
 
 <script>
+// Cart functions
 function openOffCanvas() {
     document.getElementById('hs-cart-sidebar').classList.remove('hidden');
     setTimeout(() => document.getElementById('sidebar-white-bg').classList.remove('translate-x-full'), 10);
+    updateCartUI(); // Refresh cart when opened
 }
 
 function closeOffCanvas() {
@@ -96,148 +104,220 @@ function closeOffCanvas() {
     setTimeout(() => document.getElementById('hs-cart-sidebar').classList.add('hidden'), 300);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    // Event delegation for remove and update quantity buttons
-    document.addEventListener('click', function(e) {
-        // Handle remove item from cart
-        if (e.target.closest('.remove')) {
-            const removeButton = e.target.closest('.remove');
-            const productId = removeButton.dataset.productId;
-            const variantId = removeButton.dataset.variantId;
-
-            fetch('./functions/remove_from_cart.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    product_id: productId,
-                    variant_id: variantId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    fetchCart(); // Refresh the cart sidebar
-                } else {
-                    alert('Failed to remove product from cart: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+async function updateCartUI() {
+    try {
+        const response = await fetch('./functions/fetch_cart_items.php');
+        
+        // First check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Server returned: ${text}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'error') {
+            throw new Error(data.message);
+        }
+        
+        // Update cart items list
+        if (data.cart_items) {
+            document.getElementById('cart-items-list').innerHTML = data.cart_items;
+        }
+        
+        // Update cart total
+        if (data.cart_total !== undefined) {
+            document.getElementById('cart-total-sidebar').textContent = `₱${data.cart_total.toFixed(2)}`;
+        }
+        
+        // Update all cart count elements
+        if (data.cart_count !== undefined) {
+            document.querySelectorAll('.cart-count').forEach(el => {
+                el.textContent = data.cart_count;
+                el.classList.add('animate-bounce');
+                setTimeout(() => el.classList.remove('animate-bounce'), 1000);
             });
-
-            location.reload();
-
         }
+        
+        // Reinitialize event handlers
+        initCartEventHandlers();
+    } catch (error) {
+        console.error('Cart update error:', error);
+        showToast(error.message || 'Error updating cart', 'error');
+    }
+}
 
-        // Handle increase quantity in cart
-        if (e.target.classList.contains('increase-quantity')) {
-            const button = e.target;
-            const cartItem = button.closest('.cart-item');
+async function updateCartItemQuantity(item, change) {
+    const productId = item.dataset.productId;
+    const variantId = item.dataset.variantId;
+    const quantityInput = item.querySelector('.quantity');
+    
+    if (!quantityInput) {
+        console.error('Quantity input not found');
+        showToast('Error updating quantity', 'error');
+        return;
+    }
 
-            if (cartItem) {
-                const quantityInput = cartItem.querySelector('.quantity');
+    const newQuantity = parseInt(quantityInput.value) + change;
 
-                if (quantityInput) {
-                    let quantity = parseInt(quantityInput.value);
-                    quantity += 1;
-                    quantityInput.value = quantity;
+    const updates = [{
+        product_id: productId,
+        variant_id: variantId,
+        quantity: newQuantity
+    }];
 
-                    // Update the price
-                    const priceElement = cartItem.querySelector('.price');
-                    const pricePerUnit = parseFloat(priceElement.dataset.pricePerUnit || 0);
-                    if (priceElement && !isNaN(pricePerUnit)) {
-                        priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
-                    }
-                }
-            }
-        }
-
-        // Handle decrease quantity in cart
-        if (e.target.classList.contains('decrease-quantity')) {
-            const button = e.target;
-            const cartItem = button.closest('.cart-item');
-
-            if (cartItem) {
-                const quantityInput = cartItem.querySelector('.quantity');
-
-                if (quantityInput && quantityInput.value > 1) {
-                    let quantity = parseInt(quantityInput.value);
-                    quantity -= 1;
-                    quantityInput.value = quantity;
-
-                    // Update the price
-                    const priceElement = cartItem.querySelector('.price');
-                    const pricePerUnit = parseFloat(priceElement.dataset.pricePerUnit || 0);
-                    if (priceElement && !isNaN(pricePerUnit)) {
-                        priceElement.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
-                    }
-                }
-            }
-        }
-    });
-
-    // Handle "Update Cart" button click
-    document.getElementById('update-cart-button').addEventListener('click', function() {
-        const cartItems = document.querySelectorAll('.cart-item');
-        const updates = [];
-
-        cartItems.forEach(cartItem => {
-            const productId = cartItem.querySelector('.quantity').dataset.productId;
-            const variantId = cartItem.querySelector('.quantity').dataset.variantId;
-            const quantity = parseInt(cartItem.querySelector('.quantity').value);
-
-            updates.push({
-                product_id: productId,
-                variant_id: variantId,
-                quantity: quantity
-            });
-        });
-
-        fetch('./functions/update_cart.php', {
+    try {
+        const response = await fetch('./functions/update_cart.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify(updates)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                fetchCart(); // Refresh the cart sidebar
-                alert('Cart updated successfully');
-            } else {
-                alert('Failed to update cart: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
         });
 
-        location.reload();
+        // First check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Invalid response: ${text}`);
+        }
 
-    });
-
-    // Function to fetch and update the cart
-    function fetchCart() {
-        fetch('./functions/fetch_cart_items.php')
-            .then(response => response.json())
-            .then(data => {
-                // Update the cart items list
-                document.getElementById('cart-items-list').innerHTML = data.cart_items;
-
-                // Update the cart subtotal
-                const cartTotalElement = document.getElementById('cart-total-sidebar');
-                cartTotalElement.textContent = `₱${data.cart_total.toFixed(2)}`;
-
-                // Update the cart count
-                const cartCountElement = document.getElementById('cart-count-sidebar');
-                cartCountElement.textContent = data.cart_count;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
+        const data = await response.json();
+        if (data.status === 'success') {
+            await updateCartUI();
+        } else {
+            showToast(data.message || 'Failed to update quantity', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(error.message || 'An error occurred', 'error');
     }
+}
+
+// Helper function to remove item
+async function removeCartItem(item) {
+    const productId = item.dataset.productId;
+    const variantId = item.dataset.variantId;
+
+    try {
+        const response = await fetch('./functions/remove_from_cart.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                variant_id: variantId
+            })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            showToast('Item removed from cart');
+            await updateCartUI();
+        } else {
+            showToast('Failed to remove item', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('An error occurred', 'error');
+    }
+}
+
+// Toast notification function
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    } animate-fade-in`;
+    toast.textContent = message;
+    
+    // Append to toast container
+    const container = document.getElementById('toastContainer') || document.body;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('animate-fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Initialize cart event handlers
+function initCartEventHandlers() {
+    // Remove any existing event listeners to prevent duplicates
+    document.removeEventListener('click', handleCartClick);
+    
+    // Add new event listener
+    document.addEventListener('click', handleCartClick);
+}
+
+// Handle all cart-related clicks
+function handleCartClick(e) {
+    // Increase quantity
+    if (e.target.classList.contains('increase-quantity')) {
+        const item = e.target.closest('.cart-item');
+        if (item) {
+            updateCartItemQuantity(item, 1);
+        }
+    }
+    
+    // In your handleCartClick function
+    if (e.target.classList.contains('decrease-quantity')) {
+        const item = e.target.closest('.cart-item');
+        if (item) {
+            const quantityInput = item.querySelector('.quantity');
+            if (!quantityInput) {
+                console.error('Quantity input not found');
+                return;
+            }
+            const currentQty = parseInt(quantityInput.value);
+            if (currentQty > 1) {
+                updateCartItemQuantity(item, -1);
+            } else {
+                showToast('Minimum quantity is 1', 'error');
+            }
+        }
+    }
+    
+    // Remove item
+    if (e.target.closest('.remove')) {
+        const item = e.target.closest('.cart-item');
+        if (item) {
+            if (confirm('Are you sure you want to remove this item?')) {
+                removeCartItem(item);
+            }
+        }
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initCartEventHandlers();
+    
+    // Open cart when clicking cart icon (if exists)
+    document.querySelectorAll('[data-cart-toggle]').forEach(btn => {
+        btn.addEventListener('click', openOffCanvas);
+    });
+    
+    // Add animation styles dynamically
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(10px); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in forwards;
+        }
+        .animate-fade-out {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+    `;
+    document.head.appendChild(style);
 });
 </script>
