@@ -2,32 +2,48 @@
 session_start();
 include '../../conn.php';
 
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
-  header("Location: ../index.php");
+// Check if the admin is logged in
+if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== true || !isset($_SESSION['account_id'])) {
+  header("HTTP/1.1 403 Forbidden");
   exit;
 }
 
-if (isset($_GET['order_id'])) {
-    $order_id = intval($_GET['order_id']);
+// Get the order ID from the request
+$orderId = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
 
-    // Query to get order details
-    $query = "SELECT o.order_id, p.product_name, oi.price AS product_price, oi.discount AS discount_price
-              FROM orders o
-              JOIN order_items oi ON o.order_id = oi.order_id
-              JOIN products p ON oi.product_id = p.product_id
-              WHERE o.order_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $order_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $orderDetails = $result->fetch_assoc();
-        echo json_encode(['success' => true, 'order' => $orderDetails]);
-    } else {
-        echo json_encode(['success' => false]);
-    }
-} else {
-    echo json_encode(['success' => false]);
+if ($orderId <= 0) {
+  header("HTTP/1.1 400 Bad Request");
+  exit;
 }
+
+// Fetch order items
+$query = "SELECT 
+            oi.product_id, 
+            p.product_name, 
+            oi.variant_id, 
+            pv.variant_name, 
+            oi.quantity, 
+            oi.price, 
+            oi.discount
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.product_id
+          LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+          WHERE oi.order_id = $orderId";
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+  header("HTTP/1.1 500 Internal Server Error");
+  exit;
+}
+
+$orderItems = [];
+while ($row = mysqli_fetch_assoc($result)) {
+  // Ensure price is a number
+  $row['price'] = (float)$row['price']; // Convert to float
+  $orderItems[] = $row;
+}
+
+// Return the order items as JSON
+header('Content-Type: application/json');
+echo json_encode($orderItems);
 ?>

@@ -3,11 +3,11 @@
   <div id="signin-white-bg" class="bg-white rounded-lg shadow-lg p-6 relative">
     <!-- Close Button -->
     <div class="text-end">
-      <button type="button" class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 focus:outline-none focus:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none" data-hs-overlay="#hs-modal-signin">
+      <button type="button" class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 focus:outline-none focus:bg-gray-200" onclick="closeModal()">
         <span class="sr-only">Close</span>
         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 6 6 18"></path>
-        <path d="m6 6 12 12"></path>
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
         </svg>
       </button>
     </div>
@@ -18,13 +18,12 @@
         <p class="text-gray-500">Log in to your account.</p>
       </div>
 
-       <?php if (!empty($_SESSION['error_message'])): ?>
-            <div style="color: white; background-color: #CC3333;" class="mt-2 text-sm rounded-lg p-4 text-center" role="alert">
-                <span class="font-bold">Error!</span> <?= $_SESSION['error_message']; ?>
-            </div>
-            <?php unset($_SESSION['error_message']); // Remove after displaying ?>
-        <?php endif; ?>
-
+      <?php if (!empty($_SESSION['error_message'])): ?>
+        <div style="color: white; background-color: #CC3333;" class="my-4 text-sm rounded-lg p-4 text-center" role="alert">
+          <span class="font-bold">Invalid!</span> <?= $_SESSION['error_message']; ?>
+        </div>
+        <?php unset($_SESSION['error_message']); ?>
+      <?php endif; ?>
 
       <!-- Form -->
       <form action="./functions/checker.php" method="POST">
@@ -37,31 +36,58 @@
 
           <!-- Password Field -->
           <div>
-            <div class="flex justify-between items-center">
-              <label for="password" class="block text-sm mb-2">Password</label>
+            <label for="password" class="block text-sm mb-2">Password</label>
+            <div class="password-input-container">
+              <input type="password" id="password" name="password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 password-input" required>
+
+              <button type="button" class="password-toggle-button" onclick="togglePasswordVisibility()" title="Show Password">
+                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 hover:text-gray-700">
+                  <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                  <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+                </svg>
+              </button>
             </div>
-            <input type="password" id="password" name="password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
           </div>
 
           <!-- Sign In Button -->
-          <button type="submit" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">Sign In</button>  
+          <button type="submit" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">Sign In</button>
         </div>
       </form>
     </div>
     <div class="mt-5 text-center">
-      Don't have an account? <a href="register.php" class="hover:underline transition-all duration-300">Sign up here</a>
+      Don't have an account? <a href="register.php" class="underline text-orange-600 transition-all duration-300">Sign up here</a>
     </div>
   </div>
 </div>
 
 <style>
-    
   #signin-white-bg {
     width: 400px;
     transition: transform 0.3s ease-in-out;
   }
 
+  .password-input-container {
+    position: relative;
+  }
+
+  .password-toggle-button {
+    position: absolute;
+    top: 0; /* Replace inset-y: 0; */
+    bottom: 0; /* Replace inset-y: 0; */
+    right: 3px;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .password-input {
+    padding-right: 2.5rem; /* Adjust to make space for the icon */
+  }
 </style>
+
 <script>
   function openModal() {
     document.getElementById('hs-modal-signin').classList.remove('hidden');
@@ -70,4 +96,18 @@
   function closeModal() {
     document.getElementById('hs-modal-signin').classList.add('hidden');
   }
+
+  function togglePasswordVisibility() {
+    const passwordField = document.getElementById('password');
+    const eyeIcon = document.getElementById('eye-icon');
+
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      eyeIcon.innerHTML = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />`;
+    } else {
+      passwordField.type = 'password';
+      eyeIcon.innerHTML = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828" /><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87" /><path d="M3 3l18 18" />`;
+    }
+  }
+
 </script>

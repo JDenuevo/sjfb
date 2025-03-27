@@ -49,6 +49,43 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
+<style>
+  .error-border {
+    border-color: #ef4444 !important;
+  }
+
+  .success-border {
+    border-color: #10b981 !important;
+  }
+
+  .requirement-list {
+    margin-top: 0.5rem;
+    padding-left: 1rem;
+    list-style-type: none;
+  }
+
+  .requirement-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .requirement-item.valid {
+    color: #10b981;
+  }
+
+  .requirement-icon {
+    margin-right: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .requirement-icon.valid {
+    color: #10b981;
+  }
+</style>
 <body>
 <?php include('./components/preloader.php'); ?>
 
@@ -61,7 +98,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
       <div class="max-w-xl mx-auto" data-aos="fade-up" data-aos-duration="1500">
       <div class="text-center">
-        <h1 class="text-3xl font-bold text-gray-800 sm:text-4xl">Personal Details</h1>
+        <h1 class="text-3xl font-bold text-gray-800 sm:text-4xl">Personal and Billing Address Details</h1>
         <p class="mt-1 text-gray-600 dark:text-neutral-400">
           Put your details for your shipping adrress and contact.
         </p>
@@ -84,22 +121,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           ?>
           
           <!-- Form -->
-          <form action="./functions/update.php" method="POST">
+          <form action="./functions/update.php" method="POST" id="detailsForm">
             <div class="grid gap-y-4">
 
-              <div class="grid grid-cols-2">
+              <div class="grid grid-cols-2 gap-4">
                 <!-- Form Group -->
                 <div>
                   <label for="first_name" class="block text-sm mb-2 text-dark">First name</label>
                   <div class="relative">
-                    <input type="text" id="first_name" name="first_name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                    <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                      <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                      </svg>
-                    </div>
+                    <input type="text" id="first_name" name="first_name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                   </div>
-                  <p class="hidden text-xs text-red-600 mt-2" id="first_name-error">Input your first name.</p>
+                  <p class="hidden text-xs text-red-600 mt-2" id="first_name-error">Please enter your first name.</p>
                 </div>
                 <!-- End Form Group -->
            
@@ -107,14 +139,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div>
                   <label for="last_name" class="block text-sm mb-2 text-dark">Last name</label>
                   <div class="relative">
-                    <input type="text" id="last_name" name="last_name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                    <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                      <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                      </svg>
-                    </div>
+                    <input type="text" id="last_name" name="last_name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                   </div>
-                  <p class="hidden text-xs text-red-600 mt-2" id="last_name-error">Input your last name.</p>
+                  <p class="hidden text-xs text-red-600 mt-2" id="last_name-error">Please enter your last name.</p>
                 </div>
                 <!-- End Form Group -->
               </div>
@@ -123,14 +150,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <div>
                 <label for="phone_number" class="block text-sm mb-2 text-dark">Phone Number</label>
                 <div class="relative">
-                  <input type="number" id="phone_number" name="phone_number" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                    <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                    </svg>
-                  </div>
+                  <input type="text" id="phone_number" name="phone_number" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                 </div>
-                <p class="hidden text-xs text-red-600 mt-2" id="phone_number-error">Enter a valid phone number no characters allowed.</p>
+                <ul class="requirement-list" id="phone-requirements">
+                  <li class="requirement-item" id="phone-format">
+                    <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Valid phone number format (e.g., 09123456789)
+                  </li>
+                  <li class="requirement-item" id="phone-length">
+                    <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    At least 11 digits
+                  </li>
+                </ul>
+                <p class="hidden text-xs text-red-600 mt-2" id="phone_number-error">Please enter a valid phone number (digits only, at least 11 characters).</p>
               </div>
               <!-- End Form Group -->
 
@@ -138,31 +174,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <div>
                 <label for="address" class="block text-sm mb-2 text-dark">Address</label>
                 <div class="relative">
-                  <input type="text" id="address" name="address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                    <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                    </svg>
-                  </div>
+                  <input type="text" id="address" name="address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                 </div>
-                <p class="hidden text-xs text-red-600 mt-2" id="address-error">Enter a valid phone number no characters allowed.</p>
+                <ul class="requirement-list" id="address-requirements">
+                  <li class="requirement-item" id="address-length">
+                    <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    At least 10 characters
+                  </li>
+                </ul>
+                <p class="hidden text-xs text-red-600 mt-2" id="address-error">Please enter a valid address (at least 10 characters).</p>
               </div>
               <!-- End Form Group -->
 
-
-              <div class="grid grid-cols-2">
+              <div class="grid grid-cols-2 gap-4">
                 <!-- Form Group -->
                 <div>
                   <label for="city" class="block text-sm mb-2 text-dark">City</label>
                   <div class="relative">
-                    <input type="text" id="city" name="city" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                    <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                      <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                      </svg>
-                    </div>
+                    <input type="text" id="city" name="city" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                   </div>
-                  <p class="hidden text-xs text-red-600 mt-2" id="city-error">Input your first name.</p>
+                  <p class="hidden text-xs text-red-600 mt-2" id="city-error">Please enter your city.</p>
                 </div>
                 <!-- End Form Group -->
 
@@ -170,14 +203,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div>
                   <label for="postal_code" class="block text-sm mb-2 text-dark">Postal Code</label>
                   <div class="relative">
-                    <input type="number" id="postal_code" name="postal_code" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required aria-describedby="username-error">
-                    <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                      <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                      </svg>
-                    </div>
+                    <input type="text" id="postal_code" name="postal_code" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" required>
                   </div>
-                  <p class="hidden text-xs text-red-600 mt-2" id="postal_code-error">Input your last name.</p>
+                  <ul class="requirement-list" id="postal-requirements">
+                    <li class="requirement-item" id="postal-format">
+                      <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Must be a valid postal code (digits only)
+                    </li>
+                    <li class="requirement-item" id="postal-length">
+                      <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Must be 4 digits
+                    </li>
+                  </ul>
+                  <p class="hidden text-xs text-red-600 mt-2" id="postal_code-error">Please enter a valid 4-digit postal code.</p>
                 </div>
                 <!-- End Form Group -->
               </div>
@@ -200,6 +242,198 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </script>
 
   <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const form = document.getElementById("detailsForm");
+      const firstNameInput = document.getElementById("first_name");
+      const lastNameInput = document.getElementById("last_name");
+      const phoneInput = document.getElementById("phone_number");
+      const addressInput = document.getElementById("address");
+      const cityInput = document.getElementById("city");
+      const postalInput = document.getElementById("postal_code");
+
+      // Requirement elements
+      const phoneFormatReq = document.getElementById("phone-format");
+      const phoneLengthReq = document.getElementById("phone-length");
+      const addressLengthReq = document.getElementById("address-length");
+      const postalFormatReq = document.getElementById("postal-format");
+      const postalLengthReq = document.getElementById("postal-length");
+
+      function validateFirstName() {
+        const value = firstNameInput.value.trim();
+        if (value === "") {
+          firstNameInput.classList.add("error-border");
+          firstNameInput.classList.remove("success-border");
+          document.getElementById("first_name-error").classList.remove("hidden");
+          return false;
+        } else {
+          firstNameInput.classList.remove("error-border");
+          firstNameInput.classList.add("success-border");
+          document.getElementById("first_name-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      function validateLastName() {
+        const value = lastNameInput.value.trim();
+        if (value === "") {
+          lastNameInput.classList.add("error-border");
+          lastNameInput.classList.remove("success-border");
+          document.getElementById("last_name-error").classList.remove("hidden");
+          return false;
+        } else {
+          lastNameInput.classList.remove("error-border");
+          lastNameInput.classList.add("success-border");
+          document.getElementById("last_name-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      function validatePhone() {
+        const value = phoneInput.value.trim();
+        const phoneRegex = /^[0-9]{11,}$/;
+        let isValid = true;
+
+        // Check phone format
+        if (/^[0-9]+$/.test(value)) {
+          phoneFormatReq.classList.add("valid");
+          phoneFormatReq.querySelector('.requirement-icon').classList.add('valid');
+        } else {
+          phoneFormatReq.classList.remove("valid");
+          phoneFormatReq.querySelector('.requirement-icon').classList.remove('valid');
+          isValid = false;
+        }
+
+        // Check phone length
+        if (value.length >= 11) {
+          phoneLengthReq.classList.add("valid");
+          phoneLengthReq.querySelector('.requirement-icon').classList.add('valid');
+        } else {
+          phoneLengthReq.classList.remove("valid");
+          phoneLengthReq.querySelector('.requirement-icon').classList.remove('valid');
+          isValid = false;
+        }
+
+        if (!phoneRegex.test(value)) {
+          phoneInput.classList.add("error-border");
+          phoneInput.classList.remove("success-border");
+          document.getElementById("phone_number-error").classList.remove("hidden");
+          return false;
+        } else {
+          phoneInput.classList.remove("error-border");
+          phoneInput.classList.add("success-border");
+          document.getElementById("phone_number-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      function validateAddress() {
+        const value = addressInput.value.trim();
+        
+        // Check address length
+        if (value.length >= 10) {
+          addressLengthReq.classList.add("valid");
+          addressLengthReq.querySelector('.requirement-icon').classList.add('valid');
+        } else {
+          addressLengthReq.classList.remove("valid");
+          addressLengthReq.querySelector('.requirement-icon').classList.remove('valid');
+        }
+
+        if (value.length < 10) {
+          addressInput.classList.add("error-border");
+          addressInput.classList.remove("success-border");
+          document.getElementById("address-error").classList.remove("hidden");
+          return false;
+        } else {
+          addressInput.classList.remove("error-border");
+          addressInput.classList.add("success-border");
+          document.getElementById("address-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      function validateCity() {
+        const value = cityInput.value.trim();
+        if (value === "") {
+          cityInput.classList.add("error-border");
+          cityInput.classList.remove("success-border");
+          document.getElementById("city-error").classList.remove("hidden");
+          return false;
+        } else {
+          cityInput.classList.remove("error-border");
+          cityInput.classList.add("success-border");
+          document.getElementById("city-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      function validatePostal() {
+        const value = postalInput.value.trim();
+        const postalRegex = /^[0-9]{4}$/;
+        let isValid = true;
+
+        // Check postal format
+        if (/^[0-9]+$/.test(value)) {
+          postalFormatReq.classList.add("valid");
+          postalFormatReq.querySelector('.requirement-icon').classList.add('valid');
+        } else {
+          postalFormatReq.classList.remove("valid");
+          postalFormatReq.querySelector('.requirement-icon').classList.remove('valid');
+          isValid = false;
+        }
+
+        // Check postal length
+        if (value.length === 4) {
+          postalLengthReq.classList.add("valid");
+          postalLengthReq.querySelector('.requirement-icon').classList.add('valid');
+        } else {
+          postalLengthReq.classList.remove("valid");
+          postalLengthReq.querySelector('.requirement-icon').classList.remove('valid');
+          isValid = false;
+        }
+
+        if (!postalRegex.test(value)) {
+          postalInput.classList.add("error-border");
+          postalInput.classList.remove("success-border");
+          document.getElementById("postal_code-error").classList.remove("hidden");
+          return false;
+        } else {
+          postalInput.classList.remove("error-border");
+          postalInput.classList.add("success-border");
+          document.getElementById("postal_code-error").classList.add("hidden");
+          return true;
+        }
+      }
+
+      // Add event listeners
+      firstNameInput.addEventListener("input", validateFirstName);
+      lastNameInput.addEventListener("input", validateLastName);
+      phoneInput.addEventListener("input", validatePhone);
+      addressInput.addEventListener("input", validateAddress);
+      cityInput.addEventListener("input", validateCity);
+      postalInput.addEventListener("input", validatePostal);
+
+      // Form submission validation
+      form.addEventListener("submit", function(event) {
+        let isValid = true;
+        
+        if (!validateFirstName()) isValid = false;
+        if (!validateLastName()) isValid = false;
+        if (!validatePhone()) isValid = false;
+        if (!validateAddress()) isValid = false;
+        if (!validateCity()) isValid = false;
+        if (!validatePostal()) isValid = false;
+        
+        if (!isValid) {
+          event.preventDefault();
+          // Scroll to the first error
+          const firstError = document.querySelector(".error-border");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      });
+    });
+
     $(document).ready(function() {
       <?php if (isset($_SESSION['hs-modal-signin'])): ?>
         $("#signinModal").modal("show"); // Open the modal
@@ -207,7 +441,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <?php endif; ?>
     });
   </script>
-
   
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
   <script src="node_modules/preline/dist/preline.js"></script>

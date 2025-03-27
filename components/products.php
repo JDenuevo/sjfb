@@ -1,4 +1,3 @@
-
 <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto">
   <div class="text-center">
     <h1 class="text-3xl font-bold text-center mb-6">Shop Our Products</h1>
@@ -195,17 +194,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const variantId = form.querySelector('input[name="variant_id"]').value;
 
             if (!variantId) {
-                // Show the variant message if no variant is selected
                 form.querySelector('.variant-message').classList.remove('hidden');
                 return;
             }
 
             const formData = new FormData(form);
-
-            // Log form data for debugging
-            for (let [key, value] of formData.entries()) {
-                console.log(key, value);
-            }
 
             fetch('./functions/add_to_cart.php', {
                 method: 'POST',
@@ -214,20 +207,66 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert('Product added to cart');
-                    fetchCart(); // Refresh the cart sidebar
+                    // Show success feedback (you can use a toast notification instead of alert)
+                    showToast('Product added to cart');
+                    
+                    // Update the cart count immediately
+                    updateCartCount();
+                    
+                    // Reset the form (optional)
+                    form.reset();
+                    form.querySelector('button[name="add_to_cart"]').disabled = true;
+                    form.querySelectorAll('.variant-button').forEach(btn => {
+                        btn.classList.remove('selected-variant');
+                    });
                 } else {
-                    alert('Failed to add product to cart: ' + data.message);
+                    showToast('Failed to add product: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred', 'error');
+            });
+        });
+    });
+    
+    // Function to update just the cart count
+    function updateCartCount() {
+        fetch('./functions/get_cart_count.php')
+            .then(response => response.json())
+            .then(data => {
+                // Update the cart count in the navbar/sidebar
+                const cartCountElements = document.querySelectorAll('.cart-count');
+                cartCountElements.forEach(el => {
+                    el.textContent = data.cart_count;
+                });
+                
+                // If you have a cart total element
+                const cartTotalElements = document.querySelectorAll('.cart-total');
+                if (cartTotalElements.length > 0) {
+                    cartTotalElements.forEach(el => {
+                        el.textContent = `₱${data.cart_total.toFixed(2)}`;
+                    });
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
             });
-            
-            location.reload();
-
-        });
-    });
+    }
+    
+    // Simple toast notification function
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
 });
 </script>
 

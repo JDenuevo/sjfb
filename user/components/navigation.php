@@ -1,10 +1,15 @@
+<?php
+
+$cart = $_SESSION['cart'] ?? [];
+
+?>
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">
   <nav class="relative max-w-5xl w-full flex flex-wrap basis-full items-center px-4 md:px-6 mx-auto">
     <!-- Button Group -->
     <div class="flex items-center justify-between w-full py-1 md:ps-6 md:order-1 md:col-span-2">
       <!-- Logo on the left -->
       <div class="md:hidden">
-        <a href="../../../index.php" class="relative inline-block focus:outline-none">
+        <a href="../index.php" class="relative inline-block focus:outline-none">
           <img src="../../sjfbi-js/assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
         </a>
       </div>
@@ -34,7 +39,7 @@
       <div class="flex flex-col gap-y-4 gap-x-0 mt-5 md:flex-row md:justify-between md:items-center md:gap-y-0 md:gap-x-7 md:mt-0 justify-between">
         <!-- Router Links -->
         <div class="hidden md:block">
-          <a href="../../index.php">
+          <a href="../index.php">
             <img src="../../sjfbi-js/assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
           </a>
         </div>
@@ -78,7 +83,7 @@
   </nav>
 </header>
 
-<?php include('../../components/cart.php'); ?>
+<?php include('../components/cart.php'); ?>
 
 <style>
   /* Glass Effect */

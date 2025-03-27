@@ -1,5 +1,5 @@
 <?php
-$cart = $_SESSION['cart'] ?? [];
+  $cart = $_SESSION['cart'] ?? [];
 ?>
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">
   <nav class="relative max-w-5xl w-full flex flex-wrap basis-full items-center px-4 md:px-6 mx-auto">
@@ -7,27 +7,42 @@ $cart = $_SESSION['cart'] ?? [];
     <div class="flex items-center justify-between w-full py-1 md:ps-6 md:order-1 md:col-span-2">
       <!-- Logo on the left -->
       <div class="md:hidden">
-        <a href="index" class="relative inline-block focus:outline-none">
+        <a href="/" class="relative inline-block focus:outline-none">
           <img src="./assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
         </a>
       </div>
       
-      <div class="md:hidden ml-auto">
-        <button onclick="toggleMenu()" type="button" class="size-[38px] flex justify-center items-center text-sm font-semibold rounded-xl border transition-all duration-300 text-orange-500 bg-white border-white hover:bg-gray-200 focus:outline-none">
-          <!-- Burger Icon -->
-          <svg class="menu-icon burger-icon size-6" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-            <line x1="3" x2="21" y1="6" y2="6" />
-            <line x1="3" x2="21" y1="12" y2="12" />
-            <line x1="3" x2="21" y1="18" y2="18" />
-          </svg>
-
-          <!-- X Icon -->
-          <svg class="menu-icon close-icon size-6 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M18 6l-12 12" />
-            <path d="M6 6l12 12" />
-          </svg>
-        </button>
+      <div class="flex justify-between">
+          
+          <div class="md:hidden ml-auto">
+              <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                  <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                  <path d="M17 17h-11v-14h-2" />
+                  <path d="M6 5l14 1l-1 7h-13" />
+                </svg>
+                <span id="cart-count-sidebar"><?php echo count($cart); ?></span>
+              </button>
+          </div>
+          <div class="md:hidden ml-4">
+            <button onclick="toggleMenu()" type="button" class="size-[38px] flex justify-center items-center text-sm font-semibold rounded-xl border transition-all duration-300 text-orange-500 bg-white border-white hover:bg-gray-200 focus:outline-none">
+              <!-- Burger Icon -->
+              <svg class="menu-icon burger-icon size-6" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <line x1="3" x2="21" y1="6" y2="6" />
+                <line x1="3" x2="21" y1="12" y2="12" />
+                <line x1="3" x2="21" y1="18" y2="18" />
+              </svg>
+    
+              <!-- X Icon -->
+              <svg class="menu-icon close-icon size-6 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M18 6l-12 12" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
       </div>
     </div>
     <!-- End Button Group -->
@@ -37,7 +52,7 @@ $cart = $_SESSION['cart'] ?? [];
       <div class="flex flex-col gap-y-4 gap-x-0 mt-5 md:flex-row md:justify-between md:items-center md:gap-y-0 md:gap-x-7 md:mt-0 justify-between">
         <!-- Router Links -->
         <div class="hidden md:block">
-          <a href="index.php">
+          <a href="/">
             <img src="./assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
           </a>
         </div>
@@ -45,10 +60,10 @@ $cart = $_SESSION['cart'] ?? [];
         <div class="flex-grow"></div>
 
         <div class="flex flex-row">
-          <a href="aboutus.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">About us</a>
-          <a href="sustainability.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Sustainability</a>
-          <a href="services.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Services</a>
-          <a href="careers.php" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Careers</a>
+          <a href="aboutus" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">About us</a>
+          <a href="sustainability" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Sustainability</a>
+          <a href="services" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Services</a>
+          <a href="careers" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Careers</a>
         </div>
 
         <div class="flex-grow"></div>
@@ -62,13 +77,14 @@ $cart = $_SESSION['cart'] ?? [];
             </svg>
           </button>
         
-          <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" data-hs-overlay="#hs-modal-signin">
+          <button type="button" onclick="openModal()" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
               <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
             </svg>
           </button>
+
         
           <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,8 +103,6 @@ $cart = $_SESSION['cart'] ?? [];
 </header>
 
 <?php include('./components/sign_in.php'); ?>
-
-<?php include('./components/sign_up.php'); ?>
 
 <?php include('./components/cart.php'); ?>
 
@@ -157,13 +171,12 @@ $cart = $_SESSION['cart'] ?? [];
     closeIcon.classList.toggle('hidden');
   }
 
-  function toggleModals() {
-  const signinModal = document.getElementById('hs-modal-signin');
-  const signupModal = document.getElementById('hs-modal-signup');
+  function openModal() {
+    document.getElementById('hs-modal-signin').classList.remove('hidden');
+  }
 
-  // Hide sign-in modal and show sign-up modal
-  signinModal.classList.add('hidden');
-  signupModal.classList.remove('hidden');
-}
+  function closeModal() {
+    document.getElementById('hs-modal-signin').classList.add('hidden');
+  }
 
 </script>

@@ -127,9 +127,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $postalCode = $_POST['postal_code'] ?? null;
             $city = $_POST['city'] ?? null;
 
-            // Debugging: Log the city value
-            error_log("City value from form: " . $city);
-
             // Validate guest user input
             if (!$firstName || !$lastName || !$email || !$phoneNumber || !$address || !$postalCode || !$city) {
                 redirectWithMessage('../checkout.php', "All fields are required for guest checkout!");
@@ -181,9 +178,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 )
             ");
 
-            // Debugging: Log the city value
-            error_log("City value before binding: " . $city);
-
             $stmt->bind_param(
                 "ssssssssss", // Updated format string
                 $userType,
@@ -209,30 +203,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Insert the order items into the order_items table
         foreach ($cart as $item) {
-            // Debugging: Log the values
-            error_log("Order ID: " . $orderId);
-            error_log("Product ID: " . $item['product_id']);
-            error_log("Variant ID: " . $item['variant_id']);
-            error_log("Quantity: " . $item['quantity']);
-            error_log("Price: " . $item['price']);
-            error_log("Discount Price: " . ($item['discount_price'] ?? 0.00));
-        
+          
+
             // Ensure discount_price is properly initialized
             $discountPrice = $item['discount_price'] ?? 0.00;
-        
+
             // Check if variant_id exists in product_variants table
             $checkVariantQuery = "SELECT variant_id FROM product_variants WHERE variant_id = ?";
             $checkStmt = $conn->prepare($checkVariantQuery);
             $checkStmt->bind_param("i", $item['variant_id']);
             $checkStmt->execute();
             $checkResult = $checkStmt->get_result();
-        
+
             if ($checkResult->num_rows === 0) {
                 // Variant ID does not exist in product_variants table
-                error_log("Invalid variant_id: " . $item['variant_id']);
                 redirectWithMessage('../checkout.php', "Invalid product variant. Please try again!");
             }
-        
+
             // Insert into order_items table
             $stmt = $conn->prepare("
                 INSERT INTO order_items (
@@ -250,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $item['price'],
                 $discountPrice
             );
-        
+
             if (!$stmt->execute()) {
                 error_log("MySQL Error: " . $stmt->error);
                 redirectWithMessage('../checkout.php', "Something went wrong. Try again!");
@@ -262,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Redirect to a success page or display a success message
         redirectWithMessage('../order_success.php', "Order placed successfully! Thank you for your purchase.", 'success');
-    }
+    }   
 }
 
 $conn->close();

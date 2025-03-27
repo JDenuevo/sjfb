@@ -2,16 +2,33 @@
 session_start();
 include '../conn.php';
 
-// Check if the user is logged in as user and account_id exists
-if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true || !isset($_SESSION['account_id'])) {
-    header("Location: ../../index.php");
-    exit;
+// Check if the customer is logged in
+if (!isset($_SESSION['loggedinasuser']) || $_SESSION['loggedinasuser'] !== true || !isset($_SESSION['account_id'])) {
+  header("Location: ../index.php");
+  exit;
 }
 
-// Retrieve the logged-in user's account_id
+// Retrieve the logged-in customer's account_id
 $account_id = $_SESSION['account_id'];
 
+// Fetch orders for the logged-in customer
+$query = "SELECT 
+            o.order_id, 
+            o.order_date, 
+            o.order_status, 
+            o.total_price, 
+            o.payment_method
+          FROM orders o
+          WHERE o.account_id = $account_id
+          ORDER BY o.order_date DESC;";
+
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+  die("Query failed: " . mysqli_error($conn));
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -46,7 +63,7 @@ $account_id = $_SESSION['account_id'];
   <?php include('../user/components/navigation.php'); ?>
 
   <!-- Content -->
-  <div class="w-full lg:ps-64">
+  <div class="w-full">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <!-- Monitoring Card Grid -->
         <?php include('./components/order_list.php'); ?>

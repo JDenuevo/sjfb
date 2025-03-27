@@ -11,7 +11,8 @@ if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT o.order_id, 
+$query = "SELECT 
+            o.order_id, 
             o.user_type, 
             o.email, 
             o.phone_number, 
@@ -23,14 +24,8 @@ $query = "SELECT o.order_id,
             o.total_price, 
             o.order_date, 
             o.order_status,
-            oi.product_id, 
-            p.product_name, 
-            oi.quantity, 
-            oi.price, 
-            oi.discount
+            o.payment_method
           FROM orders o
-          LEFT JOIN order_items oi ON o.order_id = oi.order_id
-          LEFT JOIN products p ON oi.product_id = p.product_id
           ORDER BY o.order_date DESC;";
 
 $result = mysqli_query($conn, $query);
@@ -129,11 +124,9 @@ if (!$result) {
     </div>
   </div>
   <!-- End Content -->
-
-
-  <!-- JS Implementing Plugins -->
-
+   
   
+
   <!-- JS PLUGINS -->
   <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
