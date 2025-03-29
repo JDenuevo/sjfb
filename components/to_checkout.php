@@ -23,7 +23,8 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="First_name" class="block text-sm mb-2 text-dark">First name</label>
                 <div class="relative">
-                  <input type="text" id="First_name" name="first_name" placeholder="First name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
+                <input type="text" id="First_name" name="first_name" value="<?= isset($userDetails['first_name']) ? htmlspecialchars($userDetails['first_name']) : '' ?>" 
+                  placeholder="First name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
                   <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
@@ -38,8 +39,8 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="Last_name" class="block text-sm mb-2 text-dark">Last name</label>
                 <div class="relative">
-                  <input type="text" id="Last_name" name="last_name" placeholder="Last name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                  <input type="text" id="Last_name" name="last_name" value="<?= isset($userDetails['last_name']) ? htmlspecialchars($userDetails['last_name']) : '' ?>" 
+                    placeholder="Last name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -55,8 +56,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="Email" class="block text-sm mb-2 text-dark">Email address</label>
                 <div class="relative">
-                  <input type="email" id="Email" name="email" placeholder="Email address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" aria-describedby="email-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                <input type="email" id="Email" name="email" 
+       value="<?= isset($userDetails['email']) ? htmlspecialchars($userDetails['email']) : '' ?>" 
+       placeholder="Email address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -70,8 +72,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="Phone_number" class="block text-sm mb-2 text-dark">Phone Number</label>
                 <div class="relative">
-                  <input type="number" id="Phone_number" name="phone_number" placeholder="Phone Number" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                <input type="number" id="Phone_number" name="phone_number" 
+       value="<?= isset($userDetails['phone_number']) ? htmlspecialchars($userDetails['phone_number']) : '' ?>" 
+       placeholder="Phone Number" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -86,8 +89,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
             <div>
               <label for="Address" class="block text-sm mb-2 text-dark">Address</label>
               <div class="relative">
-                <input type="text" id="Address" name="address" placeholder="Address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
-                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+              <input type="text" id="Address" name="address" 
+       value="<?= isset($userDetails['address']) ? htmlspecialchars($userDetails['address']) : '' ?>" 
+       placeholder="Address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                   <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                   </svg>
@@ -103,8 +107,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="City" class="block text-sm mb-2 text-dark">City</label>
                 <div class="relative">
-                  <input type="text" id="City" name="city" placeholder="City" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                <input type="text" id="City" name="city" 
+       value="<?= isset($userDetails['city']) ? htmlspecialchars($userDetails['city']) : '' ?>" 
+       placeholder="City" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -118,8 +123,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div>
                 <label for="Postal_code" class="block text-sm mb-2 text-dark">Postal Code</label>
                 <div class="relative">
-                  <input type="number" id="Postal_code" name="postal_code" placeholder="Postal Code" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required aria-describedby="username-error">
-                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                <input type="number" id="Postal_code" name="postal_code" 
+       value="<?= isset($userDetails['postal_code']) ? htmlspecialchars($userDetails['postal_code']) : '' ?>" 
+       placeholder="Postal Code" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -459,5 +465,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(style);
+});
+
+// Add this to your to_checkout.php script section
+document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+    let isValid = true;
+    const requiredFields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'postal_code', 'city', 'payment_method'];
+    
+    requiredFields.forEach(field => {
+        const input = document.querySelector(`[name="${field}"]`);
+        if (!input || !input.value.trim()) {
+            isValid = false;
+            if (input) input.classList.add('border-red-500');
+        } else if (input) {
+            input.classList.remove('border-red-500');
+        }
+    });
+
+    if (!isValid) {
+        e.preventDefault();
+        alert('Please fill in all required fields');
+        return false;
+    }
+    return true;
 });
 </script>

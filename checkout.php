@@ -3,16 +3,43 @@ session_start();
 include 'conn.php';
 
 // Fetch all products with their primary image and variants
-$query = "SELECT p.product_id, p.product_name, p.product_description, 
-            pi.image_path, 
-            v.variant_id, v.variant_name, v.variant_price, v.discount_price
-    FROM products p
-    LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
-    LEFT JOIN product_variants v ON p.product_id = v.product_id
-    ORDER BY p.created_at DESC";
+$productQuery = "SELECT p.product_id, p.product_name, p.product_description, 
+                 pi.image_path, 
+                 v.variant_id, v.variant_name, v.variant_price, v.discount_price
+          FROM products p
+          LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
+          LEFT JOIN product_variants v ON p.product_id = v.product_id
+          ORDER BY p.created_at DESC";
 
-$result = $conn->query($query);
+$productResult = $conn->query($productQuery);
+
+if (!$productResult) {
+    die("Error fetching products: " . $conn->error);
+}
+
+// Initialize user details array
+$userDetails = [];
+
+// Check if user is logged in
+if (isset($_SESSION['account_id'])) {
+    
+    $accountId = $_SESSION['account_id'];
+    
+    $stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, address, postal_code, city FROM accounts WHERE account_id = ?");
+    if (!$stmt) {
+        die("Error preparing statement: " . $conn->error);
+    }
+
+    $stmt->bind_param("i", $accountId);
+    $stmt->execute();
+    $userResult = $stmt->get_result();
+    $userDetails = $userResult->fetch_assoc();
+    $stmt->close();
+}
+
+$conn->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -46,12 +73,9 @@ $result = $conn->query($query);
 <!-- Our Story Section -->
 <section id="checkout-section">
     
-
     <div>
         <?php include('./components/to_checkout.php'); ?>
     </div>
-
-    <?php include('./components/footer.php'); ?>
     
 </section>
 

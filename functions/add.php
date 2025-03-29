@@ -84,79 +84,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         redirectWithMessage('../details.php', "Registration successful! Please enter your details.", 'success');
     }
+}
 
-    // Handle complete_order form submission
-    elseif (isset($_POST['complete_order'])) { 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_order'])) {
+    try {
         $cart = $_SESSION['cart'] ?? [];
-
+        
         if (empty($cart)) {
-            redirectWithMessage('../cart.php', "Your cart is empty!");
+            throw new Exception("Your cart is empty!");
         }
 
-        // Determine if the user is logged in or a guest
+        // Get form data with proper sanitization
+        $firstName = filter_input(INPUT_POST, 'first_name', FILTER_SANITIZE_STRING);
+        $lastName = filter_input(INPUT_POST, 'last_name', FILTER_SANITIZE_STRING);
+        $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+        $phoneNumber = filter_input(INPUT_POST, 'phone_number', FILTER_SANITIZE_STRING);
+        $address = filter_input(INPUT_POST, 'address', FILTER_SANITIZE_STRING);
+        $postalCode = filter_input(INPUT_POST, 'postal_code', FILTER_SANITIZE_STRING);
+        $city = filter_input(INPUT_POST, 'city', FILTER_SANITIZE_STRING);
+        $paymentMethod = filter_input(INPUT_POST, 'payment_method', FILTER_SANITIZE_STRING);
+
+        // Validate required fields
+        $required = [
+            'First Name' => $firstName,
+            'Last Name' => $lastName,
+            'Email' => $email,
+            'Phone Number' => $phoneNumber,
+            'Address' => $address,
+            'Postal Code' => $postalCode,
+            'City' => $city,
+            'Payment Method' => $paymentMethod
+        ];
+
+        foreach ($required as $field => $value) {
+            if (empty(trim($value))) {
+                throw new Exception("$field is required");
+            }
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("Invalid email format");
+        }
+
+        // Calculate total price
+        $totalPrice = 0;
+        foreach ($cart as $item) {
+            $totalPrice += $item['price'] * $item['quantity'];
+        }
+
+        if ($totalPrice <= 0) {
+            throw new Exception("Invalid order total");
+        }
+
+        // Start transaction
+        $conn->begin_transaction();
+
+        // Determine user type and prepare query
         $userType = isset($_SESSION['account_id']) ? 'customer' : 'guest';
+        $accountId = $_SESSION['account_id'] ?? null;
 
-        // Initialize variables for billing details
-        $firstName = $lastName = $email = $phoneNumber = $address = $postalCode = $city = null;
-
-        if ($userType === 'customer') {
-            // Fetch billing details from the accounts table for logged-in users
-            $accountId = $_SESSION['account_id'];
-            $stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, address, postal_code, city FROM accounts WHERE account_id = ?");
-            $stmt->bind_param("i", $accountId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $userDetails = $result->fetch_assoc();
-
-            if ($userDetails) {
-                $firstName = $userDetails['first_name'];
-                $lastName = $userDetails['last_name'];
-                $email = $userDetails['email'];
-                $phoneNumber = $userDetails['phone_number'];
-                $address = $userDetails['address'];
-                $postalCode = $userDetails['postal_code'];
-                $city = $userDetails['city'];
-            }
-        } else {
-            // Get billing details from the form for guest users
-            $firstName = $_POST['first_name'] ?? null;
-            $lastName = $_POST['last_name'] ?? null;
-            $email = $_POST['email'] ?? null;
-            $phoneNumber = $_POST['phone_number'] ?? null;
-            $address = $_POST['address'] ?? null;
-            $postalCode = $_POST['postal_code'] ?? null;
-            $city = $_POST['city'] ?? null;
-
-            // Validate guest user input
-            if (!$firstName || !$lastName || !$email || !$phoneNumber || !$address || !$postalCode || !$city) {
-                redirectWithMessage('../checkout.php', "All fields are required for guest checkout!");
-            }
+        if ($userType === 'customer' && empty($accountId)) {
+            throw new Exception("Customer session is invalid - please login again");
         }
 
-        // Get the payment method
-        $paymentMethod = $_POST['payment_method'] ?? null;
-        if (!$paymentMethod) {
-            redirectWithMessage('../checkout.php', "Please select a payment method!");
-        }
+        // Insert order - matches your database schema
+        $orderQuery = $userType === 'customer' 
+            ? "INSERT INTO orders (
+                account_id, user_type, email, phone_number, first_name, last_name, 
+                address, postal_code, city, total_price, payment_method, order_status, order_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())"
+            : "INSERT INTO orders (
+                user_type, email, phone_number, first_name, last_name, 
+                address, postal_code, city, total_price, payment_method, order_status, order_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
 
-        // Calculate the total price of the order
-        $totalPrice = (float) array_sum(array_map(function($item) {
-            return $item['price'] * $item['quantity'];
-        }, $cart));
-
-        // Insert the order into the orders table
+        $stmt = $conn->prepare($orderQuery);
+        
         if ($userType === 'customer') {
-            // For logged-in customers
-            $stmt = $conn->prepare("
-                INSERT INTO orders (
-                    account_id, user_type, email, phone_number, first_name, last_name, address, postal_code, city, total_price, payment_method
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
-            ");
             $stmt->bind_param(
                 "isssssssdss",
-                $_SESSION['account_id'], // Pass account_id for customers
+                $accountId,
                 $userType,
                 $email,
                 $phoneNumber,
@@ -164,22 +171,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lastName,
                 $address,
                 $postalCode,
-                $city, // Now treated as a string (s)
+                $city,
                 $totalPrice,
                 $paymentMethod
             );
         } else {
-            // For guest users
-            $stmt = $conn->prepare("
-                INSERT INTO orders (
-                    user_type, email, phone_number, first_name, last_name, address, postal_code, city, total_price, payment_method
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
-            ");
-
             $stmt->bind_param(
-                "ssssssssss", // Updated format string
+                "sssssssdss",
                 $userType,
                 $email,
                 $phoneNumber,
@@ -187,69 +185,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lastName,
                 $address,
                 $postalCode,
-                $city, // Now treated as a string (s)
+                $city,
                 $totalPrice,
                 $paymentMethod
             );
         }
 
         if (!$stmt->execute()) {
-            error_log("MySQL Error: " . $stmt->error);
-            redirectWithMessage('../checkout.php', "Something went wrong. Try again!");
+            throw new Exception("Failed to create order: " . $stmt->error);
         }
 
-        // Get the last inserted order ID
-        $orderId = $stmt->insert_id;
+        $orderId = $conn->insert_id;
 
-        // Insert the order items into the order_items table
+        // Insert order items
         foreach ($cart as $item) {
-          
-
-            // Ensure discount_price is properly initialized
             $discountPrice = $item['discount_price'] ?? 0.00;
-
-            // Check if variant_id exists in product_variants table
-            $checkVariantQuery = "SELECT variant_id FROM product_variants WHERE variant_id = ?";
-            $checkStmt = $conn->prepare($checkVariantQuery);
-            $checkStmt->bind_param("i", $item['variant_id']);
-            $checkStmt->execute();
-            $checkResult = $checkStmt->get_result();
-
-            if ($checkResult->num_rows === 0) {
-                // Variant ID does not exist in product_variants table
-                redirectWithMessage('../checkout.php', "Invalid product variant. Please try again!");
-            }
-
-            // Insert into order_items table
-            $stmt = $conn->prepare("
+            
+            $itemStmt = $conn->prepare("
                 INSERT INTO order_items (
                     order_id, product_id, variant_id, quantity, price, discount
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?
-                )
+                ) VALUES (?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param(
+            $itemStmt->bind_param(
                 "iiiidd",
                 $orderId,
                 $item['product_id'],
-                $item['variant_id'], // Ensure this is valid
+                $item['variant_id'],
                 $item['quantity'],
                 $item['price'],
                 $discountPrice
             );
 
-            if (!$stmt->execute()) {
-                error_log("MySQL Error: " . $stmt->error);
-                redirectWithMessage('../checkout.php', "Something went wrong. Try again!");
+            if (!$itemStmt->execute()) {
+                throw new Exception("Failed to add order item: " . $itemStmt->error);
             }
         }
 
-        // Clear the cart after successful checkout
-        unset($_SESSION['cart']);
+        // Commit transaction
+        $conn->commit();
 
-        // Redirect to a success page or display a success message
-        redirectWithMessage('../order_success.php', "Order placed successfully! Thank you for your purchase.", 'success');
-    }   
+        // Clear cart and set success data
+        unset($_SESSION['cart']);
+        $_SESSION['order_id'] = $orderId;
+        $_SESSION['success'] = "Order placed successfully! Thank you for your purchase.";
+
+        // Redirect to success page
+        header("Location: ../order_success.php");
+        exit();
+
+    } catch (Exception $e) {
+        // Roll back on error
+        if (isset($conn) && $conn) {
+            $conn->rollback();
+        }
+        
+        error_log("Checkout error: " . $e->getMessage());
+        redirectWithMessage('../checkout.php', "Checkout failed: " . $e->getMessage());
+    }
 }
 
 $conn->close();
