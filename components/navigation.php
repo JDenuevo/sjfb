@@ -14,19 +14,34 @@
       </div>
       
       <div class="flex justify-between">
-          
-          <div class="md:hidden ml-auto">
-              <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                  <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                  <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                  <path d="M17 17h-11v-14h-2" />
-                  <path d="M6 5l14 1l-1 7h-13" />
-                </svg>
-                <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span>
-              </button>
+          <!-- Cart Button with Count -->
+          <div class="md:hidden ml-auto relative">
+            <button type="button" class="size-10 justify-center items-center inline-flex hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-6">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                <path d="M17 17h-11v-14h-2" />
+                <path d="M6 5l14 1l-1 7h-13" />
+              </svg>
+            </button>
+            <!-- Cart Count Positioned at Top -->
+            <span id="cart-count-sidebar" class="cart-count cart-count-2 bg-orange-600 text-white w-5 h-5 text-xs font-bold rounded-full flex items-center justify-center">
+              <?php echo count($cart); ?>
+            </span>
           </div>
+
+          <!-- User Modal Button -->
+          <div class="md:hidden ml-auto">
+            <button type="button" onclick="openModal()" class="size-10 justify-center items-center inline-flex hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+              </svg>
+            </button>
+          </div>
+
           <div class="md:hidden ml-4">
             <button onclick="toggleMenu()" type="button" class="size-[38px] flex justify-center items-center text-sm font-semibold rounded-xl border transition-all duration-300 text-orange-500 bg-white border-white hover:bg-gray-200 focus:outline-none">
               <!-- Burger Icon -->
@@ -68,38 +83,30 @@
         </div>
 
         <div class="flex-grow"></div>
-        
-        <div>
-          <button type="button" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-              <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-              <path d="M21 21l-6 -6" />
-            </svg>
-          </button>
-        
-          <button type="button" onclick="openModal()" class="size-10 rounded-full justify-center items-center inline-flex hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+        <div class="inline-flex justify-center items-center gap-4 p-2">
+          <button type="button" onclick="openModal()" class="hidden md:block rounded-full justify-center items-center hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
               <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
             </svg>
           </button>
 
-        
-          <button type="button" class="relative size-10 rounded-full inline-flex items-center justify-center hover:bg-gray-100 hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-6">
+          <!-- Cart Button -->
+          <button type="button" class="hidden relative size-10 rounded-full md:block justify-center items-center hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-7">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
               <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
               <path d="M17 17h-11v-14h-2" />
               <path d="M6 5l14 1l-1 7h-13" />
             </svg>
-            <span id="cart-count-sidebar" class="cart-count absolute top-4 right-4 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"><?php echo count($cart); ?></span>
-            </span>
+            <span id="cart-count-sidebar" class="cart-count cart-count-1 bg-orange-600 text-white w-5 h-5 text-xs font-bold rounded-full flex items-center justify-center"><?php echo count($cart); ?></span>
           </button>
 
         </div>
+        
       </div>
     </div>
   </nav>
@@ -128,6 +135,39 @@
 
   /* Transition for Burger to X Icon */
   .burger-icon, .close-icon { transition: all 0.3s ease-in-out; }
+
+  .cart-count-1 {
+    background-color: #f97316; /* Orange */
+    color: white;
+    min-width: 1.25rem; 
+    height: 1.25rem;
+    border-radius: 9999px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 0.25rem;
+    position: absolute;
+    top: -4px; /* Adjust to move it upwards */
+    right: -4px; /* Adjust to move it to the left */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .cart-count-2 {
+    background-color: #f97316; /* Orange */
+    color: white;
+    min-width: 1.25rem; 
+    height: 1.25rem;
+    border-radius: 9999px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 0.25rem;
+    position: absolute;
+    top: -4px; /* Adjust to move it upwards */
+    right: -4px; /* Adjust to move it to the left */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
 </style>
 
 <script>

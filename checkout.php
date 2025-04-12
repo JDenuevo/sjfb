@@ -17,26 +17,6 @@ if (!$productResult) {
     die("Error fetching products: " . $conn->error);
 }
 
-// Initialize user details array
-$userDetails = [];
-
-// Check if user is logged in
-if (isset($_SESSION['account_id'])) {
-    
-    $accountId = $_SESSION['account_id'];
-    
-    $stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, address, postal_code, city FROM accounts WHERE account_id = ?");
-    if (!$stmt) {
-        die("Error preparing statement: " . $conn->error);
-    }
-
-    $stmt->bind_param("i", $accountId);
-    $stmt->execute();
-    $userResult = $stmt->get_result();
-    $userDetails = $userResult->fetch_assoc();
-    $stmt->close();
-}
-
 $conn->close();
 ?>
 
@@ -59,7 +39,7 @@ $conn->close();
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="style.css" rel="stylesheet">
@@ -72,14 +52,28 @@ $conn->close();
 <?php include('./components/preloader.php'); ?>
 <!-- Our Story Section -->
 <section id="checkout-section">
-    
-    <div>
+    <?php
+        if (!empty($_SESSION['success']) || !empty($_SESSION['error'])) {
+            $messageText = !empty($_SESSION['success']) ? $_SESSION['success'] : $_SESSION['error'];
+            $messageType = !empty($_SESSION['success']) ? 'success' : 'error';
+            $alertType = ($messageType === 'success') ? 'bg-teal-500 text-green' : 'bg-red-500 text-red';
+
+            echo '
+            <div class="mt-2 ' . htmlspecialchars($alertType) . ' text-sm rounded-lg p-4 text-center text-red-500" role="alert">
+                <span class="font-bold">' . ucfirst(htmlspecialchars($messageType)) . '!</span> ' . htmlspecialchars($messageText) . '
+            </div>';
+
+            // Unset messages after displaying
+            unset($_SESSION['success'], $_SESSION['error']);
+        }
+    ?>
+    <div class="my-10">
         <?php include('./components/to_checkout.php'); ?>
     </div>
     
 </section>
 
-  <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+  <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script>
     AOS.init();
   </script>

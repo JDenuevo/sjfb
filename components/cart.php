@@ -2,11 +2,8 @@
 $cart = $_SESSION['cart'] ?? [];
 ?>
 
-<!-- Add this container for toast messages (place it near the end of your body) -->
-<div id="toastContainer" class="fixed bottom-4 right-4 z-50 text-white" style="background-color: black;"></div>
-
 <div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
-    <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto" style="width: 450px;">
+    <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-full">
         <div class="flex flex-col h-full">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
                 <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span></h2>
@@ -88,6 +85,25 @@ $cart = $_SESSION['cart'] ?? [];
   @keyframes bounce {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.5); }
+  }
+
+  /* Responsive sidebar width if you want custom sizes */
+  @media (max-width: 768px) {
+    #sidebar-white-bg {
+      width: 100%;
+    }
+  }
+
+  @media (min-width: 769px) and (max-width: 1024px) {
+    #sidebar-white-bg {
+      width: 50%;
+    }
+  }
+
+  @media (min-width: 1025px) {
+    #sidebar-white-bg {
+      width: 33.3333%;
+    }
   }
 </style>
 

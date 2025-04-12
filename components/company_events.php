@@ -74,6 +74,33 @@
 
 <script>
   const eventsData = {
+
+    "2025": [
+      "./assets/images/Events2024/TB24_1.jpg",
+      "./assets/images/Events2024/TB24_2.jpg",
+      "./assets/images/Events2024/TB24_3.jpg",
+      "./assets/images/Events2024/TB24_4.jpg",
+      "./assets/images/Events2024/TB24_5.jpg",
+      "./assets/images/Events2024/TB24_6.jpg",
+      "./assets/images/Events2024/TB24_7.jpg",
+      
+      "./assets/images/Events2024/HP24_1.jpg",
+      "./assets/images/Events2024/HP24_2.jpg",
+      "./assets/images/Events2024/HP24_3.jpg",
+      "./assets/images/Events2024/HP24_4.jpg",
+      "./assets/images/Events2024/HP24_5.jpg",
+      "./assets/images/Events2024/HP24_6.jpg",
+      "./assets/images/Events2024/HP24_7.jpg",
+
+      "./assets/images/Events2024/YE24_1.jpg",
+      "./assets/images/Events2024/YE24_2.jpg",
+      "./assets/images/Events2024/YE24_3.jpg",
+      "./assets/images/Events2024/YE24_4.jpg",
+      "./assets/images/Events2024/YE24_5.jpg",
+      "./assets/images/Events2024/YE24_6.jpg",
+      
+    ],
+
     "2024": [
       "./assets/images/Events2024/TB24_1.jpg",
       "./assets/images/Events2024/TB24_2.jpg",
@@ -82,10 +109,7 @@
       "./assets/images/Events2024/TB24_5.jpg",
       "./assets/images/Events2024/TB24_6.jpg",
       "./assets/images/Events2024/TB24_7.jpg",
-      "./assets/images/Events2024/TB24_8.jpg",
-      "./assets/images/Events2024/TB24_9.jpg",
-      "./assets/images/Events2024/TB24_10.jpg",
-
+      
       "./assets/images/Events2024/HP24_1.jpg",
       "./assets/images/Events2024/HP24_2.jpg",
       "./assets/images/Events2024/HP24_3.jpg",
@@ -93,9 +117,14 @@
       "./assets/images/Events2024/HP24_5.jpg",
       "./assets/images/Events2024/HP24_6.jpg",
       "./assets/images/Events2024/HP24_7.jpg",
-      "./assets/images/Events2024/HP24_8.jpg",
-      "./assets/images/Events2024/HP24_9.jpg",
-      "./assets/images/Events2024/HP24_10.jpg"
+
+      "./assets/images/Events2024/YE24_1.jpg",
+      "./assets/images/Events2024/YE24_2.jpg",
+      "./assets/images/Events2024/YE24_3.jpg",
+      "./assets/images/Events2024/YE24_4.jpg",
+      "./assets/images/Events2024/YE24_5.jpg",
+      "./assets/images/Events2024/YE24_6.jpg",
+      
     ],
     "2023": [
       "./assets/images/Events2023/TB23_1.jpg",

@@ -3,7 +3,7 @@ session_start();
 include '../conn.php';
 
 // Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
@@ -11,8 +11,43 @@ if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM product_categories"; // Adjust table name if necessary
-$result = $conn->query($query);
+$query = "SELECT 
+            o.order_id, 
+            o.is_guest_order, 
+            o.email, 
+            o.phone_number, 
+            o.first_name, 
+            o.last_name, 
+            o.address, 
+            o.postal_code, 
+            o.city, 
+            o.total_price, 
+            o.order_date, 
+            o.order_status,
+            o.payment_method
+          FROM orders o
+          ORDER BY o.order_date DESC;";
+
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+  die("Query failed: " . mysqli_error($conn));
+}
+
+// Inside order_list.php or wherever you're handling:
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+  $order_id = $_POST['order_id'];
+  $order_status = $_POST['order_status'];
+
+  $stmt = $conn->prepare("UPDATE orders SET order_status = ? WHERE order_id = ?");
+  $stmt->bind_param("si", $order_status, $order_id);
+  $stmt->execute();
+  $stmt->close();
+  $conn->close();
+
+}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -20,7 +55,7 @@ $result = $conn->query($query);
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Category | St. Joseph Fish Brokerage Inc.</title>
+  <title>Orders | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -39,6 +74,7 @@ $result = $conn->query($query);
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
 </head>
 
+
 <body class="bg-gray-50">
   
   <!-- Header -->
@@ -49,7 +85,7 @@ $result = $conn->query($query);
   <div class="sticky top-0 inset-x-0 z-20 bg-white border-y px-4 sm:px-6 lg:px-8 lg:hidden">
     <div class="flex items-center py-2">
       <!-- Navigation Toggle -->
-      <button type="button" class="size-8 flex justify-center items-center gap-x-2 border border-gray-200 text-gray-800 hover:text-gray-500 rounded-lg focus:outline-none focus:text-gray-500 disabled:opacity-50 disabled:pointer-events-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-application-sidebar" aria-label="Toggle navigation" data-hs-overlay="#hs-application-sidebar">
+      <button type="button" class="size-8 flex justify-center items-center gap-x-2 border border-gray-200 text-gray-800 hover:text-gray-500 rounded-lg focus:outline-none focus:text-gray-500 disabled:opacity-50 disabled:pointer-events-none " aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-application-sidebar" aria-label="Toggle navigation" data-hs-overlay="#hs-application-sidebar">
         <span class="sr-only">Toggle Navigation</span>
         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -63,12 +99,12 @@ $result = $conn->query($query);
       <ol class="ms-3 flex items-center whitespace-nowrap">
         <li class="flex items-center text-sm text-gray-800 ">
           Application Layout
-          <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400 " width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </li>
         <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
-          Category
+          Dashboard
         </li>
       </ol>
       <!-- End Breadcrumb -->
@@ -83,77 +119,35 @@ $result = $conn->query($query);
   <div class="w-full lg:ps-64">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <?php
-      if (isset($_SESSION['message'])) {
+        if (!empty($_SESSION['message'])) {
           $message = $_SESSION['message'];
-          $alertType = ($message['type'] == 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
-
+          $alertType = ($message['type'] === 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
+      
           echo '
-          <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert" tabindex="-1">
+          <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert">
               <span class="font-bold">' . ucfirst($message['type']) . '!</span> ' . $message['text'] . '
           </div>';
-
-          // Clear the message after displaying it
+      
+          // Clear message after displaying it
           unset($_SESSION['message']);
-      }
+        }
       ?>
-
       <!-- Table Card -->
-      <?php include('./components/category_list.php'); ?>
+      <?php include('./components/order_list.php'); ?>
       <!-- Table End -->
 
     </div>
   </div>
   <!-- End Content -->
 
-<!-- Add Category Modal -->
-<div id="addCategoryModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-    <h3 class="text-lg font-semibold mb-4">Add New Category</h3>
-    <form action="./functions/add.php" method="POST" enctype="multipart/form-data">
-      <div class="mb-3">
-        <label class="block text-sm font-medium">Category Name</label>
-        <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg">
-      </div>
-      <div class="mb-3">
-        <label class="block text-sm font-medium">Category Description</label>
-        <input type="text" name="category_description" required class="w-full px-3 py-2 border rounded-lg">
-      </div>
-      <div class="flex justify-end">
-        <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="document.getElementById('addCategoryModal').classList.add('hidden')">Cancel</button>
-        <button type="submit" name="add_category" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-
-<script>
-  document.querySelectorAll('[data-modal-target]').forEach(button => {
-    button.addEventListener('click', function() {
-      const modalId = this.getAttribute('data-modal-target');
-      document.getElementById(modalId).classList.remove('hidden');
-    });
-  });
-
-  function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-  }
-</script>
-
-
-<?php $conn->close(); ?>
-
-  <!-- JS Implementing Plugins -->
-
   <!-- JS PLUGINS -->
   <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-  <script src="node_modules/preline/dist/preline.js"></script>
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
-  
 </body>
 </html>
 

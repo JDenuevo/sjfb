@@ -33,7 +33,7 @@ $result = $conn->query($query);
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="../style.css" rel="stylesheet">
@@ -111,7 +111,7 @@ $result = $conn->query($query);
 
   
 <!-- Add Category Modal -->
-<div id="addCategoryModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+<div id="addCategoryModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
   <div class="bg-white p-6 rounded-lg shadow-lg w-96">
     <h3 class="text-lg font-semibold mb-4">Add New Category</h3>
     <form action="./functions/add.php" method="POST" enctype="multipart/form-data">
@@ -119,13 +119,12 @@ $result = $conn->query($query);
         <label class="block text-sm font-medium">Category Name</label>
         <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg">
       </div>
-      <div class="mb-3">
-        <label class="block text-sm font-medium">Category Description</label>
-        <input type="text" name="category_description" required class="w-full px-3 py-2 border rounded-lg">
-      </div>
-      <div class="flex justify-end">
-        <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="document.getElementById('addCategoryModal').classList.add('hidden')">Cancel</button>
-        <button type="submit" name="add_category" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
+     
+      <div class="flex justify-end space-x-3 mt-4">
+       
+        <button type="submit" name="add_category" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Add Category</button>
+        <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="document.getElementById('addCategoryModal').classList.add('hidden')">Cancel</button>
+                       
       </div>
     </form>
   </div>

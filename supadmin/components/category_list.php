@@ -29,11 +29,20 @@
         <!-- End Header -->
 
         <!-- Table -->
-        <table class="min-w-full divide-y divide-gray-200 ">
-          <thead class="bg-gray-50 ">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-start">Category ID</th>
-              <th scope="col" class="ps-6 py-3 text-start">Category Name</th>
+              <th scope="col" class="ps-6 py-3 text-start">
+                <div class="flex items-center gap-x-2">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Category ID</span>
+                </div>
+              </th>
+              <th scope="col" class="ps-6 py-3 text-start">
+                <div class="flex items-center gap-x-2">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Category Name</span>
+                </div>
+              </th>
+              
               <th scope="col" class="px-6 py-3 text-end"></th>
             </tr>
           </thead>
@@ -48,23 +57,26 @@
                   </div>
                 </div>
               </td>
+              
               <td class="px-6 py-3">
                 <span class="block text-sm font-semibold text-gray-800 "><?= $row['category_name'] ?></span>
               </td>
-              
+
               <td class="px-6 py-3 inline-flex gap-1 items-center">
-                <button class="px-3 py-2 bg-blue-500 text-dark rounded-xl" onclick="document.getElementById('editCategoryModal<?php echo $row['category_id']; ?>').classList.remove('hidden')">
+                <button type="button" style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="document.getElementById('editCategoryModal<?php echo $row['category_id']; ?>').classList.remove('hidden')">
                   <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
                 </button>
-                <button class="px-3 py-2 bg-red-500 text-dark rounded-xl" data-modal-target="deleteCategoryModal<?php echo $row['category_id']; ?>">
-                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>                </a>
+                <button type="button" style="background-color: #ef4444;" class="px-3 py-2 text-white rounded-xl" data-modal-target="deleteCategoryModal<?php echo $row['category_id']; ?>">
+                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
                 </button>
               </td>
+              
+              
             
             </tr>
 
             <!-- Edit Category Modal -->
-            <div id="editCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+            <div id="editCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
               <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <h3 class="text-lg font-semibold mb-4">Edit Category</h3>
                 <form action="./functions/update.php" method="POST">
@@ -76,15 +88,17 @@
                   </div>
                   
                   <div class="flex justify-end space-x-3 mt-4">
-                    <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('editCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
-                    <button type="submit" name="update_category" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Update Category</button>
+                  
+                    <button type="submit" name="update_category" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Update Category</button>
+                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('editCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
+                                        
                   </div>
                 </form>
               </div>
             </div>
 
             <!-- Delete Category Modal -->
-            <div id="deleteCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+            <div id="deleteCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
               <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <h3 class="text-lg font-semibold mb-4">Delete Category</h3>
                 <form action="./functions/delete.php" method="POST">
@@ -96,9 +110,10 @@
                   </div>
                   
                   <div class="flex justify-end space-x-3 mt-4">
-                    <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('deleteCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
-                    <button type="submit" name="delete_category" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Delete Category</button>
-                  </div>
+
+                    <button type="submit" name="delete_category" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Delete Category</button>
+                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('deleteCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
+                     </div>
                 </form>
               </div>
             </div>

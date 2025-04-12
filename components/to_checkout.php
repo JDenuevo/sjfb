@@ -1,6 +1,5 @@
 <?php
 $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
-
 ?>
 
 <!-- Container -->
@@ -11,9 +10,10 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
   <p class="text-gray-600 text-center mb-10" data-aos="fade-up" data-aos-duration="2000">
     Please fill up your Personal and Billing Address details.
   </p>
+  
   <form action="./functions/add.php" method="POST" id="checkoutForm">
-    <div class="grid grid-cols-3">
-      <div class="col-span-2 shadow-lg p-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="col-span-1 md:col-span-2 shadow-lg p-4 order-2 md:order-1 rounded-3xl">
         <!-- Form -->
           <h3 class="text-xl font-bold py-4">Contact Details</h3>
           <div class="grid gap-y-4">
@@ -24,7 +24,7 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                 <label for="First_name" class="block text-sm mb-2 text-dark">First name</label>
                 <div class="relative">
                 <input type="text" id="First_name" name="first_name" value="<?= isset($userDetails['first_name']) ? htmlspecialchars($userDetails['first_name']) : '' ?>" 
-                  placeholder="First name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+                  placeholder="First name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 active:border-orange-500" required>
                   <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
@@ -181,7 +181,7 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
         <!-- End Form -->
       </div>
 
-      <div class="col-span-1 shadow-lg">
+      <div class="col-span-1 md:col-span-1 shadow-lg p-4 order-1 md:order-2 rounded-3xl">
           <div class="flex justify-start items-center p-4 border-b border-gray-200">
           <h2 class="font-bold text-xl">To checkout: <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span></h2>
           </div>
@@ -374,7 +374,7 @@ async function removeCartItem(item) {
 // Toast notification function
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white ${
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white bg-dark ${
         type === 'success' ? 'bg-green-500' : 'bg-red-500'
     } animate-fade-in`;
     toast.textContent = message;

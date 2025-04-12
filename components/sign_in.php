@@ -1,6 +1,6 @@
 <!-- Modal -->
 <div id="hs-modal-signin" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-  <div id="signin-white-bg" class="bg-white rounded-lg shadow-lg p-6 relative">
+  <div id="signin-white-bg" class="bg-white rounded-lg shadow-lg p-10 relative">
     <!-- Close Button -->
     <div class="text-end">
       <button type="button" class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 focus:outline-none focus:bg-gray-200" onclick="closeModal()">
@@ -13,7 +13,7 @@
     </div>
     <!-- Modal Content -->
     <div class="mt-5">
-      <div class="mb-6 text-center">
+      <div class="mb-5 text-center">
         <h3 class="text-xl font-bold text-gray-900">Sign in</h3>
         <p class="text-gray-500">Log in to your account.</p>
       </div>
@@ -27,7 +27,7 @@
 
       <!-- Form -->
       <form action="./functions/checker.php" method="POST">
-        <div class="grid gap-y-4">
+        <div class="grid gap-y-4 mt-5">
           <!-- username Field -->
           <div>
             <label for="username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>

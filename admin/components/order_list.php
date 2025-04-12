@@ -1,7 +1,7 @@
 <div class="flex flex-col">
   <div class="-m-1.5 overflow-x-auto">
     <div class="p-1.5 min-w-full inline-block align-middle">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
         <!-- Header -->
         <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-b border-gray-200">
           <div>
@@ -70,11 +70,17 @@
 
                   <!-- User Type -->
                   <td class="h-px w-72 whitespace-nowrap">
-                    <div class="px-6">
-                      <span class="block text-sm font-semibold text-gray-800">
-                        <?php echo ucfirst($row['user_type']); ?>
-                      </span>
-                    </div>
+                      <div class="px-6">
+                          <?php 
+                              $userType = $row['is_guest_order'] == 0 ? 'Customer' : 'Guest';
+                              $badgeColor = $row['is_guest_order'] == 0 ? 'bg-orange-500 text-white' : 'bg-green-500 text-white';
+                          ?>
+                          <span class="block text-sm font-semibold text-gray-800">
+                              <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
+                                  <?php echo $userType; ?>
+                              </span>
+                          </span>
+                      </div>
                   </td>
 
                   <!-- Date Ordered -->
@@ -86,20 +92,52 @@
                     </div>
                   </td>
 
-                  <!-- Order Status -->
-                  <td class="size-px whitespace-nowrap">
+                  <?php
+                    // Set status class based on order_status
+                    $status = $row['order_status'];
+                    switch ($status) {
+                      case 'Pending':
+                        $statusClass = 'bg-yellow-100 text-yellow-800';
+                        break;
+                      case 'Approved':
+                        $statusClass = 'bg-blue-100 text-blue-800';
+                        break;
+                      case 'Shipped':
+                        $statusClass = 'bg-indigo-100 text-indigo-800';
+                        break;
+                      case 'Delivered':
+                        $statusClass = 'bg-green-100 text-green-800';
+                        break;
+                      case 'Cancelled':
+                        $statusClass = 'bg-red-100 text-red-800';
+                        break;
+                      default:
+                        $statusClass = 'bg-gray-100 text-gray-800';
+                    }
+                  ?>
+                  <!-- Order Status (Styled Select Box) -->
+                  <td class="size-px w-72 whitespace-nowrap">
                     <div class="px-6">
-                      <span class="py-1 px-1.5 inline-flex items-center gap-x-1 text-xs font-medium 
-                        <?php echo ($row['order_status'] === 'Pending') ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-800'; ?> rounded-full">
-                        <?php echo htmlspecialchars($row['order_status']); ?>
-                      </span>
+                      <form action="" method="POST">
+                        <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
+                        <select
+                          name="order_status"
+                          class="py-2.5 px-4 pe-9 block w-full border border-gray-200 rounded-full text-sm font-medium focus:border-blue-500 focus:ring-blue-500 <?php echo $statusClass; ?>"
+                          onchange="this.form.submit()">
+                          <option value="Pending" <?php echo $status == 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                          <option value="Approved" <?php echo $status == 'Approved' ? 'selected' : ''; ?>>Approved</option>
+                          <option value="Shipped" <?php echo $status == 'Shipped' ? 'selected' : ''; ?>>Shipped</option>
+                          <option value="Delivered" <?php echo $status == 'Delivered' ? 'selected' : ''; ?>>Delivered</option>
+                          <option value="Cancelled" <?php echo $status == 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                        </select>
+                      </form>
                     </div>
                   </td>
 
                   <!-- View Button -->
-                  <td class="size-px whitespace-nowrap">
-                    <button class="px-3 py-2 text-dark rounded-xl" data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-eye">
+                  <td class="p-2 whitespace-nowrap">
+                    <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-eye">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
                         <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
@@ -125,9 +163,9 @@
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
   <?php while ($row = mysqli_fetch_assoc($result)): ?>
-    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-4xl">
-        <div class="flex justify-between items-center mb-4">
+    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto p-10" style="margin: 0;">
+      <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-4xl">
+        <div class="p-6 border-b font-bold text-lg flex justify-between">
           <h3 class="text-lg font-semibold">Order Details</h3>
           <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -137,62 +175,94 @@
           </button>
         </div>
 
-        <!-- Order Details -->
-        <div class="space-y-4">
-          <!-- Customer Details -->
-          <div>
-            <h4 class="font-semibold text-gray-800">Customer Information</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              <div>
-                <p class="text-sm text-gray-600">Name: <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></p>
-                <p class="text-sm text-gray-600">Email: <?php echo htmlspecialchars($row['email']); ?></p>
-                <p class="text-sm text-gray-600">Phone: <?php echo htmlspecialchars($row['phone_number']); ?></p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Address: <?php echo htmlspecialchars($row['address']); ?></p>
-                <p class="text-sm text-gray-600">City: <?php echo htmlspecialchars($row['city']); ?></p>
-                <p class="text-sm text-gray-600">Postal Code: <?php echo htmlspecialchars($row['postal_code']); ?></p>
-              </div>
+        <div class="p-6 h-auto lg:max-h-[40vh] overflow-y-auto">
+         
+          <div class="text-center">
+            <!-- Customer Details -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block text-center">
+              <p class="text-blue-800 font-medium">Order #<?php echo htmlspecialchars ($row['order_id']); ?></p>
             </div>
           </div>
 
-          <!-- Order Items -->
-          <div>
-            <h4 class="font-semibold text-gray-800">Order Items</h4>
-            <div class="mt-2">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Product</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Variant</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Quantity</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Price</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Total</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
-                  <!-- Order items will be dynamically loaded here -->
-                </tbody>
-              </table>
+          <!-- Order Details -->
+          <div class="space-y-4">
+            
+            <div>
+              <h4 class="font-semibold text-gray-800">Customer Information</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <p class="text-sm text-gray-600">Name: <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></p>
+                  <p class="text-sm text-gray-600">Email: <?php echo htmlspecialchars($row['email']); ?></p>
+                  <p class="text-sm text-gray-600">Phone: <?php echo htmlspecialchars($row['phone_number']); ?></p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Address: <?php echo htmlspecialchars($row['address']); ?></p>
+                  <p class="text-sm text-gray-600">City: <?php echo htmlspecialchars($row['city']); ?></p>
+                  <p class="text-sm text-gray-600">Postal Code: <?php echo htmlspecialchars($row['postal_code']); ?></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="overflow-x-auto">
+              <h4 class="font-semibold text-gray-800">Order Items</h4>
+              <div class="mt-2">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Product</th>
+                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Variant</th>
+                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Quantity</th>
+                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Price</th>
+                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
+                    <!-- Order items will be dynamically loaded here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div>
+              <h4 class="font-semibold text-gray-800">Payment Method</h4>
+              <?php
+                $method = strtolower($row['payment_method']);
+                switch ($method) {
+                  case 'ewallet':
+                    $methodLabel = 'E-Wallet';
+                    $methodClass = 'bg-purple-100 text-purple-800';
+                    break;
+                  case 'cod':
+                    $methodLabel = 'Cash on Delivery';
+                    $methodClass = 'bg-orange-100 text-orange-800';
+                    break;
+                  case 'bank':
+                    $methodLabel = 'Bank Transfer';
+                    $methodClass = 'bg-blue-100 text-blue-800';
+                    break;
+                  default:
+                    $methodLabel = ucfirst($method);
+                    $methodClass = 'bg-gray-100 text-gray-800';
+                }
+              ?>
+              <p class="text-sm mt-2 inline-block px-2 py-1 rounded-full font-medium <?php echo $methodClass; ?>">
+                <?php echo $methodLabel; ?>
+              </p>
+            </div>
+
+            <!-- Total Price -->
+            <div>
+              <h4 class="font-semibold text-gray-800">Total Price</h4>
+              <p class="text-sm text-gray-600 mt-2">₱<?php echo number_format($row['total_price'], 2); ?></p>
             </div>
           </div>
 
-          <!-- Payment Method -->
-          <div>
-            <h4 class="font-semibold text-gray-800">Payment Method</h4>
-            <p class="text-sm text-gray-600 mt-2"><?php echo ucfirst($row['payment_method']); ?></p>
+          <!-- Close Button -->
+          <div class="mt-6 flex justify-end">
+            <button type="button" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">Close</button>
           </div>
-
-          <!-- Total Price -->
-          <div>
-            <h4 class="font-semibold text-gray-800">Total Price</h4>
-            <p class="text-sm text-gray-600 mt-2">₱<?php echo number_format($row['total_price'], 2); ?></p>
-          </div>
-        </div>
-
-        <!-- Close Button -->
-        <div class="mt-6 flex justify-end">
-          <button type="button" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">Close</button>
         </div>
       </div>
     </div>

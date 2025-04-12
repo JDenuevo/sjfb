@@ -120,14 +120,11 @@
               </td>
 
               <td class="px-6 py-3">
-                <span class="text-sm text-gray-500 dark:text-neutral-500"><?= date("F j, Y, g:i a", strtotime($row['last_updated'])) ?></span>
+                <span class="text-sm text-gray-500"><?= date("F j, Y, g:i a", strtotime($row['last_updated'])) ?></span>
               </td>
               <td class="px-6 py-3 inline-flex gap-1 items-center">
-                <button class="px-3 py-2 bg-blue-500 text-dark rounded-xl" onclick="openEditModal(<?php echo $row['product_id']; ?>)">
-                  Edit
-                </button>
-                <button class="px-3 py-2 bg-red-500 text-dark rounded-xl" onclick="openDeleteModal(<?php echo $row['product_id']; ?>, '<?php echo htmlspecialchars($row['product_name']); ?>')">
-                  Delete
+                <button type="button" style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="openEditModal(<?php echo $row['product_id']; ?>)">
+                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
                 </button>
               </td>
             </tr>
@@ -138,28 +135,14 @@
         <!-- End Table -->
 
         <!-- Update Product Modal -->
-        <div id="editProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
-          <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-3xl xl:max-w-3xl max-h-[50vh] flex flex-col modal-content">
-            <div class="overflow-y-auto max-h-[40vh]" id="modalContent">
+        <div id="editProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto p-10" style="margin: 0;">
+          <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-3xl flex flex-col modal-content">
+            <div class="p-6 lg:max-h-[40vh] overflow-y-auto" id="modalContent">
                   
             </div>
           </div>
         </div>
 
-        <!-- Delete Product Modal -->
-        <div id="deleteProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
-          <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-            <h3 class="text-lg font-semibold mb-4">Delete Product</h3>
-            <form action="./functions/delete.php" method="POST" id="deleteForm">
-              <input type="hidden" name="product_id" id="deleteProductId">
-              <p id="deleteProductName"></p>
-              <div class="flex justify-end mt-4">
-                <button type="button" class="mr-2 px-4 py-2 bg-gray-300 rounded-lg" onclick="closeModal('deleteProductModal')">Cancel</button>
-                <button type="submit" name="delete_product" class="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
-              </div>
-            </form>
-          </div>
-        </div>
         <!-- Footer -->
         <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200 ">
           <div>

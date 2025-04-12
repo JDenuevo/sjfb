@@ -11,7 +11,7 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 // Retrieve the logged-in supadmin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM accounts";
+$query = "SELECT * FROM accounts WHERE role = 'customer' OR role = 'admin' ORDER BY role DESC";
 $result = $conn->query($query);
 
 ?>
@@ -33,7 +33,7 @@ $result = $conn->query($query);
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="../style.css" rel="stylesheet">
@@ -110,7 +110,7 @@ $result = $conn->query($query);
   <!-- End Content -->
 
   <!-- Add Account Modal -->
-  <div id="addAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+  <div id="addAccountModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
     <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-95 hover:scale-100">
       <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Account</h3>
       <form action="./functions/add.php" method="POST">
@@ -121,7 +121,7 @@ $result = $conn->query($query);
           </div>
           <div class="mb-3">
             <label class="block text-sm font-medium text-gray-700">Role</label>
-            <select name="role" required class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <select name="role" required class="w-full px-3 py-2 border rounded-lg">
               <option value="" disabled selected>Select a role</option>
               <option value="admin">Admin</option>
               <option value="customer">Customer</option>
@@ -173,7 +173,8 @@ $result = $conn->query($query);
         </div>
         <!-- Action Buttons -->
         <div class="flex justify-end space-x-3 mt-4">
-          <button type="submit" name="add_account" class="px-4 py-2 w-full bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Add Account</button>
+          <button type="submit" name="add_account" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Add Account</button>
+          <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('addAccountModal')">Cancel</button>
         </div>
       </form>
     </div>

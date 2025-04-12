@@ -89,17 +89,17 @@
               <td class="px-6 py-3">
                 <span class="text-sm text-gray-500 "><?= date("F j, Y, g:i a", strtotime($row['created_at'])) ?></span>
               </td>
+              
               <td class="px-6 py-3 inline-flex gap-1 items-center">
-                <button class="px-3 py-2text-dark rounded-xl" onclick="document.getElementById('viewAccountModal<?php echo $row['account_id']; ?>').classList.remove('hidden')">
-  
-                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+                <button type="button" style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="document.getElementById('viewAccountModal<?php echo $row['account_id']; ?>').classList.remove('hidden')">
+                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
                 </button>
               </td>
             
             </tr>
 
             <!-- Users Account Modal -->
-            <div id="viewAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+            <div id="viewAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
               <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <div class="flex items-center justify-between">
                   <h3 class="text-lg font-semibold mb-4"><?php echo htmlspecialchars($row['username']); ?> Account Details</h3>

@@ -132,7 +132,7 @@ $result = $conn->query($query);
   </div>
   <!-- End Content -->
 
-  <div id="addProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
+  <div id="addProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
     <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-3xl xl:max-w-3xl max-h-[50vh] flex flex-col">
         <div class="overflow-y-auto max-h-[40vh]">
             <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Product</h3>

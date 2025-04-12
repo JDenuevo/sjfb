@@ -4,14 +4,17 @@ include '../conn.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $errors = [];
-    $input_username = strip_tags($_POST["username"]);
-    $input_password = $_POST["password"];
 
+    // Sanitize inputs
+    $input_username = strip_tags(trim($_POST["username"] ?? ''));
+    $input_password = $_POST["password"] ?? '';
+
+    // Basic validation
     if (empty($input_username)) {
-        $errors[] = "Username is required";
+        $errors[] = "Username is required.";
     }
     if (empty($input_password)) {
-        $errors[] = "Password is required";
+        $errors[] = "Password is required.";
     }
 
     if (empty($errors)) {
@@ -20,24 +23,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
+        if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
+
             if (password_verify($input_password, $row['password_hash'])) {
                 $_SESSION['account_id'] = $row['account_id'];
+                $_SESSION['username'] = $row['username'];
+                $_SESSION['role'] = $row['role'];
 
-                switch ($row['role']) {
-                    case 'customer':
-                        $_SESSION["loggedinasuser"] = true;
-                        header("Location: ../user/orders.php");
-                        exit();
-                    case 'admin':
-                        $_SESSION["loggedinasadmin"] = true;
-                        header("Location: ../admin/dashboard.php");
-                        exit();
-                    case 'super_admin':
-                        $_SESSION["loggedinassupadmin"] = true;
-                        header("Location: ../supadmin/dashboard.php");
-                        exit();
+                // Redirect based on role
+                if ($row['role'] === 'customer') {
+                    $_SESSION["loggedinasuser"] = true;
+                    header("Location: ../user/orders.php");
+                    exit();
+                } elseif ($row['role'] === 'admin') {
+                    $_SESSION["loggedinasadmin"] = true;
+                    header("Location: ../admin/dashboard.php");
+                    exit();
+                } elseif ($row['role'] === 'super_admin') {
+                    $_SESSION["loggedinassupadmin"] = true;
+                    header("Location: ../supadmin/dashboard.php");
+                    exit();
+                } else {
+                    $_SESSION['error_message'] = "Unknown user role.";
                 }
             } else {
                 $_SESSION['error_message'] = "Invalid username or password.";
@@ -45,11 +53,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $_SESSION['error_message'] = "Invalid username or password.";
         }
+
+        $stmt->close();
     } else {
         $_SESSION['error_message'] = implode("<br>", $errors);
     }
 
-    header("Location: ../index.php?showModal=true");
+    // Redirect to login page with modal open
+    header("Location: ../?showModal=true");
     exit();
 }
 ?>

@@ -123,9 +123,9 @@ elseif (isset($_POST['add_category'])) {
         redirectWithMessage("../category.php", "Category name already exists.", "error");
     }
 
-    $sql = "INSERT INTO product_categories (category_name, category_description) VALUES (?, ?)";
+    $sql = "INSERT INTO product_categories (category_name) VALUES (?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $category_name, $category_description);
+    $stmt->bind_param("s", $category_name);
     $stmt->execute();
     $stmt->close();
 

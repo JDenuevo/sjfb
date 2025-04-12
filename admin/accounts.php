@@ -11,7 +11,7 @@ if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM accounts WHERE role = 'customer' OR role = 'guest'";
+$query = "SELECT * FROM accounts WHERE role = 'customer'";
 $result = $conn->query($query);
 
 ?>
@@ -33,7 +33,7 @@ $result = $conn->query($query);
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="../style.css" rel="stylesheet">

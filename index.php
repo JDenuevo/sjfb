@@ -41,7 +41,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link href="style.css" rel="stylesheet">
@@ -55,6 +55,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 <body>
+
+<style>
+  /* Fade Out Animation */
+.fade-out {
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+/* Fade In Animation */
+.fade-in {
+  opacity: 1;
+  transition: opacity 1s ease-in-out;
+}
+
+</style>
 <?php include('./components/preloader.php'); ?>
 
 <!-- Hero Section -->
@@ -75,7 +90,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <?php include('./components/products.php'); ?>
     </div>
 
-    <br><br><br>
   </section>
   
   <?php include('./components/footer.php'); ?>
@@ -89,26 +103,29 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           'Quality seafood, exceptional value.',
           'Your seafood partner, from start to finish.'
       ];
-      
+
       let index = 0;
 
-      // Function to Cycle through Phrases
       function changePhrase() {
           const phraseElement = $('#phrase');
+
           setInterval(() => {
-              phraseElement.addClass('fade-out'); // Fade out
+              phraseElement.removeClass('fade-in').addClass('fade-out');
+
               setTimeout(() => {
                   index = (index + 1) % phrases.length;
-                  phraseElement.text(phrases[index]); // Update phrase
-                  phraseElement.removeClass('fade-out').addClass('fade-in'); // Fade in
-              }, 1000); // 1-second duration
-          }, 4000); // Change every 8 seconds
+                  phraseElement.text(phrases[index]);
+
+                  phraseElement.removeClass('fade-out').addClass('fade-in');
+              }, 1000); // match this to the CSS transition
+          }, 5000); // phrase changes every 5 seconds
       }
 
-      // Call Phrase Transition on Load
       $(document).ready(() => {
+          $('#phrase').addClass('fade-in'); // initial fade-in
           changePhrase();
       });
+
   </script>
 
   
@@ -124,7 +141,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   };
 </script>
 
-  <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+  <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script>
     AOS.init();
   </script>

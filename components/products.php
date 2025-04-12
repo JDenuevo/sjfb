@@ -6,7 +6,7 @@
     </p>
   </div>
 
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 text-white" style="background-color: black;"></div>
+  <div id="toastContainer"></div>
 
   <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
     <?php
@@ -39,8 +39,9 @@
             $variants = $product['variants'];
     ?>
     <div class="bg-white shadow-lg rounded-lg p-4 relative group block">
-        <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($product_name) ?>" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
-        
+        <a href="item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>">
+            <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($product_name) ?>" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
+        </a>
         <h3 class="text-xl font-semibold text-gray-800"><?= htmlspecialchars($product_name) ?></h3>
         <p class="text-md text-gray-500 description" data-product-id="<?= $product_id ?>">
             <?= htmlspecialchars($product_description) ?>
@@ -64,7 +65,7 @@
                     <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
                     <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
                 </div>
-                &nbsp; per Kg
+                &nbsp; per pcs
             </div>
 
             <!-- Variant Buttons -->
@@ -318,30 +319,66 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize handlers on page load
     initCartEventHandlers();
 
-    // Toast notification function
-    function showToast(message, type = 'success') {
+    function showToast(message) {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white bg-gray-500 ${
-            type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } animate-fade-in`;
+        toast.className = 'toast';
         toast.textContent = message;
+
         document.getElementById('toastContainer').appendChild(toast);
-        
+
         setTimeout(() => {
-            toast.classList.add('animate-fade-out');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+            toast.remove();
+        }, 3500);
     }
 
 });
 </script>
 
 <style>
-    .selected-variant {
+  
+.selected-variant {
     background-color: #f59e0b;
     border-color: #000000;
     color: #FFFFFF;
 }
+
+#toastContainer {
+    position: fixed;
+    bottom: 50%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Toast message style */
+.toast {
+    background: #ea580c; /* Dark background for contrast */
+    color: #fff; /* White text for readability */
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    font-size: 1rem;
+    border-radius: 9999px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 250px;
+    animation: fadeIn 0.3s ease-in, fadeOut 0.3s ease-out 3s forwards;
+}
+
+/* Fade-in and fade-out animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(10px); }
+}
+
 
 /* Add these to your CSS */
 .animate-bounce {
@@ -371,3 +408,5 @@ document.addEventListener('DOMContentLoaded', function() {
     to { opacity: 0; transform: translateY(10px); }
 }
 </style>
+
+

@@ -84,7 +84,6 @@ $account_id = $_SESSION['account_id'];
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
 
       <!-- Monitoring Card Grid -->
-      <?php include('./components/monitoring.php'); ?>
       <!-- Monitoring Card End -->
         
       <!-- Table Card -->

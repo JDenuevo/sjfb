@@ -13,7 +13,7 @@ $account_id = $_SESSION['account_id'];
 
 $query = "SELECT 
             o.order_id, 
-            o.user_type, 
+            o.is_guest_order, 
             o.email, 
             o.phone_number, 
             o.first_name, 
@@ -33,6 +33,21 @@ $result = mysqli_query($conn, $query);
 if (!$result) {
   die("Query failed: " . mysqli_error($conn));
 }
+
+// Inside order_list.php or wherever you're handling:
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+  $order_id = $_POST['order_id'];
+  $order_status = $_POST['order_status'];
+
+  $stmt = $conn->prepare("UPDATE orders SET order_status = ? WHERE order_id = ?");
+  $stmt->bind_param("si", $order_status, $order_id);
+  $stmt->execute();
+  $stmt->close();
+  $conn->close();
+
+}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -124,13 +139,10 @@ if (!$result) {
     </div>
   </div>
   <!-- End Content -->
-   
-  
 
   <!-- JS PLUGINS -->
   <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-  <script src="../node_modules/preline/dist/preline.js"></script>
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
