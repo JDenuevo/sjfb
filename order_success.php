@@ -73,6 +73,85 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
   <div class="container mx-auto px-4 py-12">
     <div class="max-w-4xl mx-auto">
       <!-- Success Message -->
+      <div class="text-center mb-12">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>        
+      </div>
+
+      <div style="width: 400px;" class="mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200" id="orderReceipt">
+        <!-- Receipt Header -->
+        <div class="bg-blue-600 text-white text-center py-3">
+          <h2 class="text-lg font-semibold">Order # <?= htmlspecialchars($order['order_id']) ?></h2>
+        </div>
+
+        <!-- Payment Success Info -->
+        <div class="text-center py-4 border-b border-gray-200">
+         
+          <h3 class="text-gray-900 font-medium mt-2"><?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?></h3>
+          <p class="text-sm text-gray-500"><?= htmlspecialchars($order['address']) ?></p>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="px-6 py-4">
+          <h3 class="text-lg font-medium text-gray-900 border-b pb-2">Order Summary</h3>
+          <div class="divide-y divide-gray-200 mt-2">
+            <?php foreach ($items as $item): ?>
+              <div class="py-2 flex justify-between items-center">
+                <div>
+                  <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($item['product_name']) ?></p>
+                  <p class="text-xs text-gray-500">Qty: <?= htmlspecialchars($item['quantity']) ?></p>
+                </div>
+                <p class="text-sm font-semibold">₱<?= number_format($item['price'] * $item['quantity'], 2) ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          <div class="border-t mt-4 pt-2 flex justify-between font-medium text-gray-900">
+            <p>Total</p>
+            <p>₱<?= number_format($order['total_price'], 2) ?></p>
+          </div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="px-6 py-4 border-t border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900 border-b pb-2">Payment Details</h3>
+          <p class="text-sm text-gray-500 mt-2">Payment Method</p>
+          <p class="text-sm font-medium"><?= ucfirst(htmlspecialchars($order['payment_method'])) ?></p>
+
+          <p class="text-sm text-gray-500 mt-2">Date & Time</p>
+          <p class="text-sm font-medium"><?= $orderDate ?></p>
+        </div>
+
+        <!-- Footer Note -->
+        <div class="text-center text-xs text-gray-500 py-4">
+          Please show this receipt for verification.<br>
+          Thank you for shopping with us. Your order has been confirmed.
+        </div>
+      </div>
+
+      <br><br>
+      <!-- Actions -->
+      <div class="flex flex-col sm:flex-row justify-center gap-4 py-6">
+        <a href="index.php" class="inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700">
+          Continue Shopping
+        </a>
+        <a href="track.php" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+          Track Your Order
+        </a>
+        <button id="downloadBtn" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+          Print Receipt
+        </button>
+      </div>
+      <br><br>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 py-12">
+    <div class="max-w-4xl mx-auto">
+      <!-- Success Message -->
       <div class="text-center mb-12" data-aos="fade-up">
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

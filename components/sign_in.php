@@ -48,6 +48,21 @@
               </button>
             </div>
           </div>
+          
+          <div class="flex items-center justify-between mt-4">
+            <!-- Remember Me Checkbox -->
+            <div class="flex items-center">
+              <div class="flex">
+                <input id="remember-me" name="remember-me" type="checkbox" class="shrink-0 mt-0.5 border-gray-200 rounded-sm text-orange-600 focus:ring-orange-500">
+              </div>
+              <div class="ms-3">
+                <label for="remember-me" class="text-sm text-gray-600">Remember me</label>
+              </div>
+            </div>
+
+            <!-- Forgot Password Link -->
+            <a href="forgot_password.php" class="text-sm text-gray-600 hover:underline transition duration-200">Forgot password?</a>
+          </div>
 
           <!-- Sign In Button -->
           <button type="submit" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">Sign In</button>
@@ -55,7 +70,7 @@
       </form>
     </div>
     <div class="mt-5 text-center">
-      Don't have an account? <a href="register.php" class="underline text-orange-600 transition-all duration-300">Sign up here</a>
+      Don't have an account? <a href="register.php" class="text-orange-600 hover:underline transition duration-200">Sign up here</a>
     </div>
   </div>
 </div>

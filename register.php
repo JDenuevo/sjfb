@@ -1,6 +1,13 @@
 <?php
 session_start();
 include 'conn.php';
+
+// Verify OTP was successfully verified first
+if (!isset($_SESSION['otp_verified']) || !isset($_SESSION['email'])) {
+  header("Location: forgot_password.php");
+  exit();
+}
+
 ?>
 
 <!DOCTYPE html>

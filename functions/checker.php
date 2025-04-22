@@ -34,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Redirect based on role
                 if ($row['role'] === 'customer') {
                     $_SESSION["loggedinasuser"] = true;
-                    header("Location: ../user/orders.php");
+                    header("Location: ../user/products.php");
                     exit();
                 } elseif ($row['role'] === 'admin') {
                     $_SESSION["loggedinasadmin"] = true;

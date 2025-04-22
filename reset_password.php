@@ -1,0 +1,413 @@
+<?php
+session_start();
+include 'conn.php';
+
+date_default_timezone_set('Asia/Manila');
+
+function redirectWithMessage($location, $message, $type = 'error') {
+    $_SESSION[$type] = $message;
+    header("Location: $location");
+    exit();
+}
+
+// Verify OTP was successfully verified first
+if (!isset($_SESSION['otp_verified']) || !isset($_SESSION['email'])) {
+    header("Location: forgot_password.php");
+    exit();
+}
+
+// Handle POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+  // Reset Password
+  if (isset($_POST['reset_password'])) {
+    if (!isset($_SESSION['otp_verified']) || !isset($_SESSION['email'])) {
+        error_log("Session verification failed");
+        redirectWithMessage('forgot_password.php', "Session expired");
+    }
+
+    $password = trim($_POST['password']);
+    $confirm = trim($_POST['confirm_password']);
+    $email = $_SESSION['email'];
+    
+    // Validate password
+    if (strlen($password) < 8 || 
+        !preg_match('/[A-Z]/', $password) || 
+        !preg_match('/[0-9]/', $password) || 
+        !preg_match('/[\W]/', $password)) {
+        error_log("Password validation failed");
+        $_SESSION['reset_error'] = "Password must be at least 8 characters with uppercase, number, and special character";
+        header("Location: reset_password.php");
+        exit();
+    }
+
+    if ($password !== $confirm) {
+        error_log("Password confirmation failed");
+        $_SESSION['reset_error'] = "Passwords don't match!";
+        header("Location: reset_password.php");
+        exit();
+    }
+
+    // Hash the password after validation
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("UPDATE accounts SET password_hash = ?, reset_otp = NULL, otp_expiry = NULL WHERE email = ?");
+    $stmt->bind_param("ss", $hash, $email);
+    
+    if ($stmt->execute()) {
+        error_log("Password update successful for email: $email");
+        
+        // Clear all session variables
+        session_unset();
+        session_destroy();
+        
+        // Start new session for success message
+        session_start();
+        $_SESSION['success'] = "Password reset successfully! You can now login with your new password.";
+        header("Location: index.php");
+        exit();
+    } else {
+        error_log("Password update failed: " . $conn->error);
+        $_SESSION['reset_error'] = "Password reset failed. Please try again.";
+        header("Location: reset_password.php");
+        exit();
+    }
+  }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
+<!-- End Google Tag Manager -->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Password | St. Joseph Fish Brokerage Inc.</title>
+
+  <!-- Favicons -->
+  <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
+  <link rel="icon" href="./assets/icons/logo.svg" type="image/svg+xml">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+
+  <!-- CSS Files -->
+  <link href="./style.css" rel="stylesheet">
+  <link href="./output.css" rel="stylesheet">
+  
+  <!-- jQuery -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+
+<style>
+  .password-input-container {
+    position: relative;
+  }
+
+  .password-toggle-button {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .password-input {
+    padding-right: 2.5rem;
+  }
+
+  .error-border {
+    border-color: #ef4444 !important;
+  }
+
+  .success-border {
+    border-color: #10b981 !important;
+  }
+
+  .requirement-list {
+    margin-top: 0.5rem;
+    padding-left: 1rem;
+    list-style-type: none;
+  }
+
+  .requirement-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .requirement-item.valid {
+    color: #10b981;
+  }
+
+  .requirement-icon {
+    margin-right: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .requirement-icon.valid {
+    color: #10b981;
+  }
+
+  #password-strength-meter {
+    transition: width 0.3s ease, background-color 0.3s ease;
+  }
+</style>
+
+<body>
+
+<?php include('./components/preloader.php'); ?>
+
+<!-- Hero Section -->
+<section id="home-section">
+  <?php include('./components/navigation.php'); ?>
+
+  <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto">
+    <div class="my-8 text-center">
+      <h1>Reset Password</h1>
+      <p>Enter your new password.</p>
+    </div>
+
+    <?php
+    if (!empty($_SESSION['message'])) {
+      $message = $_SESSION['message'];
+      $alertType = ($message['type'] === 'success') ? 'bg-green-100 border border-green-400 text-green-700' : 'bg-red-100 border border-red-400 text-red-700';
+
+      echo '
+      <div class="' . $alertType . ' px-4 py-3 rounded mb-4">
+        <span class="font-bold">' . ucfirst($message['type']) . '!</span> ' . $message['text'] . '
+      </div>';
+      unset($_SESSION['message']);
+    }
+
+    if (isset($_SESSION['reset_error'])) {
+      echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">'
+          . $_SESSION['reset_error'] 
+          . '</div>';
+      unset($_SESSION['reset_error']);
+    }
+    ?>
+    
+    <form method="POST" action="reset_password.php" id="password-reset-form">
+      <!-- Form Group -->
+      <div>
+        <label for="Password" class="block text-sm mb-2 text-dark">Password</label>
+        <div class="password-input-container">
+          <input type="password" id="Password" name="password" class="password-input border border-black py-3 px-4 block w-full rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+          <button type="button" class="password-toggle-button" onclick="togglePassword('Password', this)" aria-label="Toggle password visibility" aria-pressed="false">
+              <svg class="size-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+              </svg>
+          </button>
+        </div>
+      </div>
+      
+      <ul class="requirement-list" id="password-requirements">
+        <li class="requirement-item" id="password-length">
+          <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          At least 8 characters
+        </li>
+        <li class="requirement-item" id="password-uppercase">
+          <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          At least 1 uppercase letter
+        </li>
+        <li class="requirement-item" id="password-number">
+          <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          At least 1 number
+        </li>
+        <li class="requirement-item" id="password-special">
+          <svg class="requirement-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          At least 1 special character
+        </li>
+      </ul>
+      <p class="hidden text-xs text-red-600 mt-2" id="password-error">Password must be at least 8 characters long, contain an uppercase letter, a number, and a special character!</p>
+
+      <div>
+        <label for="ConfirmPassword" class="block text-sm mb-2 text-dark">Confirm Password</label>
+        <div class="password-input-container">
+          <input type="password" id="ConfirmPassword" name="confirm_password" class="password-input border border-black py-3 px-4 block w-full rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+          <button type="button" class="password-toggle-button" onclick="togglePassword('ConfirmPassword', this)" aria-label="Toggle password visibility" aria-pressed="false">
+              <svg class="size-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+              </svg>
+          </button>
+        </div>
+        <p class="hidden text-xs text-red-600 mt-2" id="confirm-password-error">Passwords do not match</p>
+      </div>
+      
+      <button type="submit" name="reset_password" class="w-full my-10 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-none disabled:opacity-50 disabled:pointer-events-none">Reset Password</button>
+
+    </form>
+  </div>
+</section>
+
+<?php include('./components/footer.php'); ?>
+
+<script>
+  function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    button.setAttribute('aria-pressed', !isPassword);
+
+    const eyeIcon = button.querySelector('svg');
+    if (isPassword) {
+        // Change to the open-eye icon when password is visible
+        eyeIcon.innerHTML = `
+            <path d="M13.875 18.825a12.042 12.042 0 0 1-9.9-6.825 12.042 12.042 0 0 1 1.975-3.175m2.225-2.225a12.042 12.042 0 0 1 6.825-1.975M19.125 18.825A12.042 12.042 0 0 0 21 12a12.042 12.042 0 0 0-1.975-3.175M9 15l6-6" />
+        `;
+    } else {
+        // Change to the closed-eye icon when password is hidden
+        eyeIcon.innerHTML = `
+            <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+        `;
+    }
+  }
+
+  function validatePasswordStrength(password) {
+    const hasMinLength = password.length >= 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    return {
+      valid: hasMinLength && hasUpperCase && hasNumber && hasSpecialChar,
+      requirements: {
+        length: hasMinLength,
+        uppercase: hasUpperCase,
+        number: hasNumber,
+        special: hasSpecialChar
+      }
+    };
+  }
+
+  function validatePassword() {
+    const password = document.getElementById("Password").value;
+    const validation = validatePasswordStrength(password);
+    
+    // Update requirement indicators
+    document.getElementById("password-length").classList.toggle('valid', validation.requirements.length);
+    document.getElementById("password-uppercase").classList.toggle('valid', validation.requirements.uppercase);
+    document.getElementById("password-number").classList.toggle('valid', validation.requirements.number);
+    document.getElementById("password-special").classList.toggle('valid', validation.requirements.special);
+    
+    // Update icons
+    document.querySelectorAll('.requirement-icon').forEach(icon => {
+      icon.classList.toggle('valid', validation.requirements[icon.parentElement.id.split('-')[1]]);
+    });
+    
+    if (!validation.valid) {
+      document.getElementById("Password").classList.add("error-border");
+      document.getElementById("Password").classList.remove("success-border");
+      document.getElementById("password-error").classList.remove("hidden");
+      return false;
+    } else {
+      document.getElementById("Password").classList.remove("error-border");
+      document.getElementById("Password").classList.add("success-border");
+      document.getElementById("password-error").classList.add("hidden");
+      return true;
+    }
+  }
+
+  function validateConfirmPassword() {
+    const password = document.getElementById("Password").value;
+    const confirmPassword = document.getElementById("Confirm_password").value;
+    const confirmInput = document.getElementById("Confirm_password");
+    const errorElement = document.getElementById("confirm-password-error");
+    
+    if (password !== confirmPassword || confirmPassword === "") {
+      confirmInput.classList.add("error-border");
+      confirmInput.classList.remove("success-border");
+      errorElement.classList.remove("hidden");
+      return false;
+    } else {
+      confirmInput.classList.remove("error-border");
+      confirmInput.classList.add("success-border");
+      errorElement.classList.add("hidden");
+      return true;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const passwordInput = document.getElementById("Password");
+    const confirmPasswordInput = document.getElementById("Confirm_password");
+    const form = document.getElementById("password-reset-form");
+
+    passwordInput.addEventListener("input", function() {
+      updatePasswordStrengthMeter(this.value);
+      validatePassword();
+      if (confirmPasswordInput.value.length > 0) {
+        validateConfirmPassword();
+      }
+    });
+
+    confirmPasswordInput.addEventListener("input", validateConfirmPassword);
+
+    form.addEventListener("submit", function(event) {
+      const submitButton = this.querySelector('button[type="submit"]');
+      if (submitButton.disabled) {
+        event.preventDefault();
+        return;
+      }
+      
+      let isValid = true;
+      if (!validatePassword()) isValid = false;
+      if (!validateConfirmPassword()) isValid = false;
+      
+      if (!isValid) {
+        event.preventDefault();
+        const firstError = document.querySelector(".error-border");
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        submitButton.disabled = true;
+        submitButton.innerHTML = 'Processing...';
+      }
+    });
+  });
+</script>
+
+<script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script> 
+<script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
+<script src="node_modules/preline/dist/preline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
+
+<?php include('live_chat.php'); ?>
+  
+</body>
+</html>
+      
