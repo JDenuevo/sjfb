@@ -283,12 +283,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
     const eyeIcon = button.querySelector('svg');
     if (isPassword) {
-        // Change to the open-eye icon when password is visible
         eyeIcon.innerHTML = `
             <path d="M13.875 18.825a12.042 12.042 0 0 1-9.9-6.825 12.042 12.042 0 0 1 1.975-3.175m2.225-2.225a12.042 12.042 0 0 1 6.825-1.975M19.125 18.825A12.042 12.042 0 0 0 21 12a12.042 12.042 0 0 0-1.975-3.175M9 15l6-6" />
         `;
     } else {
-        // Change to the closed-eye icon when password is hidden
         eyeIcon.innerHTML = `
             <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
@@ -296,109 +294,74 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     }
   }
 
-  function validatePasswordStrength(password) {
-    const hasMinLength = password.length >= 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    return {
-      valid: hasMinLength && hasUpperCase && hasNumber && hasSpecialChar,
-      requirements: {
-        length: hasMinLength,
-        uppercase: hasUpperCase,
-        number: hasNumber,
-        special: hasSpecialChar
-      }
+  const form = document.querySelector('form'); // Adjust if your form has an ID
+  const passwordInput = document.getElementById('Password');
+  const confirmInput = document.getElementById('ConfirmPassword');
+  const passwordError = document.getElementById('password-error');
+  const confirmError = document.getElementById('confirm-password-error');
+
+  const lengthRequirement = document.getElementById('password-length');
+  const uppercaseRequirement = document.getElementById('password-uppercase');
+  const numberRequirement = document.getElementById('password-number');
+  const specialRequirement = document.getElementById('password-special');
+
+  function validatePassword(password) {
+    const validations = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[\W_]/.test(password)
     };
+    return validations;
   }
 
-  function validatePassword() {
-    const password = document.getElementById("Password").value;
-    const validation = validatePasswordStrength(password);
-    
-    // Update requirement indicators
-    document.getElementById("password-length").classList.toggle('valid', validation.requirements.length);
-    document.getElementById("password-uppercase").classList.toggle('valid', validation.requirements.uppercase);
-    document.getElementById("password-number").classList.toggle('valid', validation.requirements.number);
-    document.getElementById("password-special").classList.toggle('valid', validation.requirements.special);
-    
-    // Update icons
-    document.querySelectorAll('.requirement-icon').forEach(icon => {
-      icon.classList.toggle('valid', validation.requirements[icon.parentElement.id.split('-')[1]]);
-    });
-    
-    if (!validation.valid) {
-      document.getElementById("Password").classList.add("error-border");
-      document.getElementById("Password").classList.remove("success-border");
-      document.getElementById("password-error").classList.remove("hidden");
-      return false;
+  function toggleClass(el, valid) {
+    el.classList.toggle('valid', valid);
+  }
+
+  passwordInput.addEventListener('input', function () {
+    const password = passwordInput.value;
+    const validations = validatePassword(password);
+
+    toggleClass(lengthRequirement, validations.length);
+    toggleClass(uppercaseRequirement, validations.uppercase);
+    toggleClass(numberRequirement, validations.number);
+    toggleClass(specialRequirement, validations.special);
+
+    const allValid = Object.values(validations).every(Boolean);
+    passwordInput.classList.toggle('error-border', !allValid);
+    passwordInput.classList.toggle('success-border', allValid);
+
+    if (!allValid) {
+      passwordError.classList.remove('hidden');
     } else {
-      document.getElementById("Password").classList.remove("error-border");
-      document.getElementById("Password").classList.add("success-border");
-      document.getElementById("password-error").classList.add("hidden");
-      return true;
+      passwordError.classList.add('hidden');
     }
-  }
-
-  function validateConfirmPassword() {
-    const password = document.getElementById("Password").value;
-    const confirmPassword = document.getElementById("Confirm_password").value;
-    const confirmInput = document.getElementById("Confirm_password");
-    const errorElement = document.getElementById("confirm-password-error");
-    
-    if (password !== confirmPassword || confirmPassword === "") {
-      confirmInput.classList.add("error-border");
-      confirmInput.classList.remove("success-border");
-      errorElement.classList.remove("hidden");
-      return false;
-    } else {
-      confirmInput.classList.remove("error-border");
-      confirmInput.classList.add("success-border");
-      errorElement.classList.add("hidden");
-      return true;
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", function() {
-    const passwordInput = document.getElementById("Password");
-    const confirmPasswordInput = document.getElementById("Confirm_password");
-    const form = document.getElementById("password-reset-form");
-
-    passwordInput.addEventListener("input", function() {
-      updatePasswordStrengthMeter(this.value);
-      validatePassword();
-      if (confirmPasswordInput.value.length > 0) {
-        validateConfirmPassword();
-      }
-    });
-
-    confirmPasswordInput.addEventListener("input", validateConfirmPassword);
-
-    form.addEventListener("submit", function(event) {
-      const submitButton = this.querySelector('button[type="submit"]');
-      if (submitButton.disabled) {
-        event.preventDefault();
-        return;
-      }
-      
-      let isValid = true;
-      if (!validatePassword()) isValid = false;
-      if (!validateConfirmPassword()) isValid = false;
-      
-      if (!isValid) {
-        event.preventDefault();
-        const firstError = document.querySelector(".error-border");
-        if (firstError) {
-          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      } else {
-        submitButton.disabled = true;
-        submitButton.innerHTML = 'Processing...';
-      }
-    });
   });
+
+  // Confirm password real-time check
+  if (confirmInput) {
+    confirmInput.addEventListener('input', function () {
+      const match = passwordInput.value === confirmInput.value;
+      confirmInput.classList.toggle('error-border', !match);
+      confirmInput.classList.toggle('success-border', match);
+      confirmError.classList.toggle('hidden', match);
+    });
+  }
+
+  // Final check on form submit
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      const match = passwordInput.value === confirmInput.value;
+      if (!match) {
+        e.preventDefault(); // Stop form submission
+        confirmInput.classList.add('error-border');
+        confirmError.classList.remove('hidden');
+      }
+    });
+  }
 </script>
+
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script> 
 <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
