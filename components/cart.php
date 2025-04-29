@@ -59,7 +59,7 @@ $cart = $_SESSION['cart'] ?? [];
                     </span>
                 </div>
                 <p class="text-sm text-gray-500">Taxes and shipping calculated at checkout</p>
-                <a href="checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
+                <a href="<?= $baseUrl ?>checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
                     Checkout
                 </a>
                 

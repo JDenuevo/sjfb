@@ -1,3 +1,8 @@
+<?php
+// Get the base URL for your site
+$baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+?>
+
 <!-- ========== FOOTER ========== -->
 <footer class="mt-5">
   <div class="mt-auto w-full max-w-[85rem] py-10 px-4 sm:px-6 lg:px-8 mx-auto">
@@ -5,7 +10,7 @@
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
       <div class="col-span-full lg:col-span-1">
         <a href="/" class="cursor-pointer flex-none text-xl font-semibold text-white focus:outline-none focus:opacity-80 hover:scale-110 duration-200">
-          <img src="./assets/icons/landscape-logo.svg" alt="St. Joseph Fish Brokerage Inc." class="w-auto h-auto" loading="lazy">
+          <img src="<?= $baseUrl ?>/assets/icons/landscape-logo.svg" alt="St. Joseph Fish Brokerage Inc." class="w-auto h-auto" loading="lazy">
         </a>
       </div>
 
@@ -55,10 +60,10 @@
         <h4 class="font-semibold text-black text-xl">Visit our shop</h4>
         <div class="mt-3 grid-cols-3 space-x-3">
           <a class="size-7 inline-flex hover:scale-110 transition-all duration-200" href="https://shopee.ph/sjfb_fish">
-            <img src="./assets/icons/shopee-logo.svg" alt="St. Joseph Fish Brokerage Inc. Shopee" loading="lazy">
+            <img src="<?= $baseUrl ?>/assets/icons/shopee-logo.svg" alt="St. Joseph Fish Brokerage Inc. Shopee" loading="lazy">
           </a>
           <a class="size-7 inline-flex hover:scale-110 transition-all duration-200" href="https://www.lazada.com.ph/shop/sjfb-fishbroker/">
-            <img src="./assets/icons/lazada-logo.svg" alt="St. Joseph Fish Brokerage Inc. Lazada" loading="lazy">
+            <img src="<?= $baseUrl ?>/assets/icons/lazada-logo.svg" alt="St. Joseph Fish Brokerage Inc. Lazada" loading="lazy">
           </a>
           <!-- <a class="inline-flex text-black hover:text-orange-500 hover:scale-125 transition-all duration-200 focus:outline-none focus:text-orange-500" href="https://www.facebook.com/stjosephbroker"><IconBrandFacebook stroke={2} /></a> -->
         </div>

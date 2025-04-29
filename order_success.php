@@ -23,12 +23,13 @@ $order = $stmt->get_result()->fetch_assoc();
 
 // Get order items
 $itemsStmt = $conn->prepare("
-    SELECT oi.*, p.product_name as product_name, v.variant_name as variant_name
+    SELECT oi.*, p.product_name as product_name, v.variant_price, v.variant_name as variant_name
     FROM order_items oi
     LEFT JOIN products p ON oi.product_id = p.product_id
     LEFT JOIN product_variants v ON oi.variant_id = v.variant_id
     WHERE oi.order_id = ?
 ");
+
 $itemsStmt->bind_param("i", $orderId);
 $itemsStmt->execute();
 $items = $itemsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -58,11 +59,12 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
-  <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
+  <link href="./style.css" rel="stylesheet">
+  <link href="./output.css" rel="stylesheet">
   
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <?php include('./components/preloader.php'); ?>
@@ -70,213 +72,209 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
 <section id="order-success-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>
 
-  <div class="container mx-auto px-4 py-12">
-    <div class="max-w-4xl mx-auto">
-      <!-- Success Message -->
-      <div class="text-center mb-12">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>        
+  <!-- Receipt -->
+  <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto my-4 sm:my-10 mt-10">
+    
+    <div class="text-center mb-12" data-aos="fade-up">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
       </div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>
+      <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order has been confirmed.</p>
+    </div>
 
-      <div style="width: 400px;" class="mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200" id="orderReceipt">
-        <!-- Receipt Header -->
-        <div class="bg-blue-600 text-white text-center py-3">
-          <h2 class="text-lg font-semibold">Order # <?= htmlspecialchars($order['order_id']) ?></h2>
+    <div class="sm:w-11/12 lg:w-3/4 mx-auto">
+      <!-- Card -->
+      <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
+        <!-- Grid -->
+        <div class="flex justify-between">
+          <div>
+            <img src="./assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+
+            <h1 class="mt-2 md:text-lg font-semibold text-orange-600 ">St. Joseph Fish Brokerage Inc.</h1>
+          </div>
+          <!-- Col -->
+
+          <div class="text-end">
+            <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order #</h2>
+            <span class="mt-1 block text-gray-500 text-lg"><?= htmlspecialchars($order['order_id']) ?></span>
+
+            <address class="mt-4 not-italic text-gray-800 ">
+              Bulungan Avenue corner HACCP St.<br>
+              NFPC NBBS, Navotas, Philippines<br>
+              Boulevard South Proper, Navotas, 
+              Philippines<br>
+            </address>
+          </div>
+          <!-- Col -->
         </div>
+        <!-- End Grid -->
 
-        <!-- Payment Success Info -->
-        <div class="text-center py-4 border-b border-gray-200">
-         
-          <h3 class="text-gray-900 font-medium mt-2"><?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?></h3>
-          <p class="text-sm text-gray-500"><?= htmlspecialchars($order['address']) ?></p>
+        <!-- Grid -->
+        <div class="my-8 grid sm:grid-cols-2 gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 ">Shipping Information:</h3>
+            <h3 class="text-lg font-semibold text-gray-500 "><?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?></h3>
+            <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Address:</h3>
+            <address class="not-italic text-gray-500 ">
+              <?= htmlspecialchars($order['address']) ?><br>
+              <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['postal_code']) ?>
+            </address>
+           
+          </div>
+          <!-- Col -->
+           
+          <div class="sm:text-end space-y-2">
+            <!-- Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
+              <dl class="grid sm:grid-cols-5 gap-x-3">
+                <dt class="col-span-3 font-semibold text-gray-800 ">Payment Method:</dt>
+                <dd class="col-span-2 text-gray-500 ">
+                  <?php
+                    $method = strtolower($order['payment_method']);
+                    switch ($method) {
+                      case 'ewallet':
+                        $methodLabel = 'G-Cash';
+                        $methodClass = 'bg-purple-100 text-purple-800';
+                        break;
+                      case 'cod':
+                        $methodLabel = 'Cash on Delivery';
+                        $methodClass = 'bg-orange-100 text-orange-800';
+                        break;
+                      case 'bank':
+                        $methodLabel = 'Bank Transfer';
+                        $methodClass = 'bg-blue-100 text-blue-800';
+                        break;
+                      default:
+                        $methodLabel = ucfirst($method);
+                        $methodClass = 'bg-gray-100 text-gray-800';
+                    }
+                  ?>
+                  <p class="<?php echo $methodClass; ?>">
+                    <?php echo $methodLabel; ?>
+                  </p>
+                </dd>
+              </dl>
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                <dt class="col-span-3 font-semibold text-gray-800 ">Order date:</dt>
+                <dd class="col-span-2 text-gray-500 "><?= $orderDate ?></dd>
+              </dl>
+            </div>
+            <!-- End Grid -->
+          </div>
+          <!-- Col -->
         </div>
+        <!-- End Grid -->
 
-        <!-- Order Summary -->
-        <div class="px-6 py-4">
-          <h3 class="text-lg font-medium text-gray-900 border-b pb-2">Order Summary</h3>
-          <div class="divide-y divide-gray-200 mt-2">
+        <!-- Table -->
+        <div class="mt-6">
+          <div class="border border-gray-200 p-4 rounded-lg space-y-4 ">
+            
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 items-center">
+              <div class="col-span-full sm:col-span-2">
+                <h5 class="text-start text-xs font-medium text-black uppercase">Item Name</h5>
+              </div>
+              <div>
+                <h5 class="text-start text-xs font-medium text-black uppercase ">Variant</h5>
+              </div>
+              <div>
+                <h5 class="text-start text-xs font-medium text-black uppercase ">Price</h5>
+              </div>
+              <div>
+                <h5 class="text-start text-xs font-medium text-black uppercase ">Qty</h5>
+              </div>
+              <div>
+                <h5 class="text-start text-xs font-medium text-black uppercase ">Amount</h5>
+              </div>
+            </div>
+
+            <hr>
+
             <?php foreach ($items as $item): ?>
-              <div class="py-2 flex justify-between items-center">
-                <div>
-                  <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($item['product_name']) ?></p>
-                  <p class="text-xs text-gray-500">Qty: <?= htmlspecialchars($item['quantity']) ?></p>
+              <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                <div class="col-span-full sm:col-span-2">
+                  <p class="font-medium text-gray-800 "><?= htmlspecialchars($item['product_name']) ?></p>
                 </div>
-                <p class="text-sm font-semibold">₱<?= number_format($item['price'] * $item['quantity'], 2) ?></p>
+                <div>
+                  <p class="text-gray-800 "><?= htmlspecialchars($item['variant_name']) ?></p>
+                </div>
+                <div>
+                  <p class="text-gray-800 ">₱<?= htmlspecialchars($item['variant_price']) ?></p>
+                </div>
+                <div>
+                  <p class="text-gray-800 "><?= htmlspecialchars($item['quantity']) ?></p>
+                </div>
+                <div>
+                  <p class="sm:text-end text-gray-800 ">₱<?= number_format($item['price'] * $item['quantity'], 2) ?></p>
+                </div>
               </div>
             <?php endforeach; ?>
+
           </div>
-          <div class="border-t mt-4 pt-2 flex justify-between font-medium text-gray-900">
-            <p>Total</p>
-            <p>₱<?= number_format($order['total_price'], 2) ?></p>
+        </div>
+        <!-- End Table -->
+
+        <!-- Subtotal Section -->
+        <div class="mt-8 p-4">
+          <div class="grid grid-cols-4 gap-2">
+            <!-- Empty columns to push subtotal to the right -->
+           
+            <dt class="text-lg font-semibold text-gray-800">Subtotal:</dt>
+      
+            <div></div>
+            <div></div>
+            
+            <dd class="text-lg font-semibold text-gray-800">₱<?= number_format($order['total_price'], 2) ?></dd>
+          
           </div>
         </div>
 
-        <!-- Payment Information -->
-        <div class="px-6 py-4 border-t border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900 border-b pb-2">Payment Details</h3>
-          <p class="text-sm text-gray-500 mt-2">Payment Method</p>
-          <p class="text-sm font-medium"><?= ucfirst(htmlspecialchars($order['payment_method'])) ?></p>
-
-          <p class="text-sm text-gray-500 mt-2">Date & Time</p>
-          <p class="text-sm font-medium"><?= $orderDate ?></p>
-        </div>
-
-        <!-- Footer Note -->
-        <div class="text-center text-xs text-gray-500 py-4">
-          Please show this receipt for verification.<br>
-          Thank you for shopping with us. Your order has been confirmed.
+        <div class="mt-4 sm:mt-8 p-4">
+          <h4 class="text-lg font-semibold text-gray-800 ">Thank you!</h4>
+          <p class="text-gray-500 ">If you have any questions concerning this receipt, use the following contact information:</p>
+          <div class="mt-2">
+            <p class="block text-sm font-medium text-gray-800 ">fisbrokers.net</p>
+            <p class="block text-sm font-medium text-gray-800 ">(+63) 946-497-3689</p>
+          </div>
         </div>
       </div>
+      <!-- End Card -->
 
-      <br><br>
-      <!-- Actions -->
-      <div class="flex flex-col sm:flex-row justify-center gap-4 py-6">
-        <a href="index.php" class="inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700">
+      <!-- Buttons -->
+      <div class="mt-6 flex justify-end gap-x-3">
+        <a id="downloadBtn" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none" href="javascript:void(0);">
+          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Download Receipt
+        </a>
+        <a class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 shadow-2xs disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50" href="index.php" >
           Continue Shopping
         </a>
-        <a href="track.php" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-          Track Your Order
-        </a>
-        <button id="downloadBtn" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-          Print Receipt
-        </button>
       </div>
-      <br><br>
+      <!-- End Buttons -->
     </div>
   </div>
+  <!-- End Receipt -->
 
-  <div class="container mx-auto px-4 py-12">
-    <div class="max-w-4xl mx-auto">
-      <!-- Success Message -->
-      <div class="text-center mb-12" data-aos="fade-up">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>
-        <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order has been confirmed.</p>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block">
-          <p class="text-blue-800 font-medium">Order #<?= htmlspecialchars($order['order_id']) ?></p>
-        </div>
-      </div>
-
-      <!-- Order Summary -->
-      <div class="bg-white shadow rounded-lg overflow-hidden mb-8" data-aos="fade-up" data-aos-delay="100">
-        <div class="px-6 py-5 border-b border-gray-200">
-          <h2 class="text-lg font-medium text-gray-900">Order Summary</h2>
-        </div>
-        <div class="divide-y divide-gray-200">
-          <?php foreach ($items as $item): ?>
-            <div class="px-6 py-4 flex items-center">
-              <div class="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
-                <!-- Product image would go here -->
-                <div class="w-full h-full flex items-center justify-center text-gray-400">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                  </svg>
-                </div>
-              </div>
-              <div class="ml-4 flex-1">
-                <h3 class="text-sm font-medium text-gray-900"><?= htmlspecialchars($item['product_name']) ?></h3>
-                <p class="text-sm text-gray-500"><?= htmlspecialchars($item['variant_name']) ?></p>
-                <p class="text-sm text-gray-500">Qty: <?= htmlspecialchars($item['quantity']) ?></p>
-              </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-900">₱<?= number_format($item['price'] * $item['quantity'], 2) ?></p>
-              </div>
-            </div>
-          <?php endforeach; ?>
-        </div>
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <div class="flex justify-between text-base font-medium text-gray-900">
-            <p>Total</p>
-            <p>₱<?= number_format($order['total_price'], 2) ?></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Order Details -->
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 mb-8">
-        <!-- Shipping Information -->
-        <div class="bg-white shadow rounded-lg overflow-hidden" data-aos="fade-up" data-aos-delay="150">
-          <div class="px-6 py-5 border-b border-gray-200">
-            <h2 class="text-lg font-medium text-gray-900">Shipping Information</h2>
-          </div>
-          <div class="px-6 py-4">
-            <div class="mb-4">
-              <p class="text-sm font-medium text-gray-500">Name</p>
-              <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?></p>
-            </div>
-            <div class="mb-4">
-              <p class="text-sm font-medium text-gray-500">Contact</p>
-              <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($order['phone_number']) ?></p>
-            </div>
-            <div class="mb-4">
-              <p class="text-sm font-medium text-gray-500">Email</p>
-              <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($order['email']) ?></p>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-500">Shipping Address</p>
-              <p class="mt-1 text-sm text-gray-900">
-                <?= htmlspecialchars($order['address']) ?><br>
-                <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['postal_code']) ?>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payment Information -->
-        <div class="bg-white shadow rounded-lg overflow-hidden" data-aos="fade-up" data-aos-delay="200">
-          <div class="px-6 py-5 border-b border-gray-200">
-            <h2 class="text-lg font-medium text-gray-900">Payment Information</h2>
-          </div>
-          <div class="px-6 py-4">
-            <div class="mb-4">
-              <p class="text-sm font-medium text-gray-500">Payment Method</p>
-              <p class="mt-1 text-sm text-gray-900"><?= ucfirst(htmlspecialchars($order['payment_method'])) ?></p>
-            </div>
-            <div class="mb-4">
-              <p class="text-sm font-medium text-gray-500">Order Date</p>
-              <p class="mt-1 text-sm text-gray-900"><?= $orderDate ?></p>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-500">Status</p>
-              <p class="mt-1">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                  <?= 
-                    $order['order_status'] === 'Completed' ? 'bg-green-100 text-green-800' : 
-                    ($order['order_status'] === 'Cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')
-                  ?>">
-                  <?= htmlspecialchars($order['order_status']) ?>
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex flex-col sm:flex-row justify-center gap-4" data-aos="fade-up" data-aos-delay="250">
-        <a href="index.php" class="inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700">
-          Continue Shopping
-        </a>
-        <a href="track.php" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-          Track Your Order
-        </a>
-        <button onclick="window.print()" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-          Print Receipt
-        </button>
-      </div>
-    </div>
-  </div>
-
+  <!-- <a href="track.php" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+    Track Your Order
+  </a> -->
+ 
   <?php include('./components/footer.php'); ?>
 </section>
+
+<script>
+  document.getElementById('downloadBtn').addEventListener('click', function () {
+    const receipt = document.getElementById('orderReceipt');
+    html2canvas(receipt, { scale: 2 }).then(canvas => {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = 'receipt.png';
+      link.click();
+    });
+  });
+</script>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
 <script>

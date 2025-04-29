@@ -2,8 +2,13 @@
 header('Content-Type: application/json');
 session_start();
 
-error_reporting(0);
-ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Log the request for debugging
+error_log("fetch_cart_items.php accessed");
+error_log("Session ID: " . session_id());
+error_log("Cart contents: " . print_r($_SESSION['cart'] ?? [], true));
 
 try {
     $cart = $_SESSION['cart'] ?? [];

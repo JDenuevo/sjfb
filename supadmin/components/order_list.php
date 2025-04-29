@@ -91,7 +91,6 @@
                       </span>
                     </div>
                   </td>
-
                   <?php
                     // Set status class based on order_status
                     $status = $row['order_status'];
@@ -105,8 +104,11 @@
                       case 'Shipped':
                         $statusClass = 'bg-indigo-100 text-indigo-800';
                         break;
-                      case 'Delivered':
+                      case 'OutForDelivery':
                         $statusClass = 'bg-green-100 text-green-800';
+                        break;
+                      case 'Delivered':
+                        $statusClass = 'bg-orange-100 text-orange-800';
                         break;
                       case 'Cancelled':
                         $statusClass = 'bg-red-100 text-red-800';
@@ -163,112 +165,150 @@
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
   <?php while ($row = mysqli_fetch_assoc($result)): ?>
-    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto p-10" style="margin: 0;">
-      <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-4xl">
-        <div class="p-6 border-b font-bold text-lg flex justify-between">
-          <h3 class="text-lg font-semibold">Order Details</h3>
-          <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 6L6 18" />
-              <path d="M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="hidden fixed inset-0 z-100 overflow-y-auto bg-black bg-opacity-50" style="margin: 0">
+      <div class="flex items-center justify-center min-h-screen px-4" style="margin: 20px;">
+        <div class="bg-white rounded-xl shadow-lg w-full sm:w-11/12 lg:w-3/4 mx-auto relative">
+          <!-- Card -->
+          <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
+            <!-- Grid -->
+            <div class="flex justify-between">
+              <!-- Col -->
+              <div class="">
+                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order #</h2>
+                <span class="mt-1 block text-gray-500 text-lg"><?php echo htmlspecialchars ($row['order_id']); ?></span>
+              </div>
+              <!-- Col -->
 
-        <div class="p-6 h-auto lg:max-h-[40vh] overflow-y-auto">
-         
-          <div class="text-center">
-            <!-- Customer Details -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block text-center">
-              <p class="text-blue-800 font-medium">Order #<?php echo htmlspecialchars ($row['order_id']); ?></p>
+              <div>
+                <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6L6 18" />
+                    <path d="M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
+            <!-- End Grid -->
 
-          <!-- Order Details -->
-          <div class="space-y-4">
-            
-            <div>
-              <h4 class="font-semibold text-gray-800">Customer Information</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                <div>
-                  <p class="text-sm text-gray-600">Name: <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></p>
-                  <p class="text-sm text-gray-600">Email: <?php echo htmlspecialchars($row['email']); ?></p>
-                  <p class="text-sm text-gray-600">Phone: <?php echo htmlspecialchars($row['phone_number']); ?></p>
+            <!-- Grid -->
+            <div class="my-8 grid sm:grid-cols-2 gap-3">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-800 ">Shipping Information:</h3>
+                <h3 class="text-lg font-semibold text-gray-500 "><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></h3>
+                <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Address:</h3>
+                <address class="not-italic text-gray-500 ">
+                  <?php echo htmlspecialchars ($row['address']); ?><br>
+                  <?php echo htmlspecialchars ($row['city']); ?>, <?php echo htmlspecialchars ($row['postal_code']); ?>
+                </address>
+              </div>
+              <!-- Col -->
+              
+              <div class="sm:text-end space-y-2">
+                <!-- Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
+                  <dl class="grid sm:grid-cols-5 gap-x-3">
+                    <dt class="col-span-3 font-semibold text-gray-800 ">Payment Method:</dt>
+                    <dd class="col-span-2 text-gray-500 ">
+                       <!-- Payment Method -->
+                      <div>
+                        <?php
+                          $method = strtolower($row['payment_method']);
+                          switch ($method) {
+                            case 'ewallet':
+                              $methodLabel = 'E-Wallet';
+                              $methodClass = 'bg-purple-100 text-purple-800';
+                              break;
+                            case 'cod':
+                              $methodLabel = 'Cash on Delivery';
+                              $methodClass = 'bg-orange-100 text-orange-800';
+                              break;
+                            case 'bank':
+                              $methodLabel = 'Bank Transfer';
+                              $methodClass = 'bg-blue-100 text-blue-800';
+                              break;
+                            default:
+                              $methodLabel = ucfirst($method);
+                              $methodClass = 'bg-gray-100 text-gray-800';
+                          }
+                        ?>
+                        <p class="text-sm mt-2 inline-block px-2 py-1 rounded-full font-medium <?php echo $methodClass; ?>">
+                          <?php echo $methodLabel; ?>
+                        </p>
+                      </div>
+                    </dd>
+                  </dl>
+                  <dl class="grid sm:grid-cols-5 gap-x-3">
+                  <dt class="col-span-3 font-semibold text-gray-800 ">Order date:</dt>
+                  <dd class="col-span-2 text-gray-500"><?= date("F j, Y, g:i a", strtotime($row['order_date'])); ?></dd>
+                  </dl>
                 </div>
-                <div>
-                  <p class="text-sm text-gray-600">Address: <?php echo htmlspecialchars($row['address']); ?></p>
-                  <p class="text-sm text-gray-600">City: <?php echo htmlspecialchars($row['city']); ?></p>
-                  <p class="text-sm text-gray-600">Postal Code: <?php echo htmlspecialchars($row['postal_code']); ?></p>
+                <!-- End Grid -->
+              </div>
+              <!-- Col -->
+            </div>
+            <!-- End Grid -->
+
+            <!-- Table -->
+            <div class="mt-6">
+              <div class="border border-gray-200 p-4 rounded-lg space-y-4">
+                <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 items-center">
+                  <div class="col-span-full sm:col-span-2">
+                    <h5 class="text-start text-xs font-medium text-black uppercase">Item Name</h5>
+                  </div>
+                  <div>
+                    <h5 class="text-start text-xs font-medium text-black uppercase ">Variant</h5>
+                  </div>
+                  <div>
+                    <h5 class="text-start text-xs font-medium text-black uppercase ">Price</h5>
+                  </div>
+                  <div>
+                    <h5 class="text-start text-xs font-medium text-black uppercase ">Qty</h5>
+                  </div>
+                  <div>
+                    <h5 class="text-start text-xs font-medium text-black uppercase ">Amount</h5>
+                  </div>
+                </div>
+
+                <!-- Now properly use a real table -->
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-sm text-left text-gray-500">
+                    <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
+                      <!-- Order items will be dynamically loaded here -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
+            <!-- End Table -->
 
-            <!-- Order Items -->
-            <div class="overflow-x-auto">
-              <h4 class="font-semibold text-gray-800">Order Items</h4>
-              <div class="mt-2">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Product</th>
-                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Variant</th>
-                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Quantity</th>
-                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Price</th>
-                      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-800 uppercase">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
-                    <!-- Order items will be dynamically loaded here -->
-                  </tbody>
-                </table>
+            <!-- Subtotal Section -->
+            <div class="mt-8 p-4">
+              <div class="grid grid-cols-4 gap-2">
+                <!-- Empty columns to push subtotal to the right -->
+              
+                <dt class="text-lg font-semibold text-gray-800">Subtotal:</dt>
+          
+                <div></div>
+                <div></div>
+                
+                <dd class="text-lg font-semibold text-gray-800">₱<?php echo number_format($row['total_price'], 2); ?></dd>
+              
               </div>
             </div>
 
-            <!-- Payment Method -->
-            <div>
-              <h4 class="font-semibold text-gray-800">Payment Method</h4>
-              <?php
-                $method = strtolower($row['payment_method']);
-                switch ($method) {
-                  case 'ewallet':
-                    $methodLabel = 'E-Wallet';
-                    $methodClass = 'bg-purple-100 text-purple-800';
-                    break;
-                  case 'cod':
-                    $methodLabel = 'Cash on Delivery';
-                    $methodClass = 'bg-orange-100 text-orange-800';
-                    break;
-                  case 'bank':
-                    $methodLabel = 'Bank Transfer';
-                    $methodClass = 'bg-blue-100 text-blue-800';
-                    break;
-                  default:
-                    $methodLabel = ucfirst($method);
-                    $methodClass = 'bg-gray-100 text-gray-800';
-                }
-              ?>
-              <p class="text-sm mt-2 inline-block px-2 py-1 rounded-full font-medium <?php echo $methodClass; ?>">
-                <?php echo $methodLabel; ?>
-              </p>
-            </div>
-
-            <!-- Total Price -->
-            <div>
-              <h4 class="font-semibold text-gray-800">Total Price</h4>
-              <p class="text-sm text-gray-600 mt-2">₱<?php echo number_format($row['total_price'], 2); ?></p>
-            </div>
-          </div>
-
-          <div class="flex justify-between space-x-3 mt-4">
-    
-            <button type="submit" name="generate_waybill" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg--700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">Generate Waybill</button>
-            <div>
-              <!-- <button type="submit" name="approve_order" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Approve</button> -->
-              <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">Cancel</button>
-                  
-            </div>
+            <div class="mt-4 sm:mt-8 p-4">
+              <!-- Buttons -->
+              <div class="mt-6 flex justify-end gap-x-3">
+                <a id="downloadBtn" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none" href="javascript:void(0);">
+                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                  Generate Waybill
+                </a>
                
+              </div>
+              <!-- End Buttons -->
+            </div>
           </div>
+          <!-- End Card -->
         </div>
       </div>
     </div>
@@ -276,47 +316,58 @@
 <?php endif; ?>
 
 <script>
-
   // Function to fetch and display order items
-function fetchOrderItems(orderId) {
-  fetch(`./functions/fetch_orders.php?order_id=${orderId}`)
-    .then(response => response.json())
-    .then(data => {
-      const tbody = document.getElementById(`orderItems${orderId}`);
-      tbody.innerHTML = ''; // Clear existing rows
+  function fetchOrderItems(orderId) {
+    fetch(`./functions/fetch_orders.php?order_id=${orderId}`)
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById(`orderItems${orderId}`);
+        tbody.innerHTML = ''; // Clear existing rows
 
-      data.forEach(item => {
-        const price = parseFloat(item.price); // Convert to number
-        const total = item.quantity * price; // Calculate total
-        tbody.innerHTML += `
-          <tr>
-            <td class="px-6 py-4 text-sm text-gray-800">${item.product_name}</td>
-            <td class="px-6 py-4 text-sm text-gray-800">${item.variant_name}</td>
-            <td class="px-6 py-4 text-sm text-gray-800">${item.quantity}</td>
-            <td class="px-6 py-4 text-sm text-gray-800">₱${price.toFixed(2)}</td>
-            <td class="px-6 py-4 text-sm text-gray-800">₱${total.toFixed(2)}</td>
-          </tr>
-        `;
+        data.forEach(item => {
+          const price = parseFloat(item.price); // Convert to number
+          const total = item.quantity * price; // Calculate total
+
+          // Add the item row
+          tbody.innerHTML += `
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              <div class="col-span-full sm:col-span-2">
+                <p class="font-medium text-gray-800 ">${item.product_name}</p>
+              </div>
+              <div>
+                <p class="text-gray-800 ">${item.variant_name}</p>
+              </div>
+              <div>
+                <p class="text-gray-800 ">₱${price.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-gray-800 ">${item.quantity}</p>
+              </div>
+              <div>
+                <p class="text-gray-800 ">₱${total.toFixed(2)}</p>
+              </div>
+            </div>
+            `;
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching order items:', error);
       });
-    })
-    .catch(error => {
-      console.error('Error fetching order items:', error);
+  }
+
+  // Add event listener to the "View" button
+  document.querySelectorAll('[data-modal-target]').forEach(button => {
+    button.addEventListener('click', function() {
+      const modalId = this.getAttribute('data-modal-target');
+      const orderId = modalId.replace('viewOrderModal', '');
+      document.getElementById(modalId).classList.remove('hidden');
+      fetchOrderItems(orderId); // Fetch order items when the modal is opened
     });
-}
-
-// Add event listener to the "View" button
-document.querySelectorAll('[data-modal-target]').forEach(button => {
-  button.addEventListener('click', function() {
-    const modalId = this.getAttribute('data-modal-target');
-    const orderId = modalId.replace('viewOrderModal', '');
-    document.getElementById(modalId).classList.remove('hidden');
-    fetchOrderItems(orderId); // Fetch order items when the modal is opened
   });
-});
 
-// Function to close the modal
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.add('hidden');
-}
+  // Function to close the modal
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+  }
 
 </script>

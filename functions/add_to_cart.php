@@ -1,74 +1,68 @@
 <?php
-// functions/add_to_cart.php
-
 session_start();
+header('Content-Type: application/json');
 
 // Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Log request method and data for debugging
-error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
-error_log("Request data: " . print_r($_POST, true));
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     // Validate and sanitize input
-    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
-    $variant_id = isset($_POST['variant_id']) ? intval($_POST['variant_id']) : null;
-    $product_name = isset($_POST['product_name']) ? htmlspecialchars($_POST['product_name']) : null;
-    $variant_name = isset($_POST['variant_name']) ? htmlspecialchars($_POST['variant_name']) : null;
-    $price = isset($_POST['price']) ? floatval($_POST['price']) : null;
-    $image_url = isset($_POST['image_url']) ? htmlspecialchars($_POST['image_url']) : null;
-    $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 1;
-
-    // Log received data for debugging
-    error_log("Received data: " . print_r($_POST, true));
-
-    if ($product_id && $variant_id && $product_name && $variant_name && $price && $image_url && $quantity) {
-        // Add to cart logic here
-        if (!isset($_SESSION['cart'])) {
-            $_SESSION['cart'] = [];
+    $required_fields = ['product_id', 'variant_id', 'product_name', 'variant_name', 'price', 'image_url'];
+    $data = [];
+    
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            echo json_encode(['status' => 'error', 'message' => "Missing required field: $field"]);
+            exit;
         }
-
-        $found = false;
-        foreach ($_SESSION['cart'] as &$item) {
-            if ($item['product_id'] == $product_id && $item['variant_id'] == $variant_id) {
-                $item['quantity'] += $quantity;
-                $found = true;
-                break;
-            }
-        }
-
-        if (!$found) {
-            $cart_item = [
-                'product_id' => $product_id,
-                'variant_id' => $variant_id,
-                'product_name' => $product_name,
-                'variant_name' => $variant_name,
-                'price' => $price,
-                'image_url' => $image_url,
-                'quantity' => $quantity
-            ];
-            $_SESSION['cart'][] = $cart_item;
-        }
-
-        // Log session state for debugging
-        error_log("Session cart: " . print_r($_SESSION['cart'], true));
-
-        // Return JSON response
-        header('Content-Type: application/json');
-        echo json_encode(['status' => 'success', 'message' => 'Product added to cart']);
-        exit;
-    } else {
-        // Return error response if input is invalid
-        header('Content-Type: application/json');
-        echo json_encode(['status' => 'error', 'message' => 'Invalid input data']);
-        exit;
+        $data[$field] = $_POST[$field];
     }
+    
+    $quantity = isset($_POST['quantity']) ? max(1, (int)$_POST['quantity']) : 1;
+    
+    // Initialize cart if not exists
+    if (!isset($_SESSION['cart'])) {
+        $_SESSION['cart'] = [];
+    }
+    
+    // Check if item already exists in cart
+    $item_exists = false;
+    foreach ($_SESSION['cart'] as &$item) {
+        if ($item['product_id'] == $data['product_id'] && $item['variant_id'] == $data['variant_id']) {
+            $item['quantity'] += $quantity;
+            $item_exists = true;
+            break;
+        }
+    }
+    
+    // Add new item if not exists
+    if (!$item_exists) {
+        $_SESSION['cart'][] = [
+            'product_id' => $data['product_id'],
+            'variant_id' => $data['variant_id'],
+            'product_name' => $data['product_name'],
+            'variant_name' => $data['variant_name'],
+            'price' => (float)$data['price'],
+            'image_url' => $data['image_url'],
+            'quantity' => $quantity
+        ];
+    }
+    
+    // Return success response with updated cart info
+    $cart_count = count($_SESSION['cart']);
+    $cart_total = array_sum(array_map(function($item) {
+        return $item['price'] * $item['quantity'];
+    }, $_SESSION['cart']));
+    
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Product added to cart',
+        'cart_count' => $cart_count,
+        'cart_total' => $cart_total
+    ]);
+    exit;
 } else {
-    // Return error response if request method is not POST
-    header('Content-Type: application/json');
-    echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
     exit;
 }
-?>

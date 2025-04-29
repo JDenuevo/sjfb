@@ -146,7 +146,7 @@ $row = $result->fetch_assoc();
                 $image_id = $image['image_id'];
                 echo '
                 <div class="relative group">
-                    <img src="http://localhost/sjfbi-js/admin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
+                    <img src="http://localhost/sjfbi-js/supadmin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
                     <button type="button" onclick="deleteImage(' . $image_id . ', ' . $row['product_id'] . ')" class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">
                         <span class="text-red-500 cursor-pointer">🗑</span>
                     </button>

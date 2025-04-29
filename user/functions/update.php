@@ -8,7 +8,7 @@ function redirectWithMessage($location, $message, $type) {
     exit();
 }
 
-if (isset($_POST['update_account'])) {
+if (isset($_POST['update_profile'])) {
     $account_id = $_SESSION['account_id'];
     $username = $_POST['username'];
     $first_name = $_POST['first_name'];

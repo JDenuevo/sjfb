@@ -18,7 +18,7 @@
                 $products[$product_id] = [
                     'product_name' => $row['product_name'],
                     'product_description' => $row['product_description'],
-                    'image_url' => !empty($row['image_path']) ? "http://localhost/sjfbi-js/admin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.png",
+                    'image_url' => !empty($row['image_path']) ? "http://localhost/sjfbi-js/supadmin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.png",
                     'variants' => []
                 ];
             }
@@ -65,7 +65,7 @@
                     <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
                     <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
                 </div>
-                &nbsp; per pcs
+                &nbsp;
             </div>
 
             <!-- Variant Buttons -->

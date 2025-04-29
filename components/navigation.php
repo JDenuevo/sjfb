@@ -1,5 +1,9 @@
 <?php
-  $cart = $_SESSION['cart'] ?? [];
+
+// Get the base URL for your site
+$baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+
+$cart = $_SESSION['cart'] ?? [];
 ?>
 
 <header id="header" class="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full p-2 transition-all duration-100" :class="headerClass">
@@ -9,11 +13,22 @@
       <!-- Logo on the left -->
       <div class="md:hidden">
         <a href="/" class="relative inline-block focus:outline-none">
-          <img src="./assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+          <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="w-12 h-12 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
         </a>
       </div>
       
       <div class="flex justify-between">
+          <!-- Track Button -->
+          <!-- <div class="md:hidden ml-auto">
+            <a href="./track.php" class="size-10 justify-center items-center inline-flex hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-7" viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-map-pin"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" /></svg>
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+              </svg>
+            </a>
+          </div> -->
+
           <!-- Cart Button with Count -->
           <div class="md:hidden ml-auto relative">
             <button type="button" class="size-10 justify-center items-center inline-flex hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
@@ -69,7 +84,7 @@
         <!-- Router Links -->
         <div class="hidden md:block">
           <a href="/">
-            <img src="./assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+            <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="w-24 h-24 cursor-pointer hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
           </a>
         </div>
 
@@ -83,8 +98,16 @@
         </div>
 
         <div class="flex-grow"></div>
-
+  
         <div class="inline-flex justify-center items-center gap-4 p-2">
+      
+          <!-- <a href="./track.php" class="hidden cursor-pointer md:block rounded-full justify-center items-center hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-7" viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-map-pin"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" /></svg>
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+              <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+              <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+            </svg>
+          </a> -->
           <button type="button" onclick="openModal()" class="hidden md:block rounded-full justify-center items-center hover:text-orange-500 hover:scale-110 transition-all duration-500 focus:outline-none">
             <svg xmlns="http://www.w3.org/2000/svg" class="size-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -222,4 +245,14 @@
     document.getElementById('hs-modal-signin').classList.add('hidden');
   }
 
+  // In your navigation.php, make sure the cart toggle has this event handler:
+  document.querySelectorAll('[onclick="openOffCanvas()"]').forEach(btn => {
+      btn.addEventListener('click', async function() {
+          document.getElementById('hs-cart-sidebar').classList.remove('hidden');
+          setTimeout(() => {
+              document.getElementById('sidebar-white-bg').classList.remove('translate-x-full');
+          }, 10);
+          await updateCartItems(); // Refresh cart when opened
+      });
+  });
 </script>
