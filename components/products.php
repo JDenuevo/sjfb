@@ -18,7 +18,7 @@
                 $products[$product_id] = [
                     'product_name' => $row['product_name'],
                     'product_description' => $row['product_description'],
-                    'image_url' => !empty($row['image_path']) ? "http://localhost/sjfbi-js/supadmin/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/admin/uploads/products/default.png",
+                    'image_url' => !empty($row['image_path']) ? "http://localhost/sjfbi-js/uploads/products/" . $row['image_path'] : "http://localhost/sjfbi-js/uploads/products/default.png",
                     'variants' => []
                 ];
             }

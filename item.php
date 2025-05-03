@@ -33,12 +33,11 @@ if ($result->num_rows === 0) {
     include('404.php');
     die();
 }
-
 // Process the result set
 $product = null;
 $variants = [];
 $images = [];
-$primaryImage = 'default-image.jpg';
+$primaryImage = null; // Initialize as null instead of 'default-image.jpg'
 
 while ($row = $result->fetch_assoc()) {
     if ($product === null) {
@@ -68,9 +67,15 @@ while ($row = $result->fetch_assoc()) {
     }
 }
 
-// If no images are found, use the default image
+// If no primary image but other images exist, use the first one
+if (empty($primaryImage) && !empty($images)) {
+    $primaryImage = $images[0];
+}
+
+// If no images at all, use default.png
 if (empty($images)) {
-    $images[] = 'default-image.jpg';
+    $primaryImage = 'default.png';
+    $images = ['default.png']; // Add default to images array for thumbnails
 }
 
 // Set default price to first variant if exists
@@ -207,27 +212,29 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
       <div class="md:col-span-1 shadow-lg p-4 rounded-3xl">
         <!-- Product Image & Thumbnails -->
         <div class="flex flex-col items-center">
-          <!-- Main Image Zoom Area -->
-          <div class="max-w-xl zoom-container rounded-lg" id="zoomContainer">
-            <img id="mainImage"
-              src="<?= $baseUrl ?>supadmin/uploads/products/<?= htmlspecialchars($primaryImage) ?>"
-              class="zoom-image rounded-lg"
-              alt="<?= htmlspecialchars($product['product_name']) ?>">
+            <!-- Main Image Zoom Area -->
+            <div class="max-w-xl zoom-container rounded-lg" id="zoomContainer">
+                <img id="mainImage"
+                    src="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>"
+                    class="zoom-image rounded-lg"
+                    alt="<?= htmlspecialchars($product['product_name']) ?>">
 
-            <div id="zoomOverlay" class="zoom-overlay rounded-lg"
-              style="background-image: url('<?= $baseUrl ?>supadmin/uploads/products/<?= htmlspecialchars($primaryImage) ?>');">
+                <div id="zoomOverlay" class="zoom-overlay rounded-lg"
+                    style="background-image: url('<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>');">
+                </div>
             </div>
-          </div>
 
-          <!-- Thumbnails -->
-          <div class="flex justify-center space-x-3 mt-4 overflow-x-auto">
-            <?php foreach ($images as $image): ?>
-              <img src="<?= $baseUrl ?>supadmin/uploads/products/<?= htmlspecialchars($image) ?>"
-                class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-gray-500"
-                onclick="changeImage('<?= htmlspecialchars($image) ?>')"
-                alt="<?= htmlspecialchars($product['product_name']) ?> - Thumbnail">
-            <?php endforeach; ?>
-          </div>
+            <!-- Thumbnails - Only show if we have more than one image -->
+            <?php if (count($images) > 1): ?>
+                <div class="flex justify-center space-x-3 mt-4 overflow-x-auto">
+                    <?php foreach ($images as $image): ?>
+                        <img src="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($image) ?>"
+                            class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-gray-500"
+                            onclick="changeImage('<?= htmlspecialchars($image) ?>')"
+                            alt="<?= htmlspecialchars($product['product_name']) ?> - Thumbnail">
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
       </div>
 
@@ -292,7 +299,7 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
             <input type="hidden" name="product_name" value="<?= htmlspecialchars($product['product_name']) ?>">
             <input type="hidden" name="variant_name" value="<?= !empty($variants) ? reset($variants)['variant_name'] : '' ?>">
             <input type="hidden" name="price" value="<?= $defaultDiscountPrice ?>">
-            <input type="hidden" name="image_url" value="<?= $baseUrl ?>supadmin/uploads/products/<?= htmlspecialchars($primaryImage) ?>">
+            <input type="hidden" name="image_url" value="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>">
             <input type="hidden" name="quantity" value="1">
             
             <button type="submit" name="add_to_cart" 
@@ -315,9 +322,15 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
 <script>
 
 function changeImage(imageName) {
-const fullPath = "<?= $baseUrl ?>supadmin/uploads/products/" + imageName;
-document.getElementById('mainImage').src = fullPath;
+  // Skip if trying to change to the same image
+  if (imageName === document.getElementById('mainImage').src.split('/').pop()) {
+      return;
   }
+  
+  const fullPath = "<?= $baseUrl ?>uploads/products/" + imageName;
+  document.getElementById('mainImage').src = fullPath;
+  document.getElementById('zoomOverlay').style.backgroundImage = `url('${fullPath}')`;
+}
   
 // Toast notification function
 function showToast(message, type = 'success') {
@@ -336,7 +349,7 @@ function showToast(message, type = 'success') {
 
 // Change main product image
 function changeImage(newImage) {
-    document.getElementById('mainImage').src = '<?= $baseUrl ?>supadmin/uploads/products/' + newImage;
+    document.getElementById('mainImage').src = '<?= $baseUrl ?>uploads/products/' + newImage;
 }
 
 // Variant selection handler

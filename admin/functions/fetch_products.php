@@ -135,21 +135,27 @@ $row = $result->fetch_assoc();
         <label class="block text-sm font-medium text-gray-700">Current Product Images</label>
         <div class="grid grid-cols-5 gap-2 mt-2">
             <?php
-            $image_query = "SELECT * FROM product_images WHERE product_id = ?";
+            $image_query = "SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC";
             $image_stmt = $conn->prepare($image_query);
             $image_stmt->bind_param("i", $row['product_id']);
             $image_stmt->execute();
             $image_result = $image_stmt->get_result();
 
-            while ($image = $image_result->fetch_assoc()) {
-                $image_path = $image['image_path'];
-                $image_id = $image['image_id'];
+            if ($image_result->num_rows > 0) {
+                while ($image = $image_result->fetch_assoc()) {
+                    $image_path = $image['image_path'];
+                    $image_id = $image['image_id'];
+                    echo '
+                    <div class="relative group">
+                        <img src="http://localhost/sjfbi-js/supadmin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
+                        
+                    </div>';
+                }
+            } else {
+                // Show default image when no product images exist
                 echo '
                 <div class="relative group">
-                    <img src="http://localhost/sjfbi-js/supadmin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
-                    <button type="button" onclick="deleteImage(' . $image_id . ', ' . $row['product_id'] . ')" class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">
-                        <span class="text-red-500 cursor-pointer">🗑</span>
-                    </button>
+                    <img src="http://localhost/sjfbi-js/supadmin/uploads/products/default.png" class="w-auto h-auto object-cover rounded-lg shadow">
                 </div>';
             }
             $image_stmt->close();
@@ -157,16 +163,6 @@ $row = $result->fetch_assoc();
         </div>
     </div>
 
-    <!-- Upload New Images -->
-    <div class="mt-4">
-      <label class="block text-sm font-medium text-gray-700">Update New Images</label>
-      <input type="file" id="newImageInput-<?php echo $row['product_id']; ?>" name="product_images[]" multiple class="hidden" accept="image/*">
-      <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('newImageInput-<?php echo $row['product_id']; ?>').click()">📸 Select Images</button>
-      <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
-    </div>
-
-    <!-- Preview Container -->
-    <div id="newImagePreview-<?php echo $row['product_id']; ?>" class="grid grid-cols-5 gap-2 mt-3"></div>
     <!-- Action Buttons -->
     <div class="flex justify-end space-x-3 mt-4">
       <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition" onclick="closeModal('editProductModal')">Cancel</button>
@@ -309,67 +305,5 @@ $row = $result->fetch_assoc();
       window.closeModal = function (modalId) {
           document.getElementById(modalId).classList.add("hidden");
       };
-  });
-  </script>
-
-  <script>
-  document.addEventListener("DOMContentLoaded", function () {
-      // Update Modal Variant Handling
-      const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
-
-      updateVariantContainers.forEach(container => {
-          const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
-
-          // Function to add a new variant input set in Update Modal
-          addVariantBtn.addEventListener("click", function () {
-              const variantHTML = `
-                  <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                      <!-- Hidden Variant ID (for existing variants) -->
-                      <input type="hidden" name="variant_id[]" value="">
-
-                      <!-- Variant Name -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                          <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
-
-                      <!-- Stock Quantity -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Stock</label>
-                          <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
-
-                      <!-- Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Price</label>
-                          <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
-
-                      <!-- Discount Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                          <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                      </div>
-
-                      <!-- Delete Variant Button -->
-                      <div class="flex items-end">
-                          <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
-                            🗑 Delete
-                          </button>
-                      </div>
-                  </div>
-              `;
-
-              // Append new variant input fields
-              container.insertAdjacentHTML("beforeend", variantHTML);
-          });
-
-          // Event delegation to handle dynamically added "Delete" buttons in Update Modal
-          container.addEventListener("click", function (event) {
-              if (event.target.classList.contains("removeVariant")) {
-                  event.target.closest(".variantRow").remove();
-              }
-          });
-      });
   });
   </script>

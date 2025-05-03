@@ -135,21 +135,29 @@ $row = $result->fetch_assoc();
         <label class="block text-sm font-medium text-gray-700">Current Product Images</label>
         <div class="grid grid-cols-5 gap-2 mt-2">
             <?php
-            $image_query = "SELECT * FROM product_images WHERE product_id = ?";
+            $image_query = "SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC";
             $image_stmt = $conn->prepare($image_query);
             $image_stmt->bind_param("i", $row['product_id']);
             $image_stmt->execute();
             $image_result = $image_stmt->get_result();
 
-            while ($image = $image_result->fetch_assoc()) {
-                $image_path = $image['image_path'];
-                $image_id = $image['image_id'];
+            if ($image_result->num_rows > 0) {
+                while ($image = $image_result->fetch_assoc()) {
+                    $image_path = $image['image_path'];
+                    $image_id = $image['image_id'];
+                    echo '
+                    <div class="relative group">
+                        <img src="http://localhost/sjfbi-js/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
+                        <button type="button" onclick="deleteImage(' . $image_id . ', ' . $row['product_id'] . ')" class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">
+                            <span class="text-red-500 cursor-pointer">🗑</span>
+                        </button>
+                    </div>';
+                }
+            } else {
+                // Show default image when no product images exist
                 echo '
                 <div class="relative group">
-                    <img src="http://localhost/sjfbi-js/supadmin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
-                    <button type="button" onclick="deleteImage(' . $image_id . ', ' . $row['product_id'] . ')" class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">
-                        <span class="text-red-500 cursor-pointer">🗑</span>
-                    </button>
+                    <img src="http://localhost/sjfbi-js/uploads/products/default.png" class="w-auto h-auto object-cover rounded-lg shadow">
                 </div>';
             }
             $image_stmt->close();
@@ -159,10 +167,10 @@ $row = $result->fetch_assoc();
 
     <!-- Upload New Images -->
     <div class="mt-4">
-      <label class="block text-sm font-medium text-gray-700">Update New Images</label>
-      <input type="file" id="newImageInput-<?php echo $row['product_id']; ?>" name="product_images[]" multiple class="hidden" accept="image/*">
-      <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('newImageInput-<?php echo $row['product_id']; ?>').click()">📸 Select Images</button>
-      <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
+        <label class="block text-sm font-medium text-gray-700">Update New Images</label>
+        <input type="file" id="newImageInput-<?php echo $row['product_id']; ?>" name="product_images[]" multiple class="hidden" accept="image/*">
+        <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('newImageInput-<?php echo $row['product_id']; ?>').click()">📸 Select Images</button>
+        <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
     </div>
 
     <!-- Preview Container -->
@@ -178,159 +186,194 @@ $row = $result->fetch_assoc();
   </form>
 </div>
 
+<!-- Your existing PHP code remains the same until the JavaScript section -->
+
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-
-      // 🎯 Add Modal Variant Handling
-      const addVariantContainer = document.getElementById("variantContainer");
-      const addVariantBtn = document.getElementById("addVariant");
-
-      if (addVariantBtn && addVariantContainer) {
-          addVariantBtn.addEventListener("click", () => addVariant(addVariantContainer));
-          addVariantContainer.addEventListener("click", removeVariant);
-      }
-
-      // 🎯 Update Modal Variant Handling
-      const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
-
-      updateVariantContainers.forEach(container => {
-          const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
-          if (addVariantBtn) {
-              addVariantBtn.addEventListener("click", () => addVariant(container));
-              container.addEventListener("click", removeVariant);
-          }
-      });
-
-      function handleImageUpload(inputId, previewId) {
+// This function will be called when the modal content is loaded
+function initializeImagePreview() {
+    // Function to handle image upload preview
+    function handleImageUpload(inputId, previewId) {
         const imageInput = document.getElementById(inputId);
         const previewContainer = document.getElementById(previewId);
         let selectedFiles = [];
 
         if (imageInput && previewContainer) {
-          imageInput.addEventListener("change", function (event) {
-            const newFiles = Array.from(event.target.files);
-            if (selectedFiles.length + newFiles.length > 5) {
-              alert("You can only upload up to 5 images.");
-              return;
-            }
-            selectedFiles.push(...newFiles);
-            updateImagePreview();
-          });
-
-          function updateImagePreview() {
-            previewContainer.innerHTML = "";
-            selectedFiles.forEach((file, index) => {
-              const reader = new FileReader();
-              reader.onload = function (e) {
-                const div = document.createElement("div");
-                div.classList.add("relative");
-
-                const img = document.createElement("img");
-                img.src = e.target.result;
-                img.classList.add("w-auto", "h-auto", "object-cover", "rounded-lg", "border");
-
-                const removeBtn = document.createElement("button");
-                removeBtn.innerHTML = "X";
-                removeBtn.classList.add(
-                  "absolute", "top-0", "right-0", "bg-red-600", "text-white",
-                  "rounded-full", "text-xs", "w-8", "h-8", "flex", "items-center", "justify-center"
-                );
-
-                removeBtn.addEventListener("click", () => {
-                  selectedFiles.splice(index, 1);
-                  updateImagePreview();
-                });
-
-                div.appendChild(img);
-                div.appendChild(removeBtn);
-                previewContainer.appendChild(div);
-              };
-              reader.readAsDataURL(file);
+            imageInput.addEventListener("change", function(event) {
+                const newFiles = Array.from(event.target.files);
+                if (selectedFiles.length + newFiles.length > 5) {
+                    alert("You can only upload up to 5 images.");
+                    return;
+                }
+                selectedFiles.push(...newFiles);
+                updateImagePreview();
             });
 
-            const dataTransfer = new DataTransfer();
-            selectedFiles.forEach((file) => dataTransfer.items.add(file));
-            imageInput.files = dataTransfer.files;
-          }
+            function updateImagePreview() {
+                previewContainer.innerHTML = "";
+                selectedFiles.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const div = document.createElement("div");
+                        div.classList.add("relative", "group");
+
+                        const img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.classList.add("w-full", "h-24", "object-cover", "rounded-lg", "shadow");
+
+                        const removeBtn = document.createElement("button");
+                        removeBtn.innerHTML = "🗑";
+                        removeBtn.classList.add(
+                            "absolute", "top-0", "right-0", "bg-white", "p-1",
+                            "rounded-full", "shadow-md", "text-red-500", "cursor-pointer"
+                        );
+
+                        removeBtn.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            selectedFiles.splice(index, 1);
+                            updateImagePreview();
+                        });
+
+                        div.appendChild(img);
+                        div.appendChild(removeBtn);
+                        previewContainer.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+
+                // Update the actual file input
+                const dataTransfer = new DataTransfer();
+                selectedFiles.forEach((file) => dataTransfer.items.add(file));
+                imageInput.files = dataTransfer.files;
+            }
         }
-      }
+    }
 
-      // Handle both Add and Update Modals
-      handleImageUpload("productImages", "imagePreview"); // For Add Modal
-      handleImageUpload("newImageInput", "newImagePreview"); // For Update Modal
+    // Initialize image upload for this specific product
+    const productId = "<?php echo $row['product_id']; ?>";
+    handleImageUpload(`newImageInput-${productId}`, `newImagePreview-${productId}`);
 
-      // 🎯 Modal Handling
-      document.querySelectorAll("[data-modal-target]").forEach(button => {
-          button.addEventListener("click", function () {
-              const modalId = this.getAttribute("data-modal-target");
-              document.getElementById(modalId).classList.remove("hidden");
-          });
-      });
+    // Variant handling code
+    const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
 
-      window.closeModal = function (modalId) {
-          document.getElementById(modalId).classList.add("hidden");
-      };
-  });
-  </script>
+    updateVariantContainers.forEach(container => {
+        const addVariantBtn = container.closest("form").querySelector(".addVariant");
+        
+        // Function to add a new variant input set in Update Modal
+        addVariantBtn.addEventListener("click", function() {
+            const variantHTML = `
+                <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
+                    <!-- Hidden Variant ID (for existing variants) -->
+                    <input type="hidden" name="variant_id[]" value="">
 
-  <script>
-  document.addEventListener("DOMContentLoaded", function () {
-      // Update Modal Variant Handling
-      const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
+                    <!-- Variant Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Variant Name</label>
+                        <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                    </div>
 
-      updateVariantContainers.forEach(container => {
-          const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
+                    <!-- Stock Quantity -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Stock</label>
+                        <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                    </div>
 
-          // Function to add a new variant input set in Update Modal
-          addVariantBtn.addEventListener("click", function () {
-              const variantHTML = `
-                  <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                      <!-- Hidden Variant ID (for existing variants) -->
-                      <input type="hidden" name="variant_id[]" value="">
+                    <!-- Price -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Price</label>
+                        <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                    </div>
 
-                      <!-- Variant Name -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                          <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
+                    <!-- Discount Price -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Discount Price</label>
+                        <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
 
-                      <!-- Stock Quantity -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Stock</label>
-                          <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
-
-                      <!-- Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Price</label>
-                          <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
-
-                      <!-- Discount Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                          <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                      </div>
-
-                      <!-- Delete Variant Button -->
-                      <div class="flex items-end">
-                          <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">
+                    <!-- Delete Variant Button -->
+                    <div class="flex items-end">
+                        <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">
                             🗑 Delete
-                          </button>
-                      </div>
-                  </div>
-              `;
+                        </button>
+                    </div>
+                </div>
+            `;
 
-              // Append new variant input fields
-              container.insertAdjacentHTML("beforeend", variantHTML);
-          });
+            // Append new variant input fields
+            container.insertAdjacentHTML("beforeend", variantHTML);
+        });
 
-          // Event delegation to handle dynamically added "Delete" buttons in Update Modal
-          container.addEventListener("click", function (event) {
-              if (event.target.classList.contains("removeVariant")) {
-                  event.target.closest(".variantRow").remove();
-              }
-          });
-      });
-  });
-  </script>
+        // Event delegation to handle dynamically added "Delete" buttons in Update Modal
+        container.addEventListener("click", function(event) {
+            if (event.target.classList.contains("removeVariant")) {
+                event.target.closest(".variantRow").remove();
+            }
+        });
+    });
+}
+
+// Call the initialization function when the modal content is loaded
+document.addEventListener("DOMContentLoaded", function() {
+    // If the modal content is already loaded (direct page access)
+    if (document.getElementById('editProductModal')) {
+        initializeImagePreview();
+    }
+    
+    // For cases where content is loaded dynamically
+    const modalContent = document.getElementById('modalContent');
+    if (modalContent) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length) {
+                    initializeImagePreview();
+                }
+            });
+        });
+        
+        observer.observe(modalContent, {
+            childList: true,
+            subtree: true
+        });
+    }
+});
+</script>
+
+<style>
+/* Image preview styling */
+.image-preview-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.image-preview-item {
+    position: relative;
+    width: 100%;
+    height: 100px;
+}
+
+.image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid #e5e7eb;
+}
+
+.image-preview-item button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #ef4444;
+}
+</style>

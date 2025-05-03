@@ -185,9 +185,21 @@ elseif (isset($_POST['update_product'])) {
             }
         }
 
+        // Check if product currently has any images
+        $check_images_query = "SELECT COUNT(*) AS image_count FROM product_images WHERE product_id = ?";
+        $stmt = $conn->prepare($check_images_query);
+        $stmt->bind_param("i", $product_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $image_count = $result->fetch_assoc()['image_count'];
+        $stmt->close();
+
+        $has_no_images = ($image_count == 0);
+        $new_images_added = false;
+
         // Handle image uploads
         if (!empty($_FILES['product_images']['name'][0])) {
-            $target_dir = "../uploads/products/";
+            $target_dir = "../../uploads/products/";
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
                 $file_name = basename($_FILES['product_images']['name'][$key]);
                 $file_size = $_FILES['product_images']['size'][$key];
@@ -199,15 +211,32 @@ elseif (isset($_POST['update_product'])) {
                     $target_file = $target_dir . $unique_file_name;
 
                     if (move_uploaded_file($tmp_name, $target_file)) {
+                        // Determine if this should be primary (first image added to product with no images)
+                        $is_primary = ($has_no_images && !$new_images_added) ? 1 : 0;
+                        
                         // Insert new image into the database
-                        $insert_image_query = "INSERT INTO product_images (product_id, image_path) VALUES (?, ?)";
+                        $insert_image_query = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)";
                         $stmt = $conn->prepare($insert_image_query);
-                        $stmt->bind_param("is", $product_id, $unique_file_name);
+                        $stmt->bind_param("isi", $product_id, $unique_file_name, $is_primary);
                         $stmt->execute();
                         $stmt->close();
+                        
+                        $new_images_added = true;
                     }
                 }
             }
+        }
+
+        // If product had no images and we added some, ensure one is marked as primary
+        if ($has_no_images && $new_images_added) {
+            // Find the first image we just added and make it primary
+            $set_primary_query = "UPDATE product_images SET is_primary = 1 
+                                WHERE product_id = ? AND is_primary = 0 
+                                ORDER BY image_id ASC LIMIT 1";
+            $stmt = $conn->prepare($set_primary_query);
+            $stmt->bind_param("i", $product_id);
+            $stmt->execute();
+            $stmt->close();
         }
 
         // Commit transaction

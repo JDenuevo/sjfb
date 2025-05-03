@@ -43,7 +43,7 @@ elseif (isset($_POST['delete_product'], $_POST['product_id'])) {
 
         // Delete image files from the server
         while ($imageRow = $imageResult->fetch_assoc()) {
-            $image_path = '../uploads/products/' . $imageRow['image_path']; // Adjust path if needed
+            $image_path = '../../uploads/products/' . $imageRow['image_path']; // Adjust path if needed
             if (file_exists($image_path)) {
                 unlink($image_path); // Delete the file
             }
@@ -101,7 +101,7 @@ elseif (isset($_POST['delete_image'], $_POST['image_id'], $_POST['product_id']))
 
     if ($result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        $image_path = '../uploads/products/' . $row['image_path'];
+        $image_path = '../../uploads/products/' . $row['image_path'];
 
         // Delete the image file from the server
         if (file_exists($image_path)) {

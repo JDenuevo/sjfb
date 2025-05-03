@@ -111,7 +111,7 @@ elseif (isset($_POST['add_product'])) {
 
         // Image Uploads with Primary Flag
         if (!empty($_FILES['product_images']['name'][0])) {
-            $target_dir = "../uploads/products/";
+            $target_dir = "../../uploads/products/";
             $firstImage = true;
 
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
