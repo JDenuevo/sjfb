@@ -29,6 +29,7 @@ function sendOTP($email, $conn) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['send_otp'])) {
+        
         $email = trim($_POST['email']);
         
         // Validate email format
