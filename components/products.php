@@ -72,18 +72,23 @@
             <div class="mt-2">
                 <label class="block text-sm font-medium text-gray-700">Select Size:</label>
                 <div class="flex flex-wrap gap-4">
-                    <?php foreach ($variants as $variant) { ?>
-                        <button type="button" 
-                                class="variant-button px-4 py-2 border rounded-lg text-sm font-medium 
-                                      hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 text-dark"
-                                data-product-id="<?= $product_id ?>"
-                                data-variant-id="<?= $variant['variant_id'] ?>"
-                                data-variant-name="<?= htmlspecialchars($variant['variant_name']) ?>"
-                                data-variant-price="<?= $variant['variant_price'] ?>"
-                                data-discount-price="<?= $variant['discount_price'] ?>">
+                    <?php 
+                    $first = true;
+                    foreach ($variants as $variant) { ?>
+                        <button type="button"
+                            class="variant-button px-4 py-2 border rounded-lg text-sm font-medium 
+                                hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 text-dark 
+                                <?= $first ? 'selected-variant' : '' ?>"
+                            data-product-id="<?= $product_id ?>"
+                            data-variant-id="<?= $variant['variant_id'] ?>"
+                            data-variant-name="<?= htmlspecialchars($variant['variant_name']) ?>"
+                            data-variant-price="<?= $variant['variant_price'] ?>"
+                            data-discount-price="<?= $variant['discount_price'] ?>">
                             <?= htmlspecialchars($variant['variant_name']) ?>
                         </button>
-                    <?php } ?>
+                    <?php 
+                        $first = false;
+                    } ?>
                 </div>
             </div>
 
@@ -121,8 +126,6 @@
 </div>
 
 <script>
-    
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Handle variant selection
     document.querySelectorAll('.variant-button').forEach(button => {
@@ -142,12 +145,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add the selected class to the clicked variant button
             button.classList.add('selected-variant');
 
-            // Update the form hidden fields
+            // Update hidden fields
             form.querySelector('input[name="variant_id"]').value = variantId;
             form.querySelector('input[name="variant_name"]').value = variantName;
             form.querySelector('input[name="price"]').value = discountPrice > 0 ? discountPrice : variantPrice;
 
-            // Update the displayed price
+            // Update displayed price
             const priceDisplay = form.querySelector('.price-display');
             if (discountPrice > 0) {
                 priceDisplay.innerHTML = `
@@ -160,12 +163,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
 
-            // Enable the "Add to Cart" button
+            // Enable "Add to Cart"
             form.querySelector('button[name="add_to_cart"]').disabled = false;
 
-            // Hide the variant message
+            // Hide message
             form.querySelector('.variant-message').classList.add('hidden');
         });
+    });
+
+    // ✅ Auto-select first button on load (to update form/price properly)
+    document.querySelectorAll('.add-to-cart-form').forEach(form => {
+        const firstButton = form.querySelector('.variant-button');
+        if (firstButton) firstButton.click();
     });
     
     // Handle quantity changes in the product form

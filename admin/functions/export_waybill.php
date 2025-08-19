@@ -47,8 +47,8 @@ class WaybillPDF extends FPDF
         $this->SetFont('Arial', 'B', 7);
         $this->Cell($rightColW, $rowHeight, $paymentText, 1, 2, 'C');
 
-        // ✅ Reset position for next content like Buyer's Name
-        $this->SetY($logoY + $logoCellH); // move below header
+        // Reset position for next content like Buyer's Name
+        $this->SetY($logoY + $logoCellH + 5); // Added extra space below header
         $this->SetX($logoX); // reset to left margin
     }
 
@@ -115,6 +115,7 @@ class WaybillPDF extends FPDF
     function DeliveryDetails()
     {
         $cellHeight = 10;
+        $startY = $this->GetY();
 
         $this->SetFont('Arial', '', 7);
         
@@ -134,14 +135,17 @@ class WaybillPDF extends FPDF
         $this->Cell(10, 5, '2', 1, 0, 'C');
         $this->Cell(10, 5, '3', 1, 1, 'C');
 
+        // Input boxes
         $this->Cell(20, $cellHeight, '', 1, 0);
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
-        $this->Cell(10, $cellHeight, '', 1, 0, 'C');
-    
+        $this->Cell(10, $cellHeight, '', 1, 1, 'C');
+        
+        // Add some space after the section
+        $this->SetY($this->GetY() + 5);
     }
 }
 

@@ -101,7 +101,6 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
             </div>
             <!-- End Form Group -->
 
-
             <div class="grid grid-cols-2 gap-4">
               <!-- Form Group -->
               <div>
@@ -140,10 +139,12 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
   
             <div class="relative flex items-start w-full">
                 <div class="flex items-center h-5 mt-1 w-full">
-                    <select id="Payment_method" name="payment_method" class="py-3 px-4 pe-9 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 dark:border-gray-700 dark:text-gray-400">
+                    <select id="Payment_method" name="payment_method" class="py-3 px-4 pe-9 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">
                         <option value="cod">Cash on Delivery</option>
-                        <option value="ewallet">Gcash</option>
-                        <!-- <option value="bank">Bank Transfer</option> -->
+                        <option value="gcash">GCash</option>
+                        <option value="paymaya">PayMaya</option>
+                        <option value="grab_pay">GrabPay</option>
+                        <option value="card">Credit/Debit Card</option>
                     </select>
                 </div>
             </div>
@@ -172,6 +173,8 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                     </div>
                 </div>
             </div>
+
+            <input type="hidden" name="total_amount" id="total_amount" value="<?php echo array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart)) ?>">
 
             <button type="submit" name="complete_order" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
                 Complete Order

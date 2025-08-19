@@ -11,6 +11,20 @@ if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
+// Pagination variables
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10; // Items per page
+
+// First get the total count of products
+$countQuery = "SELECT COUNT(DISTINCT p.product_id) as total 
+               FROM products p
+               LEFT JOIN product_variants v ON p.product_id = v.product_id";
+$countResult = $conn->query($countQuery);
+$totalItems = $countResult->fetch_assoc()['total'];
+$totalPages = ceil($totalItems / $perPage);
+
+// Main query with pagination
+$offset = ($page - 1) * $perPage;
 $query = "SELECT
     p.product_id,
     p.product_name,
@@ -26,10 +40,10 @@ FROM products p
 LEFT JOIN product_categories c ON p.product_category = c.category_id
 LEFT JOIN product_variants v ON p.product_id = v.product_id
 GROUP BY p.product_id, p.product_name, p.product_description, c.category_name
-ORDER BY last_updated DESC;";
+ORDER BY last_updated DESC
+LIMIT $perPage OFFSET $offset";
 
 $result = $conn->query($query);
-
 ?>
 
 <!DOCTYPE html>

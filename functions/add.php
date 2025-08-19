@@ -1,6 +1,12 @@
 <?php
 session_start();
-include '../conn.php'; // Adjust the path to your actual file
+require_once '../conn.php';
+require_once '../vendor/autoload.php';
+require_once 'paymongo_helper.php';
+
+// Load environment variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
 
 // Set the time zone to Asia/Manila
 date_default_timezone_set('Asia/Manila');
@@ -84,220 +90,153 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         redirectWithMessage('../details.php', "Registration successful! Please enter your details.", 'success');
     }
-
     elseif (isset($_POST['complete_order'])) { 
-        
-    try {
-        // Verify cart exists and has items
-        $cart = $_SESSION['cart'] ?? [];
-        if (empty($cart)) {
-            throw new Exception("Your cart is empty!");
-        }
-
-        // Initialize variables
-        $account_id = null;
-        $is_guest_order = 1;
-        $user_type = 'guest';
-        
-        // Check if user is logged in (customer)
-        if (isset($_SESSION['account_id']) && isset($_SESSION['loggedinasuser']) && $_SESSION['loggedinasuser'] === true) {
-            $account_id = $_SESSION['account_id'];
-            $is_guest_order = 0;
-            $user_type = 'customer';
-        }
-
-        // Get form data
-        $paymentMethod = trim($_POST['payment_method']);
-        
-        // Validate payment method
-        $validPaymentMethods = ['ewallet', 'cod', 'bank'];
-        if (!in_array($paymentMethod, $validPaymentMethods)) {
-            throw new Exception("Invalid payment method selected");
-        }
-
-        // Prepare user data based on user type
-        if ($is_guest_order) {
-            // Guest order - get data from form
-            $firstName = trim($_POST['first_name']);
-            $lastName = trim($_POST['last_name']);
-            $email = trim($_POST['email']);
-            $phoneNumber = trim($_POST['phone_number']);
-            $address = trim($_POST['address']);
-            $postalCode = trim($_POST['postal_code']);
-            $city = trim($_POST['city']);
-
-            // Validate required fields for guest
-            $required = [
-                'First Name' => $firstName,
-                'Last Name' => $lastName,
-                'Email' => $email,
-                'Phone Number' => $phoneNumber,
-                'Address' => $address,
-                'Postal Code' => $postalCode,
-                'City' => $city
-            ];
-        } else {
-            // Customer order - get data from account
-            $stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, address, postal_code, city FROM accounts WHERE account_id = ?");
-            $stmt->bind_param("i", $account_id);
-            $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc();
-            
-            if (!$user) {
-                throw new Exception("Could not retrieve user details");
-            }
-
-            $firstName = $user['first_name'];
-            $lastName = $user['last_name'];
-            $email = $user['email'];
-            $phoneNumber = $user['phone_number'];
-            $address = $user['address'];
-            $postalCode = $user['postal_code'];
-            $city = $user['city'];
-        }
-
-        // Validate common fields
-        foreach ([
-            'First Name' => $firstName,
-            'Last Name' => $lastName,
-            'Email' => $email,
-            'Phone Number' => $phoneNumber,
-            'Address' => $address,
-            'Postal Code' => $postalCode,
-            'City' => $city
-        ] as $field => $value) {
-            if (empty($value)) {
-                throw new Exception("$field is required");
-            }
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new Exception("Invalid email format");
-        }
-
-        // Calculate total price
-        $totalPrice = 0;
-        foreach ($cart as $item) {
-            if (!isset($item['price']) || !isset($item['quantity'])) {
-                throw new Exception("Invalid cart item data");
-            }
-            $totalPrice += floatval($item['price']) * intval($item['quantity']);
-        }
-
-        if ($totalPrice <= 0) {
-            throw new Exception("Invalid order total");
-        }
-
-        // Start transaction
-        $conn->begin_transaction();
-
         try {
-            // Insert order
-            $orderQuery = "INSERT INTO orders (
-                account_id, 
-                email, 
-                phone_number, 
-                first_name, 
-                last_name, 
-                address, 
-                postal_code, 
-                city, 
-                total_price, 
-                payment_method, 
-                is_guest_order,
-                order_status, 
-                order_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+            // Validate cart and form data
+            $cart = $_SESSION['cart'] ?? [];
+            if (empty($cart)) {
+                throw new Exception("Your cart is empty");
+            }
 
-            $stmt = $conn->prepare($orderQuery);
+            // Process form data
+            $requiredFields = ['first_name', 'last_name', 'phone_number', 'address', 'city', 'postal_code', 'payment_method'];
+            foreach ($requiredFields as $field) {
+                if (empty($_POST[$field])) {
+                    throw new Exception("Please fill in all required fields");
+                }
+            }
+
+            // Calculate total
+            $totalAmount = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart));
+
+            // Start transaction
+            $conn->begin_transaction();
+
+            // Prepare values for order insertion
+            $accountId = isset($_SESSION['account_id']) ? $_SESSION['account_id'] : null;
+            $isGuest = $accountId ? 0 : 1;
+            $email = $_POST['email'] ?? '';
+            $phoneNumber = $_POST['phone_number'];
+            $firstName = $_POST['first_name'];
+            $lastName = $_POST['last_name'];
+            $address = $_POST['address'];
+            $postalCode = $_POST['postal_code'];
+            $city = $_POST['city'];
+            $paymentMethod = $_POST['payment_method'];
+
+            // Create order
+            $stmt = $conn->prepare("
+                INSERT INTO orders (
+                    account_id, email, phone_number, first_name, last_name, 
+                    address, postal_code, city, total_price, payment_method, is_guest_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            
+            // Bind parameters correctly
             $stmt->bind_param(
-                "isssssssdsi",
-                $account_id,
-                $email,
-                $phoneNumber,
-                $firstName,
+                "isssssssdsi", 
+                $accountId, 
+                $email, 
+                $phoneNumber, 
+                $firstName, 
                 $lastName,
-                $address,
-                $postalCode,
-                $city,
-                $totalPrice,
-                $paymentMethod,
-                $is_guest_order
+                $address, 
+                $postalCode, 
+                $city, 
+                $totalAmount, 
+                $paymentMethod, 
+                $isGuest
             );
-
+            
             if (!$stmt->execute()) {
-                throw new Exception("Failed to create order: " . $stmt->error);
+                throw new Exception("Failed to create order: " . $conn->error);
             }
 
             $orderId = $conn->insert_id;
 
-            // Insert order items
+            // Create order items
+            $itemStmt = $conn->prepare("
+                INSERT INTO order_items (
+                    order_id, product_id, variant_id, quantity, price
+                ) VALUES (?, ?, ?, ?, ?)
+            ");
+            
             foreach ($cart as $item) {
-                if (!isset($item['product_id']) || !isset($item['variant_id']) || !isset($item['quantity']) || !isset($item['price'])) {
-                    throw new Exception("Invalid cart item data");
-                }
+                // Extract item values
+                $itemProductId = $item['product_id'];
+                $itemVariantId = $item['variant_id'];
+                $itemQuantity = $item['quantity'];
+                $itemPrice = $item['price'];
                 
-                $discountPrice = $item['discount_price'] ?? 0.00;
-                
-                $itemStmt = $conn->prepare("
-                    INSERT INTO order_items (
-                        order_id, 
-                        product_id, 
-                        variant_id, 
-                        quantity, 
-                        price, 
-                        discount
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                ");
                 $itemStmt->bind_param(
-                    "iiiidd",
-                    $orderId,
-                    $item['product_id'],
-                    $item['variant_id'],
-                    $item['quantity'],
-                    $item['price'],
-                    $discountPrice
+                    "iiiid", 
+                    $orderId, 
+                    $itemProductId, 
+                    $itemVariantId, 
+                    $itemQuantity, 
+                    $itemPrice
+                );
+                
+                if (!$itemStmt->execute()) {
+                    throw new Exception("Failed to add order items: " . $conn->error);
+                }
+            }
+
+            // Handle payment method
+            if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card'])) {
+                $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
+                
+                // Store payment details in session
+                $_SESSION['payment_details'] = [
+                    'order_id' => $orderId,
+                    'total_amount' => $totalAmount,
+                    'payment_method' => $paymentMethod,
+                    'customer_email' => $email,
+                    'customer_name' => "$firstName $lastName",
+                    'phone_number' => $phoneNumber
+                ];
+
+                // Create payment intent
+                $response = $paymongo->createPaymentIntent(
+                    $totalAmount,
+                    "Order #$orderId",
+                    [
+                        'order_id' => $orderId,
+                        'customer_email' => $email,
+                        'customer_name' => "$firstName $lastName"
+                    ]
                 );
 
-                if (!$itemStmt->execute()) {
-                    throw new Exception("Failed to add order item: " . $itemStmt->error);
+                if (!isset($response['data']['id'])) {
+                    throw new Exception("Payment initialization failed");
                 }
 
-                // Update stock quantity (optional)
-                $updateStmt = $conn->prepare("
-                    UPDATE product_variants 
-                    SET stock_quantity = stock_quantity - ? 
-                    WHERE variant_id = ? AND stock_quantity >= ?
-                ");
-                $updateStmt->bind_param("iii", $item['quantity'], $item['variant_id'], $item['quantity']);
-                $updateStmt->execute();
+                // Store payment intent details in session
+                $_SESSION['payment_intent_id'] = $response['data']['id'];
+                $_SESSION['client_key'] = $response['data']['attributes']['client_key'];
+                $_SESSION['payment_method'] = $paymentMethod;
+
+                $conn->commit();
+                header("Location: ../payment.php");
+                exit();
+            } else {
+                // For COD or other non-online payments
+                $conn->commit();
+                unset($_SESSION['cart']);
+                $_SESSION['order_id'] = $orderId;
+                header("Location: ../order_success.php");
+                exit();
             }
-            
-            // Commit transaction
-            $conn->commit();
-
-            // Clear cart and set success data
-            unset($_SESSION['cart']);
-            $_SESSION['order_id'] = $orderId;
-            $_SESSION['success'] = "Order placed successfully! Your order ID is #$orderId";
-
-            // Redirect to success page
-            header("Location: ../order_success.php");
-            exit();
 
         } catch (Exception $e) {
-            $conn->rollback();
-            throw $e;
+            if (isset($conn)) {
+                $conn->rollback();
+            }
+            $_SESSION['error'] = $e->getMessage();
+            header("Location: ../checkout.php");
+            exit();
         }
-
-    } catch (Exception $e) {
-        error_log("Checkout error: " . $e->getMessage());
-        $_SESSION['error'] = "Checkout failed: " . $e->getMessage();
-        header("Location: ../checkout.php");
-        exit();
     }
-}
-
 }
 
 ?>

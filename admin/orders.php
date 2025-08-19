@@ -11,24 +11,35 @@ if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT 
-            o.order_id, 
-            o.is_guest_order, 
-            o.email, 
-            o.phone_number, 
-            o.first_name, 
-            o.last_name, 
-            o.address, 
-            o.postal_code, 
-            o.city, 
-            o.total_price, 
-            o.order_date, 
-            o.order_status,
-            o.payment_method
-          FROM orders o
-          ORDER BY o.order_date DESC;";
+// Pagination variables
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
 
-$result = mysqli_query($conn, $query);
+$query = "SELECT
+    o.order_id,
+    o.order_date,
+    o.order_status,
+    o.total_price,
+    o.payment_method,
+    o.is_guest_order,
+    o.first_name,
+    o.last_name,
+    o.address,
+    o.city,
+    o.postal_code
+FROM orders o
+LEFT JOIN accounts a ON o.account_id = a.account_id
+ORDER BY o.order_date DESC
+LIMIT $perPage OFFSET $offset";
+
+$result = $conn->query($query);
+
+// Get total count for pagination
+$countQuery = "SELECT COUNT(*) as total FROM orders";
+$countResult = $conn->query($countQuery);
+$totalItems = $countResult->fetch_assoc()['total'];
+$totalPages = ceil($totalItems / $perPage);
 
 if (!$result) {
   die("Query failed: " . mysqli_error($conn));
@@ -44,9 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   $stmt->execute();
   $stmt->close();
   $conn->close();
-
 }
-
 
 ?>
 

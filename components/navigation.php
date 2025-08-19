@@ -91,10 +91,10 @@ $cart = $_SESSION['cart'] ?? [];
         <div class="flex-grow"></div>
 
         <div class="flex flex-row">
-          <a href="aboutus" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">About us</a>
-          <a href="sustainability" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Sustainability</a>
-          <a href="services" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Services</a>
-          <a href="careers" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Careers</a>
+          <a href="<?= $baseUrl ?>aboutus" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">About us</a>
+          <a href="<?= $baseUrl ?>sustainability" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Sustainability</a>
+          <a href="<?= $baseUrl ?>services" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Services</a>
+          <a href="<?= $baseUrl ?>careers" class="px-4 cursor-pointer font-semibold hover:text-orange-500 transition">Careers</a>
         </div>
 
         <div class="flex-grow"></div>

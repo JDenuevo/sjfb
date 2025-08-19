@@ -11,7 +11,19 @@ if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-$query = "SELECT * FROM accounts WHERE role = 'customer'";
+// Pagination variables
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10; // Items per page
+
+// First get the total count of customers
+$countQuery = "SELECT COUNT(*) as total FROM accounts WHERE role = 'customer'";
+$countResult = $conn->query($countQuery);
+$totalItems = $countResult->fetch_assoc()['total'];
+$totalPages = ceil($totalItems / $perPage);
+
+// Main query with pagination
+$offset = ($page - 1) * $perPage;
+$query = "SELECT * FROM accounts WHERE role = 'customer' LIMIT $perPage OFFSET $offset";
 $result = $conn->query($query);
 
 ?>

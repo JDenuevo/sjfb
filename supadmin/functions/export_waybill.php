@@ -47,8 +47,8 @@ class WaybillPDF extends FPDF
         $this->SetFont('Arial', 'B', 7);
         $this->Cell($rightColW, $rowHeight, $paymentText, 1, 2, 'C');
 
-        // ✅ Reset position for next content like Buyer's Name
-        $this->SetY($logoY + $logoCellH); // move below header
+        // Reset position for next content like Buyer's Name
+        $this->SetY($logoY + $logoCellH + 5); // Added extra space below header
         $this->SetX($logoX); // reset to left margin
     }
 
@@ -61,25 +61,24 @@ class WaybillPDF extends FPDF
         $this->MultiCell(20, $buyerLabelHeight, 'BUYER', 1, 'C');
 
         // Move to the right of the BUYER cell
-        $this->SetXY($this->GetX() + 20, $this->GetY() - $buyerLabelHeight); // Align Y to top of label, move X to the right
+        $this->SetXY($this->GetX() + 20, $this->GetY() - $buyerLabelHeight);
 
         // Right section content
         $this->SetFont('Arial', '', 7);
 
-        // Name Row
+        // Name
         $this->Cell(0, 5, $buyerData['first_name'] . ' ' . $buyerData['last_name'], 1, 1);
 
-        // Address Row
-        $this->SetX(30); // Align under name
+        // Address
+        $this->SetX(30);
         $this->MultiCell(0, 5, $buyerData['address'], 1);
 
-        // City, Province, Postal Code Row
-        $this->SetX(30);
+        // City, Province, Postal Code — match SELLER layout
+        $this->SetX(30);    
         $this->Cell(23, 5, $buyerData['city'], 1, 0);
-        $this->Cell(23, 5, 'Metro Manila', 1, 0);
         $this->Cell(0, 5, $buyerData['postal_code'], 1, 1);
 
-        // Phone number Row
+        // Phone
         $this->SetX(30);
         $this->Cell(0, 5, $buyerData['phone_number'], 1, 1);
     }
@@ -109,12 +108,13 @@ class WaybillPDF extends FPDF
         $this->SetX(30);
         $this->Cell(23, 5, 'Navotas City', 1, 0);
         $this->Cell(23, 5, 'Metro Manila', 1, 0);
-        $this->Cell(0, 5, '1411', 1, 1);
+        $this->Cell(23, 5, '1411', 1, 1);
     }
 
     function DeliveryDetails()
     {
         $cellHeight = 10;
+        $startY = $this->GetY();
 
         $this->SetFont('Arial', '', 7);
         
@@ -134,14 +134,17 @@ class WaybillPDF extends FPDF
         $this->Cell(10, 5, '2', 1, 0, 'C');
         $this->Cell(10, 5, '3', 1, 1, 'C');
 
+        // Input boxes
         $this->Cell(20, $cellHeight, '', 1, 0);
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
         $this->Cell(10, $cellHeight, '', 1, 0, 'C');
-        $this->Cell(10, $cellHeight, '', 1, 0, 'C');
-    
+        $this->Cell(10, $cellHeight, '', 1, 1, 'C');
+        
+        // Add some space after the section
+        $this->SetY($this->GetY() + 5);
     }
 }
 
