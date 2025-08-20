@@ -1,12 +1,8 @@
 <?php
 session_start();
 require_once 'conn.php';
-require_once './functions/paymongo_checker.php';
 
 $paymentSuccess = false;
-$orderId = null;
-
-// Check if we have an order ID from URL or session
 $orderId = $_GET['order_id'] ?? $_SESSION['order_id'] ?? null;
 
 if ($orderId) {
@@ -18,7 +14,7 @@ if ($orderId) {
     
     if ($orderCheck) {
         // If order is already marked as paid, show success
-        if ($orderCheck['order_status'] === 'paid') {
+        if ($orderCheck['order_status'] === 'Paid') {
             $paymentSuccess = true;
             // Clear cart only if payment is confirmed
             if (isset($_SESSION['cart'])) {
@@ -37,33 +33,10 @@ if ($orderId) {
             }
             $_SESSION['success'] = "Order placed successfully! Your COD order has been confirmed.";
         }
-        // For pending online payments, check if they might have been completed via webhook
+        // For pending online payments
         elseif ($orderCheck['order_status'] === 'Pending') {
-            // Show "processing" message - the webhook will update this later
-            $_SESSION['info'] = "Your order #$orderId is being processed. Please check your email for confirmation.";
-            
-            // For local testing, allow manual verification
-            if ($_SERVER['HTTP_HOST'] === 'localhost' || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false) {
-                $_SESSION['info'] .= " Since you're on localhost, you may need to verify payment manually.";
-            }
-        }
-    }
-}
-
-// Handle session_id parameter if it exists (for backward compatibility)
-if (isset($_GET['session_id']) && $_GET['session_id'] !== '{CHECKOUT_SESSION_ID}') {
-    // Valid session ID - proceed with verification
-    $verification = verifyPayMongoPayment($_GET['session_id'], $_GET['order_id'] ?? null);
-    
-    if ($verification['success']) {
-        $paymentSuccess = true;
-        $orderId = $verification['order_id'] ?? $orderId;
-        
-        if ($orderId) {
-            updateOrderPaymentStatus($conn, $orderId, $verification['payment_method']);
-            $_SESSION['order_id'] = $orderId;
-            clearCartOnSuccess();
-            $_SESSION['success'] = "Payment successful! Your order has been confirmed.";
+            // Show "processing" message
+            $_SESSION['info'] = "Your order #$orderId is being processed. Payment status will update shortly.";
         }
     }
 }
@@ -91,29 +64,6 @@ if (!$order) {
     $_SESSION['error'] = "Order not found.";
     header("Location: index.php");
     exit();
-}
-
-// For pending online payments, check if payment was completed via webhook while page was loading
-if ($order['order_status'] === 'Pending' && $order['payment_method'] !== 'cod') {
-    // Double-check payment status
-    $stmt = $conn->prepare("SELECT COUNT(*) as payment_count FROM payments WHERE order_id = ? AND payment_status = 'succeeded'");
-    $stmt->bind_param("i", $orderId);
-    $stmt->execute();
-    $paymentResult = $stmt->get_result()->fetch_assoc();
-    
-    if ($paymentResult['payment_count'] > 0) {
-        // Update order status
-        $updateStmt = $conn->prepare("UPDATE orders SET order_status = 'paid' WHERE order_id = ?");
-        $updateStmt->bind_param("i", $orderId);
-        $updateStmt->execute();
-        
-        $paymentSuccess = true;
-        if (isset($_SESSION['cart'])) {
-            unset($_SESSION['cart']);
-        }
-        $_SESSION['success'] = "Payment verified! Your order is now confirmed.";
-        $order['order_status'] = 'paid'; // Update for display
-    }
 }
 
 // Get order items
@@ -167,98 +117,31 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
 <section id="order-success-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>
 
-  <!-- Display success/error messages -->
-  <?php if (isset($_SESSION['success'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-      <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
-        <?= htmlspecialchars($_SESSION['success']) ?>
-        <?php if ($paymentSuccess): ?>
-          <p class="mt-2 text-sm">Your cart has been cleared.</p>
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php unset($_SESSION['success']); ?>
-  <?php endif; ?>
-
-  <?php if (isset($_SESSION['error'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-      <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-        <?= htmlspecialchars($_SESSION['error']) ?>
-        <?php if (!$paymentSuccess): ?>
-          <p class="mt-2 text-sm">Your cart items have been preserved for retry.</p>
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php unset($_SESSION['error']); ?>
-  <?php endif; ?>
-
-  <?php if (isset($_SESSION['info'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-      <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4">
-        <?= htmlspecialchars($_SESSION['info']) ?>
-      </div>
-    </div>
-    <?php unset($_SESSION['info']); ?>
-  <?php endif; ?>
-
   <!-- Receipt -->
   <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto my-4 sm:my-10 mt-10">
     
     <div class="text-center mb-12" data-aos="fade-up">
       <?php if ($paymentSuccess): ?>
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 6L9 17l-5-5" />
+          <svg  xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round" 
+            class="icon icon-tabler icons-tabler-outline icon-tabler-check">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M5 12l5 5l10 -10" />
           </svg>
         </div>
         <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>
-        <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order and payment has been confirmed.</p>
+        <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order has been confirmed.</p>
       <?php else: ?>
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-yellow-600" viewBox="0 极 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Processing</h1>
-        <p class="text-gray-600 mb-6">Your order has been received but payment is still processing.</p>
-        
-        <!-- Manual verification for local testing -->
-        <?php if ($_SERVER['HTTP_HOST'] === 'localhost' || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false): ?>
-        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-          <p class="text-blue-800 mb-2">Local Testing: If you've completed payment, verify manually:</p>
-          <form method="POST" action="./functions/verify_payment.php" class="flex gap-2">
-            <input type="hidden" name="order_id" value="<?= $orderId ?>">
-            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
-              Verify Payment
-            </button>
-          </form>
-        </div>
-        <?php endif; ?>
+        <h1 class="text-极xl font-bold text-gray-800 mb-4">Order Processing</h1>
+        <p class="text-gray-600 mb-6">Your order has been received and is being processed.</p>
       <?php endif; ?>
-      
-      <!-- Order Status Badge -->
-      <?php
-        $statusClass = '';
-        $statusText = '';
-        switch (strtolower($order['order_status'])) {
-          case 'paid':
-            $statusClass = 'bg-green-100 text-green-800';
-            $statusText = 'Payment Confirmed';
-            break;
-          case 'pending':
-            $statusClass = 'bg-yellow-100 text-yellow-800';
-            $statusText = 'Payment Pending';
-            break;
-          default:
-            $statusClass = 'bg-blue-100 text-blue-800';
-            $statusText = 'Order Placed';
-        }
-      ?>
-      <span class="inline-block px-3 py-1 rounded-full text-sm font-medium <?= $statusClass ?>">
-        <?= $statusText ?>
-      </span>
     </div>
 
     <!-- Rest of your receipt HTML remains exactly the same -->
@@ -269,7 +152,6 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
         <div class="flex justify-between">
           <div>
             <img src="./assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
-
             <h1 class="mt-2 md:text-lg font-semibold text-orange-600 ">St. Joseph Fish Brokerage Inc.</h1>
           </div>
           <!-- Col -->
@@ -281,8 +163,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
             <address class="mt-4 not-italic text-gray-800 ">
               Bulungan Avenue corner HACCP St.<br>
               NFPC NBBS, Navotas, Philippines<br>
-              Boulevard South Proper, Navotas, 
-              Philippines<br>
+              Boulevard South Proper, Navotas, Philippines<br>
             </address>
           </div>
           <!-- Col -->
@@ -299,13 +180,12 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
               <?= htmlspecialchars($order['address']) ?><br>
               <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['postal_code']) ?>
             </address>
-           
           </div>
           <!-- Col -->
            
           <div class="sm:text-end space-y-2">
             <!-- Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
+            <div class="grid grid-cols-2 sm:极-cols-1 gap-3 sm:gap-2">
               <dl class="grid sm:grid-cols-5 gap-x-3">
                 <dt class="col-span-3 font-semibold text-gray-800 ">Payment Method:</dt>
                 <dd class="col-span-2 text-gray-500 ">
@@ -362,10 +242,10 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
                 <h5 class="text-start text-xs font-medium text-black uppercase">Item Name</h5>
               </div>
               <div>
-                <h5 class="text-start text-xs font-medium text-black uppercase ">Variant</h5>
+                <h5 class="text-start text-xs极-medium text-black uppercase ">Variant</h5>
               </div>
               <div>
-                <h5 class="text-start text-xs font-medium text-black uppercase ">Price</h5>
+                <h5 class="text-start text-xs font-medium text-black uppercase ">Price</极>
               </div>
               <div>
                 <h5 class="text-start text-xs font-medium text-black uppercase ">Qty</h5>
@@ -404,15 +284,10 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
         <!-- Subtotal Section -->
         <div class="mt-8 p-4">
           <div class="grid grid-cols-4 gap-2">
-            <!-- Empty columns to push subtotal to the right -->
-           
             <dt class="text-lg font-semibold text-gray-800">Total Amount:</dt>
-      
             <div></div>
             <div></div>
-            
             <dd class="text-lg font-semibold text-gray-800">₱<?= number_format($order['total_price'], 2) ?></dd>
-          
           </div>
         </div>
 
@@ -421,7 +296,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
           <p class="text-gray-500 ">If you have any questions concerning this receipt, use the following contact information:</p>
           <div class="mt-2">
             <p class="block text-sm font-medium text-gray-800 ">fisbrokers.net</p>
-            <p class="block text-sm font-medium text-gray-800 ">(+63) 946-497-3689</p>
+            <p class="block text极 font-medium text-gray-800 ">(+63) 946-497-3689</p>
           </div>
         </div>
       </div>
@@ -435,14 +310,12 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
           </a>
         <?php endif; ?>
         <a id="downloadBtn" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none" href="javascript:void(0);">
-          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 极 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
           Download Receipt
         </a>
         <a class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 shadow-2xs disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50" href="index.php" >
           Continue Shopping
         </a>
-        
-       
       </div>
       <!-- End Buttons -->
     </div>
@@ -457,7 +330,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
     const receipt = document.getElementById('orderReceipt');
     html2canvas(receipt, { scale: 2 }).then(canvas => {
       const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.to极URL('image/png');
       link.download = 'order-receipt-<?= $order['order_id'] ?>.png';
       link.click();
     });

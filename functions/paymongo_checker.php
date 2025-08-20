@@ -95,13 +95,4 @@ function handlePaymentResult($conn, $verificationResult) {
     ];
 }
 
-function logPaymentAttempt($conn, $orderId, $status, $details = '') {
-    $stmt = $conn->prepare("
-        INSERT INTO payment_attempts (order_id, status, details) 
-        VALUES (?, ?, ?)
-    ");
-    $stmt->bind_param("iss", $orderId, $status, $details);
-    $stmt->execute();
-}
-
 ?>

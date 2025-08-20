@@ -208,14 +208,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 error_log("Creating checkout session for order: " . $orderId);
                 error_log("Base URL: " . $baseUrl);
-                error_log("Success URL: " . $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId);
+                error_log("Success URL: " . $baseUrl . '/order_success.php?oid={CHECKOUT_SESSION_ID}&order_id=' . $orderId);
 
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
                     "Order #$orderId",
                     [
                         'payment_method_types' => [$paymentMethod],
-                        'success_url' => $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
+                        'success_url' => $baseUrl . '/order_success.php?oid={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
                         'cancel_url' => $baseUrl . '/checkout.php',
                         'customer_info' => $customerInfo,
                         'billing' => [
@@ -270,7 +270,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: ../checkout.php");
             exit();
         }
+        
+    // Unset all session variables
+    session_unset();
+
+    // Destroy the session
+    session_destroy();
+
     }
+    
 }
 
 ?>
