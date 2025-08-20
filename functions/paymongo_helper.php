@@ -21,7 +21,6 @@ class PayMongoHelper {
     public function createCheckoutSession($amount, $description, $options = []) {
         $amountInCents = $amount * 100;
         
-        // Build the base data structure
         $data = [
             'data' => [
                 'attributes' => [
@@ -48,15 +47,10 @@ class PayMongoHelper {
         if (isset($options['customer_info'])) {
             $customerInfo = $options['customer_info'];
             
-            // Add customer email for receipt
-            if (isset($customerInfo['email'])) {
-                $data['data']['attributes']['send_email_receipt'] = true;
-                $data['data']['attributes']['receipt_email'] = $customerInfo['email'];
-            }
-
-            // Add customer details
+            // Initialize customer_info array
             $data['data']['attributes']['customer_info'] = [];
             
+            // Add individual customer fields
             if (isset($customerInfo['first_name'])) {
                 $data['data']['attributes']['customer_info']['first_name'] = $customerInfo['first_name'];
             }
@@ -67,6 +61,8 @@ class PayMongoHelper {
             
             if (isset($customerInfo['email'])) {
                 $data['data']['attributes']['customer_info']['email'] = $customerInfo['email'];
+                $data['data']['attributes']['send_email_receipt'] = true;
+                $data['data']['attributes']['receipt_email'] = $customerInfo['email'];
             }
             
             if (isset($customerInfo['phone'])) {
@@ -76,7 +72,24 @@ class PayMongoHelper {
 
         // Add billing information if provided
         if (isset($options['billing'])) {
-            $data['data']['attributes']['billing'] = $options['billing'];
+            $billing = $options['billing'];
+            $data['data']['attributes']['billing'] = [];
+            
+            if (isset($billing['name'])) {
+                $data['data']['attributes']['billing']['name'] = $billing['name'];
+            }
+            
+            if (isset($billing['email'])) {
+                $data['data']['attributes']['billing']['email'] = $billing['email'];
+            }
+            
+            if (isset($billing['phone'])) {
+                $data['data']['attributes']['billing']['phone'] = $billing['phone'];
+            }
+            
+            if (isset($billing['address'])) {
+                $data['data']['attributes']['billing']['address'] = $billing['address'];
+            }
         }
 
         try {
@@ -92,15 +105,25 @@ class PayMongoHelper {
             $body = json_decode($response->getBody(), true);
             
             if ($response->getStatusCode() !== 200) {
-                error_log("Checkout Session Error: " . print_r($body, true));
+                error_log("Checkout Session Error - Status: " . $response->getStatusCode());
+                error_log("Checkout Session Error - Body: " . print_r($body, true));
                 throw new Exception($body['errors'][0]['detail'] ?? 'Checkout session creation failed');
+            }
+
+            // Debug: Check if checkout_url contains the placeholder
+            if (isset($body['data']['attributes']['checkout_url'])) {
+                error_log("Checkout URL: " . $body['data']['attributes']['checkout_url']);
+                if (strpos($body['data']['attributes']['checkout_url'], '{CHECKOUT_SESSION_ID}') !== false) {
+                    error_log("WARNING: Checkout URL still contains placeholder!");
+                }
             }
 
             return $body;
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $response = $e->getResponse();
             $error = json_decode($response->getBody(), true);
-            error_log("Checkout Session Exception: " . print_r($error, true));
+            error_log("Checkout Session Exception - Status: " . $response->getStatusCode());
+            error_log("Checkout Session Exception - Body: " . print_r($error, true));
             throw new Exception($error['errors'][0]['detail'] ?? 'Checkout API Request Failed');
         }
     }
@@ -121,4 +144,5 @@ class PayMongoHelper {
             throw new Exception($error['errors'][0]['detail'] ?? 'Failed to retrieve checkout session');
         }
     }
+    
 }

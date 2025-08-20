@@ -1,36 +1,45 @@
 <?php
-// paymongo_webhook.php
-
 require_once 'conn.php';
+require_once './vendor/autoload.php';
+require_once './functions/paymongo_helper.php';
 
-// Verify webhook signature
+// Load environment variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/');
+$dotenv->load();
+
+// Get the raw POST data
 $payload = file_get_contents('php://input');
-$signature = $_SERVER['HTTP_PAYMONGO_SIGNATURE'] ?? '';
-$secret = 'your_webhook_secret_key';
-
-$computedSignature = hash_hmac('sha256', $payload, $secret);
-
-if (!hash_equals($signature, $computedSignature)) {
-    http_response_code(401);
-    die('Invalid signature');
-}
-
 $event = json_decode($payload, true);
 
-// Handle payment intent success
-if ($event['event'] === 'payment_intent.success') {
-    $paymentIntent = $event['data']['attributes']['data'];
-    $orderId = $paymentIntent['metadata']['order_id'] ?? null;
+// Verify this is a PayMongo webhook (you should add signature verification)
+if ($event && isset($event['type'])) {
+    error_log("Webhook received: " . $event['type']);
     
-    if ($orderId) {
-        // Update order status in database
-        $stmt = $pdo->prepare("UPDATE orders SET order_status = 'Approved', payment_method = 'ewallet' WHERE order_id = ?");
-        $stmt->execute([$orderId]);
+    $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
+    
+    if ($event['type'] === 'checkout_session.payment.paid') {
+        $sessionId = $event['data']['id'];
         
-        // You might want to send a confirmation email here
+        try {
+            $session = $paymongo->retrieveCheckoutSession($sessionId);
+            $orderId = $session['data']['attributes']['metadata']['order_id'] ?? null;
+            
+            if ($orderId) {
+                // Update order status to paid
+                $stmt = $conn->prepare("UPDATE orders SET order_status = 'paid' WHERE order_id = ?");
+                $stmt->bind_param("i", $orderId);
+                $stmt->execute();
+                
+                error_log("Order $orderId marked as paid via webhook");
+                
+                // Here you can also send confirmation email, etc.
+            }
+        } catch (Exception $e) {
+            error_log("Webhook error: " . $e->getMessage());
+        }
     }
 }
 
 http_response_code(200);
-echo 'Webhook received';
+echo 'Webhook processed';
 ?>

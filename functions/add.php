@@ -186,52 +186,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card'])) {
                 $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
                 
-                try {
-                    // For local testing, use your actual URL or ngrok
-                    $baseUrl = 'http://localhost/sjfbi-js'; // Update this to your actual URL
-                    
-                    // Create checkout session with proper URLs
-                    $response = $paymongo->createCheckoutSession(
-                        $totalAmount,
-                        "Order #$orderId",
-                        [
-                            'payment_method_types' => [$paymentMethod],
-                            'success_url' => $baseUrl . '/order_success.php?order_id=' . $orderId,
-                            'cancel_url' => $baseUrl . '/checkout.php?cancelled=true',
-                            'metadata' => [
-                                'order_id' => (string)$orderId,
-                                'customer_email' => $email,
-                                'customer_name' => "$firstName $lastName",
-                                'test_environment' => 'local'
-                            ]
+                // For local testing, use your actual URL or ngrok
+                $baseUrl = 'http://localhost/sjfbi-js'; // Update this to your actual URL
+
+                // Prepare customer information from form data
+                $customerInfo = [
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'email' => $email,
+                    'phone' => $phoneNumber
+                ];
+                
+                // Prepare billing address
+                $billingAddress = [
+                    'line1' => $address,
+                    'city' => $city,
+                    'postal_code' => $postalCode,
+                    'state' => '', // Add state if you have it
+                    'country' => 'PH'
+                ];
+                
+                error_log("Creating checkout session for order: " . $orderId);
+                error_log("Base URL: " . $baseUrl);
+                error_log("Success URL: " . $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId);
+
+                $response = $paymongo->createCheckoutSession(
+                    $totalAmount,
+                    "Order #$orderId",
+                    [
+                        'payment_method_types' => [$paymentMethod],
+                        'success_url' => $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
+                        'cancel_url' => $baseUrl . '/checkout.php',
+                        'customer_info' => $customerInfo,
+                        'billing' => [
+                            'address' => $billingAddress,
+                            'email' => $email,
+                            'name' => $firstName . ' ' . $lastName,
+                            'phone' => $phoneNumber
+                        ],
+                        'metadata' => [
+                            'order_id' => $orderId,
+                            'customer_email' => $email,
+                            'customer_name' => "$firstName $lastName",
+                            'customer_phone' => $phoneNumber,
+                            'shipping_address' => $address,
+                            'shipping_city' => $city,
+                            'shipping_postal_code' => $postalCode,
+                            'test_environment' => 'local'
                         ]
-                    );
+                    ]
+                );
 
-                    error_log("Checkout Session Response: " . print_r($response, true));
+                error_log("Checkout session response: " . print_r($response, true));
 
-                    if (!isset($response['data']['attributes']['checkout_url'])) {
-                        throw new Exception("Checkout session creation failed. No checkout URL returned.");
-                    }
-
-                    // Store order ID in session for verification
-                    $_SESSION['current_order_id'] = $orderId;
-                    $_SESSION['pending_payment_order'] = $orderId;
-                    
-                    $conn->commit();
-                    
-                    // Redirect to PayMongo's hosted checkout page
-                    header("Location: " . $response['data']['attributes']['checkout_url']);
-                    exit();
-
-                } catch (Exception $e) {
-                    error_log("Checkout Session Error: " . $e->getMessage());
-                    if (isset($conn)) {
-                        $conn->rollback();
-                    }
-                    $_SESSION['error'] = "Payment initialization failed: " . $e->getMessage();
-                    header("Location: ../checkout.php");
-                    exit();
+                if (!isset($response['data']['attributes']['checkout_url'])) {
+                    throw new Exception("Checkout session creation failed. No checkout URL returned.");
                 }
+
+                // Store order ID in session for verification
+                $_SESSION['current_order_id'] = $orderId;
+                $_SESSION['pending_payment_order'] = $orderId;
+                
+                $conn->commit();
+                
+                // Redirect to PayMongo's hosted checkout page
+                header("Location: " . $response['data']['attributes']['checkout_url']);
+                exit();
+
             } else {
                 // For COD or other non-online payments
                 $conn->commit();
