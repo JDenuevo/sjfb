@@ -18,90 +18,98 @@ class PayMongoHelper {
         ]);
     }
 
-    public function createPaymentIntent($amount, $description, $metadata = []) {
+    public function createCheckoutSession($amount, $description, $options = []) {
         $amountInCents = $amount * 100;
         
-        try {
-            $payload = [
-                'data' => [
-                    'attributes' => [
-                        'amount' => $amountInCents,
-                        'payment_method_allowed' => ['card', 'gcash', 'grab_pay'],
-                        'payment_method_options' => [
-                            'card' => ['request_three_d_secure' => 'any']
-                        ],
-                        'currency' => 'PHP',
-                        'description' => $description,
-                        'capture_type' => 'automatic'
-                    ]
-                ]
-            ];
-
-            // Add metadata as flat key-value pairs
-            if (!empty($metadata)) {
-                $payload['data']['attributes']['metadata'] = [];
-                foreach ($metadata as $key => $value) {
-                    // Convert all values to strings (PayMongo requirement)
-                    $payload['data']['attributes']['metadata'][$key] = (string)$value;
-                }
-            }
-
-            $response = $this->client->post('payment_intents', [
-                'json' => $payload
-            ]);
-
-            return json_decode($response->getBody(), true);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $response = $e->getResponse();
-            $error = json_decode($response->getBody(), true);
-            throw new Exception($error['errors'][0]['detail'] ?? 'Payment intent creation failed');
-        }
-    }
-
-    public function attachPaymentMethod($paymentIntentId, $paymentMethodId, $returnUrl = null) {
-        try {
-            $response = $this->client->post("payment_intents/$paymentIntentId/attach", [
-                'json' => [
-                    'data' => [
-                        'attributes' => [
-                            'payment_method' => $paymentMethodId,
-                            'return_url' => $returnUrl
-                        ]
-                    ]
-                ]
-            ]);
-
-            return json_decode($response->getBody(), true);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $response = $e->getResponse();
-            $error = json_decode($response->getBody(), true);
-            throw new Exception($error['errors'][0]['detail'] ?? 'Payment method attachment failed');
-        }
-    }
-
-    public function createPaymentMethod($type, $billingDetails = [], $metadata = []) {
+        // Build the base data structure
         $data = [
             'data' => [
                 'attributes' => [
-                    'type' => $type
+                    'send_email_receipt' => false,
+                    'show_description' => true,
+                    'description' => $description,
+                    'line_items' => [
+                        [
+                            'amount' => $amountInCents,
+                            'currency' => 'PHP',
+                            'name' => 'Order Payment',
+                            'quantity' => 1
+                        ]
+                    ],
+                    'payment_method_types' => $options['payment_method_types'] ?? ['card', 'gcash', 'grab_pay', 'paymaya'],
+                    'success_url' => $options['success_url'] ?? (getenv('APP_URL') . '/order_success.php'),
+                    'cancel_url' => $options['cancel_url'] ?? (getenv('APP_URL') . '/checkout.php'),
+                    'metadata' => $options['metadata'] ?? []
                 ]
             ]
         ];
 
-        // Add billing details if provided
-        if (!empty($billingDetails)) {
-            $data['data']['attributes']['billing'] = $billingDetails;
+        // Add customer information if provided
+        if (isset($options['customer_info'])) {
+            $customerInfo = $options['customer_info'];
+            
+            // Add customer email for receipt
+            if (isset($customerInfo['email'])) {
+                $data['data']['attributes']['send_email_receipt'] = true;
+                $data['data']['attributes']['receipt_email'] = $customerInfo['email'];
+            }
+
+            // Add customer details
+            $data['data']['attributes']['customer_info'] = [];
+            
+            if (isset($customerInfo['first_name'])) {
+                $data['data']['attributes']['customer_info']['first_name'] = $customerInfo['first_name'];
+            }
+            
+            if (isset($customerInfo['last_name'])) {
+                $data['data']['attributes']['customer_info']['last_name'] = $customerInfo['last_name'];
+            }
+            
+            if (isset($customerInfo['email'])) {
+                $data['data']['attributes']['customer_info']['email'] = $customerInfo['email'];
+            }
+            
+            if (isset($customerInfo['phone'])) {
+                $data['data']['attributes']['customer_info']['phone'] = $customerInfo['phone'];
+            }
         }
 
-        // Add metadata if provided
-        if (!empty($metadata)) {
-            $data['data']['attributes']['metadata'] = $metadata;
+        // Add billing information if provided
+        if (isset($options['billing'])) {
+            $data['data']['attributes']['billing'] = $options['billing'];
         }
 
         try {
-            $response = $this->client->post('payment_methods', [
+            $response = $this->client->post('checkout_sessions', [
                 'json' => $data,
                 'headers' => [
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode($this->secretKey . ':')
+                ]
+            ]);
+
+            $body = json_decode($response->getBody(), true);
+            
+            if ($response->getStatusCode() !== 200) {
+                error_log("Checkout Session Error: " . print_r($body, true));
+                throw new Exception($body['errors'][0]['detail'] ?? 'Checkout session creation failed');
+            }
+
+            return $body;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->getResponse();
+            $error = json_decode($response->getBody(), true);
+            error_log("Checkout Session Exception: " . print_r($error, true));
+            throw new Exception($error['errors'][0]['detail'] ?? 'Checkout API Request Failed');
+        }
+    }
+
+    public function retrieveCheckoutSession($sessionId) {
+        try {
+            $response = $this->client->get("checkout_sessions/$sessionId", [
+                'headers' => [
+                    'Accept' => 'application/json',
                     'Authorization' => 'Basic ' . base64_encode($this->secretKey . ':')
                 ]
             ]);
@@ -110,7 +118,7 @@ class PayMongoHelper {
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $response = $e->getResponse();
             $error = json_decode($response->getBody(), true);
-            throw new Exception($error['errors'][0]['detail'] ?? 'Payment method creation failed');
+            throw new Exception($error['errors'][0]['detail'] ?? 'Failed to retrieve checkout session');
         }
     }
 }

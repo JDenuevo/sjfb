@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Process form data
-            $requiredFields = ['first_name', 'last_name', 'phone_number', 'address', 'city', 'postal_code', 'payment_method'];
+            $requiredFields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'city', 'postal_code', 'payment_method'];
             foreach ($requiredFields as $field) {
                 if (empty($_POST[$field])) {
                     throw new Exception("Please fill in all required fields");
@@ -186,45 +186,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card'])) {
                 $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
                 
-                // Store payment details in session
-                $_SESSION['payment_details'] = [
-                    'order_id' => $orderId,
-                    'total_amount' => $totalAmount,
-                    'payment_method' => $paymentMethod,
-                    'customer_email' => $email,
-                    'customer_name' => "$firstName $lastName",
-                    'phone_number' => $phoneNumber
-                ];
+                try {
+                    // For local testing, use your actual URL or ngrok
+                    $baseUrl = 'http://localhost/sjfbi-js'; // Update this to your actual URL
+                    
+                    // Create checkout session with proper URLs
+                    $response = $paymongo->createCheckoutSession(
+                        $totalAmount,
+                        "Order #$orderId",
+                        [
+                            'payment_method_types' => [$paymentMethod],
+                            'success_url' => $baseUrl . '/order_success.php?order_id=' . $orderId,
+                            'cancel_url' => $baseUrl . '/checkout.php?cancelled=true',
+                            'metadata' => [
+                                'order_id' => (string)$orderId,
+                                'customer_email' => $email,
+                                'customer_name' => "$firstName $lastName",
+                                'test_environment' => 'local'
+                            ]
+                        ]
+                    );
 
-                // Create payment intent
-                $response = $paymongo->createPaymentIntent(
-                    $totalAmount,
-                    "Order #$orderId",
-                    [
-                        'order_id' => $orderId,
-                        'customer_email' => $email,
-                        'customer_name' => "$firstName $lastName"
-                    ]
-                );
+                    error_log("Checkout Session Response: " . print_r($response, true));
 
-                if (!isset($response['data']['id'])) {
-                    throw new Exception("Payment initialization failed");
+                    if (!isset($response['data']['attributes']['checkout_url'])) {
+                        throw new Exception("Checkout session creation failed. No checkout URL returned.");
+                    }
+
+                    // Store order ID in session for verification
+                    $_SESSION['current_order_id'] = $orderId;
+                    $_SESSION['pending_payment_order'] = $orderId;
+                    
+                    $conn->commit();
+                    
+                    // Redirect to PayMongo's hosted checkout page
+                    header("Location: " . $response['data']['attributes']['checkout_url']);
+                    exit();
+
+                } catch (Exception $e) {
+                    error_log("Checkout Session Error: " . $e->getMessage());
+                    if (isset($conn)) {
+                        $conn->rollback();
+                    }
+                    $_SESSION['error'] = "Payment initialization failed: " . $e->getMessage();
+                    header("Location: ../checkout.php");
+                    exit();
                 }
-
-                // Store payment intent details in session
-                $_SESSION['payment_intent_id'] = $response['data']['id'];
-                $_SESSION['client_key'] = $response['data']['attributes']['client_key'];
-                $_SESSION['payment_method'] = $paymentMethod;
-
-                $conn->commit();
-                header("Location: ../payment.php");
-                exit();
             } else {
                 // For COD or other non-online payments
                 $conn->commit();
                 unset($_SESSION['cart']);
                 $_SESSION['order_id'] = $orderId;
-                header("Location: ../order_success.php");
+                header("Location: ../order_success.php?order_id=" . $orderId);
                 exit();
             }
 

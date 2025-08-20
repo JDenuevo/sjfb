@@ -1,15 +1,78 @@
 <?php
 session_start();
-include 'conn.php';
+require_once 'conn.php';
+require_once './vendor/autoload.php';
+require_once './functions/paymongo_helper.php';
 
-// Check if there's an order_id in session
-if (!isset($_SESSION['order_id'])) {
+// Load environment variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/.');
+$dotenv->load();
+
+// Verify payment if coming from PayMongo checkout
+if (isset($_GET['session_id']) && $_GET['session_id'] !== '{CHECKOUT_SESSION_ID}') {
+    try {
+        $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
+        $session = $paymongo->retrieveCheckoutSession($_GET['session_id']);
+        
+        // Check if payment was successful
+        if (isset($session['data']['attributes']['payments']) && 
+            count($session['data']['attributes']['payments']) > 0 &&
+            $session['data']['attributes']['payments'][0]['attributes']['status'] === 'paid') {
+            
+            // Get order ID from URL parameter or session metadata
+            $orderId = $_GET['order_id'] ?? $session['data']['attributes']['metadata']['order_id'] ?? null;
+            
+            if ($orderId) {
+                // Update order status in database
+                $stmt = $conn->prepare("
+                    UPDATE orders 
+                    SET order_status = 'paid', 
+                        payment_method = ? 
+                    WHERE order_id = ?
+                ");
+                $paymentMethod = $session['data']['attributes']['payment_method_types'][0] ?? 'card';
+                $stmt->bind_param("si", $paymentMethod, $orderId);
+                $stmt->execute();
+                
+                // Set order ID in session for display
+                $_SESSION['order_id'] = $orderId;
+                
+                // Clear cart
+                unset($_SESSION['cart']);
+                
+                // Success message
+                $_SESSION['success'] = "Payment successful! Your order has been confirmed.";
+            }
+        } else {
+            // Payment failed or not completed
+            $_SESSION['error'] = "Payment was not completed successfully.";
+            header("Location: checkout.php");
+            exit();
+        }
+    } catch (Exception $e) {
+        error_log("Payment verification error: " . $e->getMessage());
+        $_SESSION['error'] = "Unable to verify payment. Please contact support if you were charged.";
+        header("Location: checkout.php");
+        exit();
+    }
+} elseif (isset($_GET['session_id']) && $_GET['session_id'] === '{CHECKOUT_SESSION_ID}') {
+    // Handle case where PayMongo didn't replace the placeholder
+    $_SESSION['error'] = "Payment session error. Please try again or contact support.";
+    header("Location: checkout.php");
+    exit();
+}
+
+// Check if we have an order to display
+if (!isset($_SESSION['order_id']) && !isset($_GET['order_id'])) {
+    $_SESSION['error'] = "No order found.";
     header("Location: index.php");
     exit();
 }
 
+// Get order ID from session or URL
+$orderId = $_SESSION['order_id'] ?? $_GET['order_id'];
+
 // Get order details
-$orderId = $_SESSION['order_id'];
 $stmt = $conn->prepare("
     SELECT o.order_id, o.order_date, o.total_price, o.order_status, 
            o.payment_method, o.first_name, o.last_name, o.email,
@@ -20,6 +83,12 @@ $stmt = $conn->prepare("
 $stmt->bind_param("i", $orderId);
 $stmt->execute();
 $order = $stmt->get_result()->fetch_assoc();
+
+if (!$order) {
+    $_SESSION['error'] = "Order not found.";
+    header("Location: index.php");
+    exit();
+}
 
 // Get order items
 $itemsStmt = $conn->prepare("
@@ -43,7 +112,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order Confirmation | St. Joseph Fish Brokerage Inc.</title>
+  <title>Order Success | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -72,6 +141,16 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
 <section id="order-success-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>
 
+  <!-- Display success/error messages -->
+  <?php if (isset($_SESSION['success'])): ?>
+    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
+      <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
+        <?= htmlspecialchars($_SESSION['success']) ?>
+      </div>
+    </div>
+    <?php unset($_SESSION['success']); ?>
+  <?php endif; ?>
+
   <!-- Receipt -->
   <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto my-4 sm:my-10 mt-10">
     
@@ -83,6 +162,28 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
       </div>
       <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>
       <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order has been confirmed.</p>
+      
+      <!-- Order Status Badge -->
+      <?php
+        $statusClass = '';
+        $statusText = '';
+        switch (strtolower($order['order_status'])) {
+          case 'paid':
+            $statusClass = 'bg-green-100 text-green-800';
+            $statusText = 'Payment Confirmed';
+            break;
+          case 'pending':
+            $statusClass = 'bg-yellow-100 text-yellow-800';
+            $statusText = 'Payment Pending';
+            break;
+          default:
+            $statusClass = 'bg-blue-100 text-blue-800';
+            $statusText = 'Order Placed';
+        }
+      ?>
+      <span class="inline-block px-3 py-1 rounded-full text-sm font-medium <?= $statusClass ?>">
+        <?= $statusText ?>
+      </span>
     </div>
 
     <div class="sm:w-11/12 lg:w-3/4 mx-auto">
@@ -135,29 +236,37 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
                   <?php
                     $method = strtolower($order['payment_method']);
                     switch ($method) {
-                      case 'ewallet':
-                        $methodLabel = 'G-Cash';
+                      case 'gcash':
+                        $methodLabel = 'GCash';
+                        $methodClass = 'bg-blue-100 text-blue-800';
+                        break;
+                      case 'paymaya':
+                        $methodLabel = 'PayMaya';
+                        $methodClass = 'bg-green-100 text-green-800';
+                        break;
+                      case 'grab_pay':
+                        $methodLabel = 'GrabPay';
+                        $methodClass = 'bg-green-100 text-green-800';
+                        break;
+                      case 'card':
+                        $methodLabel = 'Credit/Debit Card';
                         $methodClass = 'bg-purple-100 text-purple-800';
                         break;
                       case 'cod':
                         $methodLabel = 'Cash on Delivery';
                         $methodClass = 'bg-orange-100 text-orange-800';
                         break;
-                      case 'bank':
-                        $methodLabel = 'Bank Transfer';
-                        $methodClass = 'bg-blue-100 text-blue-800';
-                        break;
                       default:
                         $methodLabel = ucfirst($method);
                         $methodClass = 'bg-gray-100 text-gray-800';
                     }
                   ?>
-                  <p class="<?php echo $methodClass; ?>">
+                  <span class="inline-block px-2 py-1 rounded text-xs font-medium <?php echo $methodClass; ?>">
                     <?php echo $methodLabel; ?>
-                  </p>
+                  </span>
                 </dd>
               </dl>
-                <dl class="grid sm:grid-cols-5 gap-x-3">
+              <dl class="grid sm:grid-cols-5 gap-x-3">
                 <dt class="col-span-3 font-semibold text-gray-800 ">Order date:</dt>
                 <dd class="col-span-2 text-gray-500 "><?= $orderDate ?></dd>
               </dl>
@@ -201,7 +310,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
                   <p class="text-gray-800 "><?= htmlspecialchars($item['variant_name']) ?></p>
                 </div>
                 <div>
-                  <p class="text-gray-800 ">₱<?= htmlspecialchars($item['variant_price']) ?></p>
+                  <p class="text-gray-800 ">₱<?= number_format($item['variant_price'], 2) ?></p>
                 </div>
                 <div>
                   <p class="text-gray-800 "><?= htmlspecialchars($item['quantity']) ?></p>
@@ -221,7 +330,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
           <div class="grid grid-cols-4 gap-2">
             <!-- Empty columns to push subtotal to the right -->
            
-            <dt class="text-lg font-semibold text-gray-800">Subtotal:</dt>
+            <dt class="text-lg font-semibold text-gray-800">Total Amount:</dt>
       
             <div></div>
             <div></div>
@@ -257,10 +366,6 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
   </div>
   <!-- End Receipt -->
 
-  <!-- <a href="track.php" class="inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-    Track Your Order
-  </a> -->
- 
   <?php include('./components/footer.php'); ?>
 </section>
 
@@ -270,7 +375,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
     html2canvas(receipt, { scale: 2 }).then(canvas => {
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
-      link.download = 'receipt.png';
+      link.download = 'order-receipt-<?= $order['order_id'] ?>.png';
       link.click();
     });
   });
