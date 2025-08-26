@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@preline/overlay": "^2.6.0",
+    "0g": "^0.4.2",
+    "npm": "^11.5.2",
     "preline": "^2.6.0"
   },
   "devDependencies": {
