@@ -89,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn->close();
         
         redirectWithMessage('../details.php', "Registration successful! Please enter your details.", 'success');
-    }
+    } 
+
     elseif (isset($_POST['complete_order'])) { 
         try {
             // Validate cart and form data
@@ -98,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Your cart is empty");
             }
 
-            // Process form data
+            // Process form data with enhanced validation
             $requiredFields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'city', 'postal_code', 'payment_method'];
             foreach ($requiredFields as $field) {
                 if (empty($_POST[$field])) {
@@ -106,8 +107,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // Enhanced email validation
+            $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
+            if (!$email) {
+                throw new Exception("Please provide a valid email address");
+            }
+
+            // Phone number validation (basic)
+            $phoneNumber = trim($_POST['phone_number']);
+            if (!preg_match('/^[0-9+\-\s()]+$/', $phoneNumber) || strlen($phoneNumber) < 10) {
+                throw new Exception("Please provide a valid phone number");
+            }
+
+            // Name validation
+            $firstName = trim($_POST['first_name']);
+            $lastName = trim($_POST['last_name']);
+            if (strlen($firstName) < 2 || strlen($lastName) < 2) {
+                throw new Exception("First name and last name must be at least 2 characters long");
+            }
+
+            // Address validation
+            $address = trim($_POST['address']);
+            $city = trim($_POST['city']);
+            $postalCode = trim($_POST['postal_code']);
+            
+            if (strlen($address) < 10) {
+                throw new Exception("Please provide a complete address");
+            }
+            
+            if (strlen($city) < 2) {
+                throw new Exception("Please provide a valid city name");
+            }
+            
+            if (!preg_match('/^[0-9]{4,6}$/', $postalCode)) {
+                throw new Exception("Please provide a valid postal code (4-6 digits)");
+            }
+
+            $paymentMethod = $_POST['payment_method'];
+            $validPaymentMethods = ['cod', 'gcash', 'paymaya', 'grab_pay', 'card', 'qrph'];
+            
+            if (!in_array($paymentMethod, $validPaymentMethods)) {
+                throw new Exception("Invalid payment method selected");
+            }
+
             // Calculate total
             $totalAmount = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart));
+            
+            if ($totalAmount <= 0) {
+                throw new Exception("Invalid order total");
+            }
 
             // Start transaction
             $conn->begin_transaction();
@@ -115,20 +163,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Prepare values for order insertion
             $accountId = isset($_SESSION['account_id']) ? $_SESSION['account_id'] : null;
             $isGuest = $accountId ? 0 : 1;
-            $email = $_POST['email'] ?? '';
-            $phoneNumber = $_POST['phone_number'];
-            $firstName = $_POST['first_name'];
-            $lastName = $_POST['last_name'];
-            $address = $_POST['address'];
-            $postalCode = $_POST['postal_code'];
-            $city = $_POST['city'];
-            $paymentMethod = $_POST['payment_method'];
-
-            // Create order
+           
+            // Create order with proper status
             $stmt = $conn->prepare("
                 INSERT INTO orders (
                     account_id, email, phone_number, first_name, last_name, 
-                    address, postal_code, city, total_price, payment_method, is_guest_order
+                    address, postal_code, city, total_price, payment_method, 
+                    is_guest_order
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
@@ -182,8 +223,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Handle payment method
-            if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card'])) {
+            // Handle ALL online payment methods (including QRPH) using Checkout Session
+            if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card', 'qrph'])) {
                 $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
                 
                 // For local testing, use your actual URL or ngrok
@@ -207,16 +248,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 
                 error_log("Creating checkout session for order: " . $orderId);
+                error_log("Payment method: " . $paymentMethod);
                 error_log("Base URL: " . $baseUrl);
-                error_log("Success URL: " . $baseUrl . '/order_success.php?oid={CHECKOUT_SESSION_ID}&order_id=' . $orderId);
 
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
                     "Order #$orderId",
                     [
                         'payment_method_types' => [$paymentMethod],
-                        'success_url' => $baseUrl . '/order_success.php?oid={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
-                        'cancel_url' => $baseUrl . '/checkout.php',
+                        'success_url' => $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
+                        'cancel_url' => $baseUrl . '/checkout.php?error=payment_cancelled',
                         'customer_info' => $customerInfo,
                         'billing' => [
                             'address' => $billingAddress,
@@ -232,6 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'shipping_address' => $address,
                             'shipping_city' => $city,
                             'shipping_postal_code' => $postalCode,
+                            'payment_method' => $paymentMethod,
                             'test_environment' => 'local'
                         ]
                     ]
@@ -246,36 +288,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Store order ID in session for verification
                 $_SESSION['current_order_id'] = $orderId;
                 $_SESSION['pending_payment_order'] = $orderId;
+                $_SESSION['payment_method'] = $paymentMethod;
                 
                 $conn->commit();
+
+                // Clear cart only after successful order creation
+                unset($_SESSION['cart']);
                 
                 // Redirect to PayMongo's hosted checkout page
                 header("Location: " . $response['data']['attributes']['checkout_url']);
                 exit();
 
-            } else {
-                // For COD or other non-online payments
+            } elseif ($paymentMethod === 'cod') {
+                // For COD, commit the order but don't redirect to success immediately
+                // Instead, redirect to an order confirmation page
                 $conn->commit();
+                
+                // Clear cart only after successful order creation
                 unset($_SESSION['cart']);
+                
+                // Store order ID for confirmation page
                 $_SESSION['order_id'] = $orderId;
-                header("Location: ../order_success.php?order_id=" . $orderId);
+                
+                // Redirect to order confirmation page (NOT success page)
+                header("Location: ../order_confirmation.php?order_id=" . $orderId);
                 exit();
+                
+            } else {
+                // Invalid payment method
+                throw new Exception("Unsupported payment method: " . $paymentMethod);
             }
 
         } catch (Exception $e) {
             if (isset($conn)) {
                 $conn->rollback();
             }
+            error_log("Order processing error: " . $e->getMessage());
             $_SESSION['error'] = $e->getMessage();
             header("Location: ../checkout.php");
             exit();
         }
-        
-    // Unset all session variables
-    session_unset();
-
-    // Destroy the session
-    session_destroy();
 
     }
     

@@ -1,7 +1,7 @@
 RewriteEngine On
 
-# Redirect /item/product-name to item.php?name=product-name
-RewriteRule ^item/([a-zA-Z0-9-]+)/?$ item.php?name=$1 [L,QSA]
+# Redirect /item/product-name (with special characters) to item.php?name=product-name
+RewriteRule ^item/([^/]+)/?$ item.php?name=$1 [L,QSA]
 
 # Redirect old ID-based URLs to new SEO-friendly URLs
 RewriteCond %{QUERY_STRING} ^id=([0-9]+)$

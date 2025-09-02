@@ -40,7 +40,8 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                 <label for="Last_name" class="block text-sm mb-2 text-dark">Last name</label>
                 <div class="relative">
                   <input type="text" id="Last_name" name="last_name" value="<?= isset($userDetails['last_name']) ? htmlspecialchars($userDetails['last_name']) : '' ?>" 
-                    placeholder="Last name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                    placeholder="Last name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                 
+                    <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -57,8 +58,9 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                 <label for="Email" class="block text-sm mb-2 text-dark">Email address</label>
                 <div class="relative">
                 <input type="email" id="Email" name="email" 
-       value="<?= isset($userDetails['email']) ? htmlspecialchars($userDetails['email']) : '' ?>" 
-       placeholder="Email address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                    value="<?= isset($userDetails['email']) ? htmlspecialchars($userDetails['email']) : '' ?>" 
+                    placeholder="Email address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  
+                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                     <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                     </svg>
@@ -69,19 +71,26 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <!-- End Form Group -->
 
               <!-- Form Group -->
-              <div>
-                <label for="Phone_number" class="block text-sm mb-2 text-dark">Phone Number</label>
-                <div class="relative">
-                <input type="number" id="Phone_number" name="phone_number" 
-       value="<?= isset($userDetails['phone_number']) ? htmlspecialchars($userDetails['phone_number']) : '' ?>" 
-       placeholder="Phone Number" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                  <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
-                    <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                    </svg>
-                  </div>
+            <div>
+            <label for="Phone_number" class="block text-sm mb-2 text-dark">Phone Number</label>
+            <input type="tel" id="Phone_number" name="phone_number"
+                value="<?= isset($userDetails['phone_number']) ? htmlspecialchars($userDetails['phone_number']) : '' ?>"
+                placeholder="Enter phone number"
+                class="peer py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500"
+                maxlength="15"
+                required>
+
+                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+                  <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                  </svg>
                 </div>
-                <p class="hidden text-xs text-red-600 mt-2" id="phone_number-error">Enter a valid phone number no characters allowed.</p>
-              </div>
+
+                <p class="hidden text-xs text-red-600 mt-2" id="phone_number-error">
+                    Enter a valid phone number.
+                </p>
+            </div>
+
               <!-- End Form Group -->
             </div>
             
@@ -91,7 +100,8 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <div class="relative">
               <input type="text" id="Address" name="address" 
        value="<?= isset($userDetails['address']) ? htmlspecialchars($userDetails['address']) : '' ?>" 
-       placeholder="Address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
+       placeholder="Address" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>                
+                <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
                   <svg class="size-5 text-red-500" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                   </svg>
@@ -135,43 +145,70 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
               <!-- End Form Group -->
             </div>
 
-            <h3 class="text-xl font-bold py-4">Payment</h3>
-  
-            <div class="relative flex items-start w-full">
-                <div class="flex items-center h-5 mt-1 w-full">
-                    <select id="Payment_method" name="payment_method" class="py-3 px-4 pe-9 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">
-                        <option value="cod">Cash on Delivery</option>
-                        <option value="gcash">GCash</option>
-                        <option value="paymaya">PayMaya</option>
-                        <option value="grab_pay">GrabPay</option>
-                        <option value="card">Credit/Debit Card</option>
-                    </select>
-                </div>
-            </div>
-            <div id="hs-payment-method-content" class="hs-accordion-content w-full overflow-hidden transition-[height] duration-300" role="region" aria-labelledby="hs-payment-method">
-                <div class="pb-4 px-6">
-                    <p class="text-sm text-gray-600">
-                        Choose your preferred payment method.
-                    </p>
+            <h3 class="text-xl font-bold">Payment</h3>
+            <p class="text-sm text-gray-600">
+                Choose your preferred payment method.
+            </p>
+
+            <div class="grid grid-cols-1 gap-4">
             
-                    <div class="mt-4">
-                        <h6 class="font-semibold text-gray-800">Gcash Payment Instructions:</h6>
-                        <p class="text-sm text-gray-600 mt-2">
-                            If you selected Gcash, please pay manually and confirm your order through our chatbot located on the side.
-                        </p>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-600"><span class="font-medium">Gcash Name:</span> St. Joseph Fish Brokerage Inc.</p>
-                            <p class="text-sm text-gray-600"><span class="font-medium">Gcash Number:</span> 09464973689</p>
-                        </div>
-                    </div>
-            
-                    <div class="mt-4">
-                        <h6 class="font-semibold text-gray-800">Order Processing Schedule:</h6>
-                        <p class="text-sm text-gray-600 mt-2">
-                            Orders are processed Monday to Saturday, <span class="font-medium">8:00 AM to 9:00 PM</span>.
-                        </p>
-                    </div>
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="cod" value="cod">
+                    <label for="cod">
+                        <!-- Icon -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                        viewBox="0 0 24 24" fill="#145207" stroke="#FFFFFF"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3" />
+                        <path d="M7 9m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
+                        <path d="M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                        </svg>
+                        <!-- Label text -->
+                        <span class="text-gray-700 font-medium">Cash on Delivery</span>
+                    </label>
                 </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="gcash" value="gcash">
+                    <label for="gcash">
+                        <img src="./assets/icons/gcash.png" alt="GCash" style="width: 24px; margin-right: 5px;">
+                        <span class="text-gray-700 font-medium">GCash</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="maya" value="paymaya">
+                    <label for="maya">
+                        <img src="./assets/icons/maya.png" alt="Maya" style="width: 24px; margin-right: 5px;">
+                        <span class="text-gray-700 font-medium">Maya</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="qrph" value="qrph">
+                    <label for="qrph">
+                        <img src="./assets/icons/qrph.png" alt="QR Ph" style="width: 24px; margin-right: 5px;">
+                        <span class="text-gray-700 font-medium">QR Ph</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="grab_pay" value="grab_pay">
+                    <label for="grab_pay">
+                        <img src="./assets/icons/grabpay.png" alt="Grab Pay" style="width: 24px; margin-right: 5px;">
+                        <span class="text-gray-700 font-medium">GrabPay</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="card" value="card">
+                    <label for="card">
+                        <img src="./assets/icons/card.png" alt="Credit/Debit Card" style="width: 24px; margin-right: 5px;">
+                        <span class="text-gray-700 font-medium">Credit/Debit Card</span>
+                    </label>
+                </div>
+
             </div>
 
             <input type="hidden" name="total_amount" id="total_amount" value="<?php echo array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart)) ?>">
@@ -250,6 +287,43 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
     -webkit-appearance: none; 
     margin: 0; 
   } 
+
+  /* Hide the radio but keep it focusable */
+.payment-method input[type="radio"] {
+  display: none;
+}
+
+/* Default style for the label */
+.payment-method label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+.payment-method label:hover {
+  border-color: #f97316; /* orange-500 */
+  box-shadow: 0 0 5px rgba(249, 115, 22, 0.3);
+}
+
+/* When radio is checked → style the label */
+.payment-method input[type="radio"]:checked + label {
+  border-color: #f97316;
+  background-color: #fff7ed; /* orange-50 */
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+}
+
+/* Change text color when selected */
+.payment-method input[type="radio"]:checked + label span {
+  color: #f97316;
+}
+  .iti { width: 100%; } /* makes the input full width with flag */
+
 </style>
 
 <script>
@@ -493,3 +567,25 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     return true;
 });
 </script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const input = document.querySelector("#Phone_number");
+
+    const iti = window.intlTelInput(input, {
+      initialCountry: "ph",        // Default to Philippines
+      separateDialCode: true,      // Show +63 before the number
+      preferredCountries: ["ph", "us", "sg"], // Customize as needed
+      utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/js/utils.js"
+    });
+
+    // Example validation before submit
+    input.form?.addEventListener("submit", function (e) {
+      if (!iti.isValidNumber()) {
+        e.preventDefault();
+        document.getElementById("phone_number-error").classList.remove("hidden");
+      }
+    });
+  });
+</script>
+

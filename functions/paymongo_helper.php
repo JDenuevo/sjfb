@@ -35,7 +35,7 @@ class PayMongoHelper {
                             'quantity' => 1
                         ]
                     ],
-                    'payment_method_types' => $options['payment_method_types'] ?? ['card', 'gcash', 'grab_pay', 'paymaya'],
+                    'payment_method_types' => $options['payment_method_types'] ?? ['card', 'gcash', 'grab_pay', 'paymaya', 'qrph'],
                     'success_url' => $options['success_url'] ?? (getenv('APP_URL') . '/order_success.php'),
                     'cancel_url' => $options['cancel_url'] ?? (getenv('APP_URL') . '/checkout.php'),
                     'metadata' => $options['metadata'] ?? []
@@ -144,5 +144,151 @@ class PayMongoHelper {
             throw new Exception($error['errors'][0]['detail'] ?? 'Failed to retrieve checkout session');
         }
     }
-    
+
+    // Create Payment Intent (for direct integrations)
+    public function createPaymentIntent($amount, $description, $options = []) {
+        $amountInCents = $amount * 100;
+        
+        $data = [
+            'data' => [
+                'attributes' => [
+                    'amount' => $amountInCents,
+                    'payment_method_allowed' => $options['payment_method_allowed'] ?? ['card'],
+                    'payment_method_options' => $options['payment_method_options'] ?? [],
+                    'currency' => 'PHP',
+                    'capture_type' => 'automatic',
+                    'description' => $description,
+                    'metadata' => $options['metadata'] ?? []
+                ]
+            ]
+        ];
+
+        try {
+            $response = $this->client->post('payment_intents', [
+                'json' => $data,
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode($this->secretKey . ':')
+                ]
+            ]);
+
+            $body = json_decode($response->getBody(), true);
+            
+            if ($response->getStatusCode() !== 200) {
+                error_log("Payment Intent Error - Status: " . $response->getStatusCode());
+                error_log("Payment Intent Error - Body: " . print_r($body, true));
+                throw new Exception($body['errors'][0]['detail'] ?? 'Payment intent creation failed');
+            }
+
+            return $body;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->getResponse();
+            $error = json_decode($response->getBody(), true);
+            error_log("Payment Intent Exception - Status: " . $response->getStatusCode());
+            error_log("Payment Intent Exception - Body: " . print_r($error, true));
+            throw new Exception($error['errors'][0]['detail'] ?? 'Payment Intent API Request Failed');
+        }
+    }
+
+    // Create Payment Method
+    public function createPaymentMethod($type, $options = []) {
+        $data = [
+            'data' => [
+                'attributes' => [
+                    'type' => $type
+                ]
+            ]
+        ];
+
+        // Add type-specific options
+        if ($type === 'qrph' && isset($options['qrph'])) {
+            $data['data']['attributes'][$type] = $options['qrph'];
+        }
+
+        try {
+            $response = $this->client->post('payment_methods', [
+                'json' => $data,
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode($this->publicKey . ':')
+                ]
+            ]);
+
+            $body = json_decode($response->getBody(), true);
+            
+            if ($response->getStatusCode() !== 200) {
+                error_log("Payment Method Error - Status: " . $response->getStatusCode());
+                error_log("Payment Method Error - Body: " . print_r($body, true));
+                throw new Exception($body['errors'][0]['detail'] ?? 'Payment method creation failed');
+            }
+
+            return $body;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->getResponse();
+            $error = json_decode($response->getBody(), true);
+            error_log("Payment Method Exception - Status: " . $response->getStatusCode());
+            error_log("Payment Method Exception - Body: " . print_r($error, true));
+            throw new Exception($error['errors'][0]['detail'] ?? 'Payment Method API Request Failed');
+        }
+    }
+
+    // Attach Payment Method to Payment Intent
+    public function attachPaymentMethod($paymentIntentId, $paymentMethodId, $options = []) {
+        $data = [
+            'data' => [
+                'attributes' => [
+                    'payment_method' => $paymentMethodId,
+                    'client_key' => $this->publicKey,
+                    'return_url' => $options['return_url'] ?? (getenv('APP_URL') . '/order_success.php')
+                ]
+            ]
+        ];
+
+        try {
+            $response = $this->client->post("payment_intents/$paymentIntentId/attach", [
+                'json' => $data,
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode($this->secretKey . ':')
+                ]
+            ]);
+
+            $body = json_decode($response->getBody(), true);
+            
+            if ($response->getStatusCode() !== 200) {
+                error_log("Attach Payment Method Error - Status: " . $response->getStatusCode());
+                error_log("Attach Payment Method Error - Body: " . print_r($body, true));
+                throw new Exception($body['errors'][0]['detail'] ?? 'Payment method attachment failed');
+            }
+
+            return $body;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->getResponse();
+            $error = json_decode($response->getBody(), true);
+            error_log("Attach Payment Method Exception - Status: " . $response->getStatusCode());
+            error_log("Attach Payment Method Exception - Body: " . print_r($error, true));
+            throw new Exception($error['errors'][0]['detail'] ?? 'Attach Payment Method API Request Failed');
+        }
+    }
+
+    // Retrieve Payment Intent
+    public function retrievePaymentIntent($paymentIntentId) {
+        try {
+            $response = $this->client->get("payment_intents/$paymentIntentId", [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode($this->secretKey . ':')
+                ]
+            ]);
+
+            return json_decode($response->getBody(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->getResponse();
+            $error = json_decode($response->getBody(), true);
+            throw new Exception($error['errors'][0]['detail'] ?? 'Failed to retrieve payment intent');
+        }
+    }
 }

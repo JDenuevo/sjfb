@@ -10,6 +10,9 @@ try {
         throw new Exception('No message provided');
     }
 
+    // For security, store your API key in an environment variable or config file
+    $apiKey = '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'; // Replace with your actual API key or use environment variable
+    
     // Prepare the prompt with context about your business
     $systemMessage = "You are a helpful assistant for St. Joseph Fish Brokerage Inc., a seafood company. 
                      Provide friendly, professional responses about seafood products, services, and the company.

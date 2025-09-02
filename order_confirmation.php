@@ -1,121 +1,27 @@
 <?php
 session_start();
 require_once 'conn.php';
-require_once 'functions/paymongo_checker.php';
 
-$paymentSuccess = false;
+// Check if order ID is provided
 $orderId = $_GET['order_id'] ?? $_SESSION['order_id'] ?? null;
-$sessionId = $_GET['session_id'] ?? $_GET['oid'] ?? null;
 
-// Display success/error messages from session
-if (isset($_SESSION['success'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-        <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
-            <?= htmlspecialchars($_SESSION['success']) ?>
-        </div>
-    </div>
-    <?php unset($_SESSION['success']); ?>
-<?php endif; ?>
-
-<?php if (isset($_SESSION['error'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-        <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-            <?= htmlspecialchars($_SESSION['error']) ?>
-        </div>
-    </div>
-    <?php unset($_SESSION['error']); ?>
-<?php endif; ?>
-
-<?php if (isset($_SESSION['info'])): ?>
-    <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-4">
-        <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4">
-            <?= htmlspecialchars($_SESSION['info']) ?>
-        </div>
-    </div>
-    <?php unset($_SESSION['info']); ?>
-<?php endif; ?>
-
-<?php
-// If no order ID or session ID, redirect to home
-if (!$orderId && !$sessionId) {
-    $_SESSION['error'] = "Invalid access to order success page.";
+if (!$orderId) {
+    $_SESSION['error'] = "No order found.";
     header("Location: index.php");
     exit();
 }
 
-$verificationResult = null;
-$order = null;
+// Fetch order details
+$stmt = $conn->prepare("
+    SELECT * FROM orders WHERE order_id = ?
+");
 
-try {
-    // First, get the order details
-    if ($orderId) {
-        $stmt = $conn->prepare("SELECT * FROM orders WHERE order_id = ?");
-        $stmt->bind_param("i", $orderId);
-        $stmt->execute();
-        $order = $stmt->get_result()->fetch_assoc();
-    }
+$stmt->bind_param("i", $orderId);
+$stmt->execute();
+$order = $stmt->get_result()->fetch_assoc();
 
-    // If we have a session ID, verify the payment
-    if ($sessionId && $sessionId !== '{CHECKOUT_SESSION_ID}') {
-        $verificationResult = verifyPayMongoPayment($sessionId, $orderId);
-        
-        if ($verificationResult['success']) {
-            // Payment verified successfully
-            $orderId = $verificationResult['order_id'] ?? $orderId;
-            
-            // Update order status in database
-            $paymentMethod = $verificationResult['payment_method'] ?? 'online';
-            updateOrderPaymentStatus($conn, $orderId, $paymentMethod, 'Paid');
-            
-            // Clear cart and session data
-            clearCartOnSuccess();
-            
-            $paymentSuccess = true;
-            
-        } else {
-            // Payment verification failed
-            error_log("Payment verification failed: " . ($verificationResult['error'] ?? 'Unknown error'));
-            $_SESSION['error'] = "Payment verification failed. Please contact support with Order #" . $orderId;
-            header("Location: checkout.php");
-            exit();
-        }
-    }
-
-    // Get order details (either from verification or direct query)
-    if ($orderId) {
-        $stmt = $conn->prepare("SELECT * FROM orders WHERE order_id = ?");
-        $stmt->bind_param("i", $orderId);
-        $stmt->execute();
-        $order = $stmt->get_result()->fetch_assoc();
-    }
-
-    // If still no order found
-    if (!$order) {
-        $_SESSION['error'] = "Order not found.";
-        header("Location: index.php");
-        exit();
-    }
-
-    // Determine payment success status
-    if ($order['order_status'] === 'Paid') {
-        $paymentSuccess = true;
-        // Clear cart only if payment is confirmed
-        if (isset($_SESSION['cart'])) {
-            unset($_SESSION['cart']);
-        }
-        // Clear payment session variables
-        unset($_SESSION['current_order_id']);
-        unset($_SESSION['pending_payment_order']);
-    } elseif ($order['payment_method'] === 'cod') {
-        $paymentSuccess = true;
-        if (isset($_SESSION['cart'])) {
-            unset($_SESSION['cart']);
-        }
-    }
-
-} catch (Exception $e) {
-    error_log("Order success page error: " . $e->getMessage());
-    $_SESSION['error'] = "An error occurred while processing your order.";
+if (!$order) {
+    $_SESSION['error'] = "Order not found.";
     header("Location: index.php");
     exit();
 }
@@ -128,9 +34,13 @@ $itemsStmt = $conn->prepare("
     LEFT JOIN product_variants v ON oi.variant_id = v.variant_id
     WHERE oi.order_id = ?
 ");
+
 $itemsStmt->bind_param("i", $orderId);
 $itemsStmt->execute();
 $items = $itemsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Clear session order ID after displaying
+unset($_SESSION['order_id']);
 
 // Format order date
 $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
@@ -141,7 +51,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order | St. Joseph Fish Brokerage Inc.</title>
+  <title>Order Confirmation | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -162,65 +72,16 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
   
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <?php include('./components/preloader.php'); ?>
 
-<section id="order-success-section" class="flex-grow">
+<section id="order-confirmation-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>
 
-  <!-- Receipt -->
+  <!-- Confirmation Content -->
   <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto my-4 sm:my-10 mt-10">
     
-    <div class="text-center mb-12" data-aos="fade-up">
-      <?php if ($paymentSuccess): ?>
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h1>
-        <p class="text-gray-600 mb-6">Thank you for shopping with us. Your order has been confirmed.</p>
-      <?php else: ?>
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Order Processing</h1>
-        <p class="text-gray-600 mb-6">Your order has been received and is being processed.</p>
-      <?php endif; ?>
-      
-      <!-- Order Status Badge -->
-      <?php
-        $statusClass = '';
-        $statusText = '';
-        switch (strtolower($order['order_status'])) {
-          case 'paid':
-            $statusClass = 'bg-green-100 text-green-800';
-            $statusText = 'Payment Confirmed';
-            break;
-          case 'pending':
-            $statusClass = 'bg-yellow-100 text-yellow-800';
-            $statusText = 'Payment Pending';
-            break;
-          case 'awaiting payment':
-            $statusClass = 'bg-blue-100 text-blue-800';
-            $statusText = 'Awaiting Payment';
-            break;
-          default:
-            $statusClass = 'bg-gray-100 text-gray-800';
-            $statusText = ucfirst($order['order_status']);
-        }
-      ?>
-      <span class="inline-block px-3 py-1 rounded-full text-sm font-medium <?= $statusClass ?>">
-        <?= $statusText ?>
-      </span>
-    </div>
-
     <div class="sm:w-11/12 lg:w-3/4 mx-auto">
       <!-- Card -->
       <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
@@ -292,7 +153,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
                         $methodClass = 'bg-gray-100 text-gray-800';
                     }
                   ?>
-                  <span class="inline-block px-2 py-1 rounded text-xs font-medium <?php echo $methodClass; ?>">
+                  <span class="inline-block px-2 py-1 rounded font-medium <?php echo $methodClass; ?>">
                     <?php echo $methodLabel; ?>
                   </span>
                 </dd>
@@ -361,7 +222,36 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
             <dd class="text-lg font-semibold text-gray-800">₱<?= number_format($order['total_price'], 2) ?></dd>
           </div>
         </div>
+      </div>
 
+      <!-- Next Steps -->
+      <div class="bg-white rounded-lg shadow-md p-6 my-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">What happens next?</h3>
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="text-center">
+            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span class="text-xl font-bold text-orange-600">1</span>
+            </div>
+            <h4 class="font-medium text-gray-800 mb-2">Order Confirmation</h4>
+            <p class="text-sm text-gray-600">We'll call or text you within 24 hours to confirm your order details.</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span class="text-xl font-bold text-orange-600">2</span>
+            </div>
+            <h4 class="font-medium text-gray-800 mb-2">Order Processing</h4>
+            <p class="text-sm text-gray-600">Once confirmed, we'll prepare your order for delivery.</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span class="text-xl font-bold text-orange-600">3</span>
+            </div>
+            <h4 class="font-medium text-gray-800 mb-2">Delivery</h4>
+            <p class="text-sm text-gray-600">We'll deliver and collect payment in cash at your doorstep.</p>
+          </div>
+        </div>
         <div class="mt-4 sm:mt-8 p-4">
           <h4 class="text-lg font-semibold text-gray-800 ">Thank you!</h4>
           <p class="text-gray-500 ">If you have any questions concerning this receipt, use the following contact information:</p>
@@ -379,9 +269,13 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
           Download Receipt
         </a>
         <a class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 shadow-2xs disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50" href="index.php" >
+          <svg class="shrink-0 size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>  
           Continue Shopping
         </a>
       </div>
+
     </div>
   </div>
 
@@ -400,7 +294,7 @@ $orderDate = date('F j, Y \a\t g:i A', strtotime($order['order_date']));
   });
 </script>
 
-<script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
+<script src="https://unpkg.com/aos@3.0.0-beta.极/dist/aos.js"></script>
 <script>
   AOS.init();
 </script>
