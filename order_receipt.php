@@ -9,7 +9,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-// Include PayMongo helper (no autoload required there anymore)
+// Include PayMongo helper
 require_once __DIR__ . '/functions/paymongo_helper.php';
 
 $orderId = $_GET['order_id'] ?? $_SESSION['order_id'] ?? null;
@@ -37,147 +37,41 @@ try {
     }
     
     // Get latest payment status for this order
-    $paymentStmt = $conn->prepare("SELECT payment_status FROM payments WHERE order_id = ? ORDER BY created_at DESC LIMIT 1");
+    $paymentStmt = $conn->prepare("SELECT payment_id, payment_status FROM payments WHERE order_id = ? ORDER BY created_at DESC LIMIT 1");
     $paymentStmt->bind_param("i", $orderId);
     $paymentStmt->execute();
     $paymentResult = $paymentStmt->get_result()->fetch_assoc();
     $paymentStatus = $paymentResult['payment_status'] ?? null;
+    $paymentId = $paymentResult['payment_id'] ?? null;
     
-    // Handle payment status updates for online payments
-    if ($status && in_array($order['payment_method'], ['gcash', 'paymaya', 'grab_pay', 'card', 'qrph'])) {
+    // SIMPLE PAYMENT STATUS UPDATE - This is what you wanted
+    if ($status && $paymentId && in_array($order['payment_method'], ['gcash', 'paymaya', 'grab_pay', 'card', 'qrph'])) {
         $newPaymentStatus = ($status === 'success') ? 'Paid' : 'Failed';
         
-        // Check if we have a session ID to retrieve payment details
-        if ($sessionId) {
-            // Get PayMongo keys from environment
-            $secretKey = $_ENV['PAYMONGO_SECRET_KEY'];
-            $publicKey = $_ENV['PAYMONGO_PUBLIC_KEY'];
+        // Update payment status directly
+        $updateStmt = $conn->prepare("UPDATE payments SET payment_status = ? WHERE payment_id = ?");
+        $updateStmt->bind_param("si", $newPaymentStatus, $paymentId);
+        
+        if ($updateStmt->execute()) {
+            // Update payment status for display
+            $paymentStatus = $newPaymentStatus;
             
-            if ($secretKey && $publicKey) {
-                $paymongo = new PayMongoHelper($secretKey, $publicKey);
-                
-                // Retrieve checkout session to get payment ID
-                $checkoutSession = $paymongo->retrieveCheckoutSession($sessionId);
-                
-                if ($checkoutSession && isset($checkoutSession['data']['attributes']['payments'][0]['id'])) {
-                    $paymentId = $checkoutSession['data']['attributes']['payments'][0]['id'];
-                    
-                    // Retrieve payment details
-                    $paymentDetails = $paymongo->retrievePayment($paymentId);
-                    
-                    if ($paymentDetails && isset($paymentDetails['data'])) {
-                        $paymentData = $paymentDetails['data'];
-                        $attributes = $paymentData['attributes'];
-                        
-                        // Update payment record with all details
-                        $updateStmt = $conn->prepare("
-                            UPDATE payments 
-                            SET 
-                                provider_id = ?,
-                                currency = ?,
-                                gross_amount = ?,
-                                fee = ?,
-                                vat = ?,
-                                total_fee = ?,
-                                net_amount = ?,
-                                refunded_amount = ?,
-                                payment_status = ?,
-                                description = ?,
-                                statement_descriptor = ?,
-                                paid_at = ?,
-                                available_at = ?,
-                                mode = ?,
-                                source_type = ?,
-                                source_id = ?,
-                                qr_id_reference = ?,
-                                card_brand = ?,
-                                card_country = ?,
-                                card_last4 = ?,
-                                updated_at = NOW()
-                            WHERE order_id = ?
-                        ");
-                        
-                        // Extract data from PayMongo response
-                        $providerId = $paymentData['id'];
-                        $currency = $attributes['currency'];
-                        $grossAmount = $attributes['amount'] / 100;
-                        $fee = isset($attributes['fee']) ? $attributes['fee'] / 100 : 0;
-                        $vat = isset($attributes['vat_amount']) ? $attributes['vat_amount'] / 100 : 0;
-                        $totalFee = $fee + $vat;
-                        $netAmount = $grossAmount - $totalFee;
-                        $refundedAmount = isset($attributes['refunded_amount']) ? $attributes['refunded_amount'] / 100 : 0;
-                        $description = $attributes['description'] ?? null;
-                        $statementDescriptor = $attributes['statement_descriptor'] ?? null;
-                        $paidAt = isset($attributes['paid_at']) ? date('Y-m-d H:i:s', $attributes['paid_at']) : null;
-                        $availableAt = isset($attributes['available_at']) ? date('Y-m-d H:i:s', $attributes['available_at']) : null;
-                        $mode = $attributes['livemode'] ? 'live' : 'test';
-                        
-                        // Source details
-                        $sourceType = $attributes['source']['type'] ?? null;
-                        $sourceId = $attributes['source']['id'] ?? null;
-                        
-                        // QR code reference if applicable
-                        $qrIdReference = null;
-                        if ($sourceType === 'qr_code') {
-                            $qrIdReference = $sourceId;
-                        }
-                        
-                        // Card details if applicable
-                        $cardBrand = $attributes['source']['brand'] ?? null;
-                        $cardCountry = $attributes['source']['country'] ?? null;
-                        $cardLast4 = $attributes['source']['last4'] ?? null;
-                        
-                        $updateStmt->bind_param(
-                            "ssddddddssssssssssssi",
-                            $providerId,
-                            $currency,
-                            $grossAmount,
-                            $fee,
-                            $vat,
-                            $totalFee,
-                            $netAmount,
-                            $refundedAmount,
-                            $newPaymentStatus,
-                            $description,
-                            $statementDescriptor,
-                            $paidAt,
-                            $availableAt,
-                            $mode,
-                            $sourceType,
-                            $sourceId,
-                            $qrIdReference,
-                            $cardBrand,
-                            $cardCountry,
-                            $cardLast4,
-                            $orderId
-                        );
-                        
-                        if (!$updateStmt->execute()) {
-                            error_log("Payment update error: " . $updateStmt->error);
-                        }
-                    }
-                }
+            // Set appropriate message
+            if ($status === 'success') {
+                $_SESSION['success'] = "Payment successful! Your order has been confirmed.";
+                // Clear cart and session data
+                if (isset($_SESSION['cart'])) unset($_SESSION['cart']);
+                unset($_SESSION['current_order_id']);
+                unset($_SESSION['pending_payment_order']);
             } else {
-                error_log("PayMongo keys not found in environment variables");
+                $_SESSION['error'] = "Payment was cancelled or failed. Please try again.";
             }
-        }
-        
-        // Update payment status variable for display
-        $paymentStatus = $newPaymentStatus;
-        
-        // Set appropriate message
-        if ($status === 'success') {
-            $_SESSION['success'] = "Payment successful! Your order has been confirmed.";
-            // Clear cart and session data
-            if (isset($_SESSION['cart'])) unset($_SESSION['cart']);
-            unset($_SESSION['current_order_id']);
-            unset($_SESSION['pending_payment_order']);
         } else {
-            $_SESSION['error'] = "Payment was cancelled or failed. Please try again.";
+            error_log("Simple payment status update error: " . $updateStmt->error);
         }
     }
     
-    // For COD orders, create a payment record with Pending status
+    // For COD orders, create a payment record with Pending status if it doesn't exist
     if ($order['payment_method'] === 'cod') {
         $codCheck = $conn->prepare("SELECT * FROM payments WHERE order_id = ?");
         $codCheck->bind_param("i", $orderId);
@@ -194,7 +88,7 @@ try {
             
             $billingName = $order['first_name'] . ' ' . $order['last_name'];
             $currency = 'PHP';
-            $paymentStatusCod = 'Pending'; // Changed from 'Paid' to 'Pending'
+            $paymentStatusCod = 'Pending';
             $mode = 'test';
             $billingCountry = 'PH';
             

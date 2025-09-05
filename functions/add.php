@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Invalid order total");
             }
 
-            // Start transaction
+             // Start transaction
             $conn->begin_transaction();
 
             // Prepare values for order insertion
@@ -251,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log("Payment method: " . $paymentMethod);
                 error_log("Base URL: " . $baseUrl);
 
-                // In the section where you create the checkout session, modify the URLs:
+                // Create the checkout session with success and cancel URLs
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
                     "Order #$orderId",
@@ -288,11 +288,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Store checkout session ID for later retrieval
                 $checkoutSessionId = $response['data']['id'];
                 
+                // Create payment record with Pending status for online payments
+                $paymentStmt = $conn->prepare("
+                    INSERT INTO payments (
+                        order_id, currency, gross_amount, payment_status, 
+                        mode, billing_name, billing_email, billing_phone,
+                        billing_line1, billing_city, billing_postal_code, billing_country,
+                        source_type, provider_id, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ");
+                
+                $billingName = $firstName . ' ' . $lastName;
+                $currency = 'PHP';
+                $paymentStatus = 'Pending';
+                $mode = 'live';
+                $billingCountry = 'PH';
+                $sourceType = $paymentMethod;
+                
+                $paymentStmt->bind_param(
+                    "isdsssssssssss", 
+                    $orderId, 
+                    $currency,
+                    $totalAmount,
+                    $paymentStatus,
+                    $mode,
+                    $billingName,
+                    $email,
+                    $phoneNumber,
+                    $address,
+                    $city,
+                    $postalCode,
+                    $billingCountry,
+                    $sourceType,
+                    $checkoutSessionId
+                );
+                
+                if (!$paymentStmt->execute()) {
+                    error_log("Payment insert error: " . $paymentStmt->error);
+                    // Don't throw exception as order is already created
+                }
+                
                 // Store order ID in session for verification
                 $_SESSION['current_order_id'] = $orderId;
                 $_SESSION['pending_payment_order'] = $orderId;
                 $_SESSION['payment_method'] = $paymentMethod;
-                $_SESSION['checkout_session_id'] = $checkoutSessionId; // Store session ID
+                $_SESSION['checkout_session_id'] = $checkoutSessionId;
                 
                 $conn->commit();
 
@@ -304,34 +344,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
 
             } elseif ($paymentMethod === 'cod') {
-
-                // For COD, commit the order but don't redirect to success immediately
-                // Instead, redirect to an order confirmation page
-                $conn->commit();
-                
-                // Clear cart only after successful order creation
-                unset($_SESSION['cart']);
-                
-                // Store order ID for confirmation page
-                $_SESSION['order_id'] = $orderId;
-                
                 // For COD orders, create a payment record with Pending status
                 $codStmt = $conn->prepare("
                     INSERT INTO payments (
                         order_id, currency, gross_amount, payment_status, 
                         mode, billing_name, billing_email, billing_phone,
-                        billing_line1, billing_city, billing_postal_code, billing_country
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        billing_line1, billing_city, billing_postal_code, billing_country,
+                        source_type, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
                 
                 $billingName = $firstName . ' ' . $lastName;
                 $currency = 'PHP';
-                $paymentStatusCod = 'Pending'; // Set to Pending for COD
+                $paymentStatusCod = 'Pending';
                 $mode = 'live';
                 $billingCountry = 'PH';
+                $sourceType = 'cod';
                 
                 $codStmt->bind_param(
-                    "isdsssssssss", 
+                    "isdssssssssss", 
                     $orderId, 
                     $currency,
                     $totalAmount,
@@ -343,14 +374,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $address,
                     $city,
                     $postalCode,
-                    $billingCountry
+                    $billingCountry,
+                    $sourceType
                 );
                 
                 if (!$codStmt->execute()) {
                     error_log("COD payment insert error: " . $codStmt->error);
                 }
                 
-                // Redirect to order confirmation page (NOT success page)
+                $conn->commit();
+                
+                // Clear cart only after successful order creation
+                unset($_SESSION['cart']);
+                
+                // Store order ID for confirmation page
+                $_SESSION['order_id'] = $orderId;
+                
+                // Redirect to order confirmation page
                 header("Location: ../order_receipt.php?order_id=" . $orderId);
                 exit();
                 
@@ -368,9 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: ../checkout.php");
             exit();
         }
-
     }
-    
 }
 
 ?>
