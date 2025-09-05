@@ -77,7 +77,7 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                 value="<?= isset($userDetails['phone_number']) ? htmlspecialchars($userDetails['phone_number']) : '' ?>"
                 placeholder="Enter phone number"
                 class="peer py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500"
-                maxlength="15"
+                maxlength="10"
                 required>
 
                 <div class="hidden absolute inset-y-0 end-0 pointer-events-none pe-3">
@@ -107,7 +107,7 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
                   </svg>
                 </div>
               </div>
-              <p class="hidden text-xs text-red-600 mt-2" id="address-error">Enter a valid phone number no characters allowed.</p>
+              <p class="hidden text-xs text-red-600 mt-2" id="address-error">Enter a valid address no characters allowed.</p>
             </div>
             <!-- End Form Group -->
 

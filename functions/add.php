@@ -251,13 +251,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log("Payment method: " . $paymentMethod);
                 error_log("Base URL: " . $baseUrl);
 
+                // In the section where you create the checkout session, modify the URLs:
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
                     "Order #$orderId",
                     [
                         'payment_method_types' => [$paymentMethod],
-                        'success_url' => $baseUrl . '/order_success.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId,
-                        'cancel_url' => $baseUrl . '/checkout.php?error=payment_cancelled',
+                        'success_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId . '&status=success',
+                        'cancel_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId . '&status=cancelled',
                         'customer_info' => $customerInfo,
                         'billing' => [
                             'address' => $billingAddress,
@@ -274,7 +275,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'shipping_city' => $city,
                             'shipping_postal_code' => $postalCode,
                             'payment_method' => $paymentMethod,
-                            'test_environment' => 'local'
                         ]
                     ]
                 );
@@ -285,10 +285,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Checkout session creation failed. No checkout URL returned.");
                 }
 
+                // Store checkout session ID for later retrieval
+                $checkoutSessionId = $response['data']['id'];
+                
                 // Store order ID in session for verification
                 $_SESSION['current_order_id'] = $orderId;
                 $_SESSION['pending_payment_order'] = $orderId;
                 $_SESSION['payment_method'] = $paymentMethod;
+                $_SESSION['checkout_session_id'] = $checkoutSessionId; // Store session ID
                 
                 $conn->commit();
 
@@ -300,6 +304,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
 
             } elseif ($paymentMethod === 'cod') {
+
                 // For COD, commit the order but don't redirect to success immediately
                 // Instead, redirect to an order confirmation page
                 $conn->commit();
@@ -310,8 +315,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Store order ID for confirmation page
                 $_SESSION['order_id'] = $orderId;
                 
+                // For COD orders, create a payment record with Pending status
+                $codStmt = $conn->prepare("
+                    INSERT INTO payments (
+                        order_id, currency, gross_amount, payment_status, 
+                        mode, billing_name, billing_email, billing_phone,
+                        billing_line1, billing_city, billing_postal_code, billing_country
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                
+                $billingName = $firstName . ' ' . $lastName;
+                $currency = 'PHP';
+                $paymentStatusCod = 'Pending'; // Set to Pending for COD
+                $mode = 'live';
+                $billingCountry = 'PH';
+                
+                $codStmt->bind_param(
+                    "isdsssssssss", 
+                    $orderId, 
+                    $currency,
+                    $totalAmount,
+                    $paymentStatusCod,
+                    $mode,
+                    $billingName,
+                    $email,
+                    $phoneNumber,
+                    $address,
+                    $city,
+                    $postalCode,
+                    $billingCountry
+                );
+                
+                if (!$codStmt->execute()) {
+                    error_log("COD payment insert error: " . $codStmt->error);
+                }
+                
                 // Redirect to order confirmation page (NOT success page)
-                header("Location: ../order_confirmation.php?order_id=" . $orderId);
+                header("Location: ../order_receipt.php?order_id=" . $orderId);
                 exit();
                 
             } else {
