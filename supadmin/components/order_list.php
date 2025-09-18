@@ -2,165 +2,316 @@
   <div class="-m-1.5 overflow-x-auto">
     <div class="p-1.5 min-w-full inline-block align-middle">
       <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
-        <!-- Header -->
-        <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-b border-gray-200">
+
+        <!-- Filters and Search -->
+        <div class="px-6 py-4 gap-3 md:flex border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div>
-            <h2 class="text-xl font-semibold text-gray-800">Orders</h2>
-            <p class="text-sm text-gray-600">Manage your orders</p>
+            <h2 class="text-xl font-semibold text-gray-800">All Orders</h2>
+            <p class="text-sm text-gray-600">
+              <span class="font-semibold text-gray-800"><?php echo $totalItems; ?></span> total orders
+            </p>
           </div>
+
+          <form method="GET" action="" class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <!-- Preserve existing parameters -->
+            <?php 
+            $preservedParams = ['search', 'page'];
+            foreach ($preservedParams as $param) {
+                if (isset($_GET[$param]) && !empty($_GET[$param])) {
+                    echo '<input type="hidden" name="' . $param . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+                }
+            }
+            ?>
+
+            <select name="status" class="py-3 px-4 pe-9 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" onchange="this.form.submit()">   
+              <option value="">All Statuses</option>
+              <option value="Pending" <?php echo (isset($_GET['status']) && $_GET['status'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
+              <option value="Processing" <?php echo (isset($_GET['status']) && $_GET['status'] === 'Processing') ? 'selected' : ''; ?>>Processing</option>
+              <option value="Shipped" <?php echo (isset($_GET['status']) && $_GET['status'] === 'Shipped') ? 'selected' : ''; ?>>Shipped</option>
+              <option value="OutForDelivery" <?php echo (isset($_GET['status']) && $_GET['status'] === 'OutForDelivery') ? 'selected' : ''; ?>>OutForDelivery</option>
+              <option value="Delivered" <?php echo (isset($_GET['status']) && $_GET['status'] === 'Delivered') ? 'selected' : ''; ?>>Delivered</option>
+              <option value="Cancelled" <?php echo (isset($_GET['status']) && $_GET['status'] === 'Cancelled') ? 'selected' : ''; ?>>Cancelled</option>
+            </select>
+            
+            <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+              <input 
+                type="text" 
+                name="search" 
+                value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" 
+                class="py-3 px-4 block w-full text-sm focus:border-blue-500 focus:ring-blue-500 border-none" 
+                placeholder="Search..."
+              >
+              <button type="submit" class="px-3 flex items-center justify-center text-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                    class="icon icon-tabler icons-tabler-outline icon-tabler-search">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/>
+                  <path d="M21 21l-6 -6"/>
+                </svg>
+              </button>
+            </div>
+          </form>
         </div>
-        <!-- End Header -->
 
-        <!-- Table -->
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Order ID</span>
-                </div>
-              </th>
-              <th scope="col" class="px-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Ordered by</span>
-                </div>
-              </th>
-              <th scope="col" class="px-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">User Type</span>
-                </div>
-              </th>
-              <th scope="col" class="px-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Date Ordered</span>
-                </div>
-              </th>
-              <th scope="col" class="px-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Order Status</span>
-                </div>
-              </th>
-              <th scope="col" class="px-6 text-end"></th>
-            </tr>
-          </thead>
-
-          <tbody class="divide-y divide-gray-200">
-            <?php if (mysqli_num_rows($result) > 0): ?>
-              <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                <tr>
-                  <!-- Order ID -->
-                  <td class="size-px whitespace-nowrap">
-                    <div class="ps-6">
-                      <div class="flex items-center gap-x-3">
-                        <div class="grow">
-                          <span class="block text-sm font-semibold text-gray-800"><?php echo $row['order_id']; ?></span>
-                        </div>
+        <!-- Orders Table -->
+        <div class="flex flex-col">
+          <div class="-m-1.5 overflow-x-auto">
+            <div class="p-1.5 min-w-full inline-block align-middle">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="ps-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Order Code</span>
                       </div>
-                    </div>
-                  </td>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Ordered by</span>
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Type</span>
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Date Ordered</span>
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Order Status</span>
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-start">
+                      <div class="flex items-center gap-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Payment Status</span>
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-end">
+                      <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
 
-                  <!-- Ordered By -->
-                  <td class="size-px whitespace-nowrap">
-                    <div class="ps-6 lg:ps-3 xl:ps-0 pe-6">
-                      <span class="block text-sm font-semibold text-gray-800">
-                        <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>
-                      </span>
-                    </div>
-                  </td>
+                <tbody class="divide-y divide-gray-200">
+                  <?php if (mysqli_num_rows($result) > 0): ?>
+                    <?php while ($row = mysqli_fetch_assoc($result)): ?>    
+                      <tr class="order-row bg-white">
+                        <td class="size-px whitespace-nowrap">
+                          <div class="ps-6 py-3">
+                            <span class="block text-sm font-semibold text-gray-800"><?php echo $row['order_code']; ?></span>
+                          </div>
+                        </td>
+                        
+                        <td class="size-px whitespace-nowrap">
+                          <div class="px-6 py-3">
+                            <span class="block text-sm font-semibold text-gray-800"><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></span>
+                          </div>
+                        </td>
 
-                  <!-- User Type -->
-                  <td class="h-px w-72 whitespace-nowrap">
-                      <div class="px-6">
-                          <?php 
+                        <td class="h-px w-72 whitespace-nowrap">
+                          <div class="px-6 py-3">
+                            <?php 
                               $userType = $row['is_guest_order'] == 0 ? 'Customer' : 'Guest';
                               $badgeColor = $row['is_guest_order'] == 0 ? 'bg-orange-500 text-white' : 'bg-green-500 text-white';
-                          ?>
-                          <span class="block text-sm font-semibold text-gray-800">
+                            ?>
+                            <span class="block text-sm font-semibold text-gray-800">
                               <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
-                                  <?php echo $userType; ?>
+                                <?php echo $userType; ?>
                               </span>
-                          </span>
-                      </div>
-                  </td>
+                            </span>
+                          </div>
+                        </td>
 
-                  <!-- Date Ordered -->
-                  <td class="h-px w-72 whitespace-nowrap">
-                    <div class="px-6">
-                      <span class="block text-sm font-semibold text-gray-800">
-                        <?php echo date('F j, Y @ h:i A', strtotime($row['order_date'])); ?>
-                      </span>
-                    </div>
-                  </td>
-                  <?php
-                    // Set status class based on order_status
-                    $status = $row['order_status'];
-                    switch ($status) {
-                      case 'Pending':
-                        $statusClass = 'bg-yellow-100 text-yellow-800';
-                        break;
-                      case 'Approved':
-                        $statusClass = 'bg-blue-100 text-blue-800';
-                        break;
-                      case 'Shipped':
-                        $statusClass = 'bg-indigo-100 text-indigo-800';
-                        break;
-                      case 'OutForDelivery':
-                        $statusClass = 'bg-green-100 text-green-800';
-                        break;
-                      case 'Delivered':
-                        $statusClass = 'bg-orange-100 text-orange-800';
-                        break;
-                      case 'Cancelled':
-                        $statusClass = 'bg-red-100 text-red-800';
-                        break;
-                      default:
-                        $statusClass = 'bg-gray-100 text-gray-800';
-                    }
-                  ?>
-                  <!-- Order Status (Styled Select Box) -->
-                  <td class="size-px w-72 whitespace-nowrap">
-                    <div class="px-6">
-                      <form action="" method="POST">
-                        <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
-                        <select
-                          name="order_status"
-                          class="py-2.5 px-4 pe-9 block w-full border border-gray-200 rounded-full text-sm font-medium focus:border-blue-500 focus:ring-blue-500 <?php echo $statusClass; ?>"
-                          onchange="this.form.submit()">
-                          <option value="Pending" <?php echo $status == 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                          <option value="Approved" <?php echo $status == 'Approved' ? 'selected' : ''; ?>>Approved</option>
-                          <option value="Shipped" <?php echo $status == 'Shipped' ? 'selected' : ''; ?>>Shipped</option>
-                          <option value="Delivered" <?php echo $status == 'Delivered' ? 'selected' : ''; ?>>Delivered</option>
-                          <option value="Cancelled" <?php echo $status == 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                        </select>
-                      </form>
-                    </div>
-                  </td>
+                        <td class="h-px w-72 whitespace-nowrap">
+                          <div class="px-6 py-3">
+                            <span class="block text-sm font-semibold text-gray-800"><?php echo date('F j, Y', strtotime($row['order_date'])); ?></span>
+                            <span class="block text-xs text-gray-500 mt-1"><?php echo date('h:i A', strtotime($row['order_date'])); ?></span>
+                          </div>
+                        </td>
 
-                  <!-- View Button -->
-                  <td class="p-2 whitespace-nowrap">
-                    <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-eye">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                        <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="6" class="text-center py-4 text-gray-500">No orders found.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-        <!-- End Table -->
+                        <td class="h-px w-72 whitespace-nowrap">
+                          <div class="px-6 py-3">
+                            <?php 
+                              $status = $row['order_status'];
+
+                              // Assign badge colors depending on the status
+                              switch ($status) {
+                                case 'Pending':
+                                  $badgeColor = 'bg-yellow-500 text-white';
+                                  break;
+                                case 'Processing':
+                                  $badgeColor = 'bg-blue-500 text-white';
+                                  break;
+                                case 'Shipped':
+                                  $badgeColor = 'bg-indigo-500 text-white';
+                                  break;
+                                case 'OutForDelivery':
+                                  $badgeColor = 'bg-purple-500 text-white';
+                                  break;
+                                case 'Delivered':
+                                  $badgeColor = 'bg-green-500 text-white';
+                                  break;
+                                case 'Cancelled':
+                                  $badgeColor = 'bg-red-500 text-white';
+                                  break;
+                                default:
+                                  $badgeColor = 'bg-gray-400 text-white'; // fallback for unexpected statuses
+                                  break;
+                              }
+                            ?>
+                            <span class="block text-sm font-semibold text-gray-800">
+                              <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
+                                <?php echo $status; ?>
+                              </span>
+                            </span>
+                          </div>
+                        </td>
+
+                        <td class="h-px w-72 whitespace-nowrap">
+                          <div class="px-6 py-3">
+                            <?php 
+                              $status = $row['payment_status'];
+
+                              // Assign badge colors depending on the status
+                              switch ($status) {
+                                case 'Pending':
+                                  $badgeColor = 'bg-yellow-500 text-white';
+                                  break;
+                                case 'Paid':
+                                  $badgeColor = 'bg-green-500 text-white';
+                                  break;
+                                case 'Failed':
+                                  $badgeColor = 'bg-red-500 text-white';
+                                  break;
+                                case 'Refunded':
+                                  $badgeColor = 'bg-blue-500 text-white';
+                                  break;
+                                default:
+                                  $badgeColor = 'bg-gray-400 text-white'; // fallback for unexpected statuses
+                                  break;
+                              }
+                            ?>
+                            <span class="block text-sm font-semibold text-gray-800">
+                              <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
+                                <?php echo $status; ?>
+                              </span>
+                            </span>
+                          </div>
+                        </td>
+
+                        <td class="p-2 size-px whitespace-nowrap">
+                            <div class="px-6 py-1.5 flex justify-end">
+                                <button class="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline font-medium" data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
+                                    View
+                                </button>
+                            </div>
+                        </td>
+
+                      </tr>
+                    <?php endwhile; ?>
+                  <?php else: ?>
+                    <tr>
+                      <td colspan="7" class="text-center py-4 text-gray-500">No orders found.</td>
+                    </tr>
+                  <?php endif; ?>
+                </tbody>
+            </table>
+            <!-- End Table -->
+                        
+           <!-- Footer -->
+            <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
+                <div>
+                    <p class="text-sm text-gray-600">
+                        <span class="font-semibold text-gray-800">
+                            <?php echo mysqli_num_rows($result); ?>
+                        </span> results
+                    </p>
+                </div>
+
+                <div>
+                    <div class="inline-flex gap-x-2">
+                        <?php
+                        // Build query string with current filters
+                        $queryParams = [];
+                        $preservedParams = ['status', 'search'];
+                        foreach ($preservedParams as $param) {
+                            if (isset($_GET[$param]) && !empty($_GET[$param])) {
+                                $queryParams[$param] = $_GET[$param];
+                            }
+                        }
+                        
+                        // Previous button
+                        if ($page > 1): 
+                            $prevParams = $queryParams;
+                            $prevParams['page'] = $page - 1;
+                            $prevQueryString = http_build_query($prevParams);
+                        ?>
+                            <a href="?<?php echo $prevQueryString; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
+                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m15 18-6-6 6-6" />
+                                </svg>
+                                Prev
+                            </a>
+                        <?php else: ?>
+                            <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
+                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m15 18-6-6 6-6" />
+                                </svg>
+                                Prev
+                            </span>
+                        <?php endif; ?>
+
+                        <!-- Page numbers -->
+                        <?php 
+                        $start = max(1, $page - 2);
+                        $end = min($totalPages, $page + 2);
+                        
+                        for ($i = $start; $i <= $end; $i++): 
+                            $pageParams = $queryParams;
+                            $pageParams['page'] = $i;
+                            $pageQueryString = http_build_query($pageParams);
+                        ?>
+                            <a href="?<?php echo $pageQueryString; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
+                                <?php echo $i; ?>
+                            </a>
+                        <?php endfor; ?>
+
+                        <!-- Next button -->
+                        <?php if ($page < $totalPages): 
+                            $nextParams = $queryParams;
+                            $nextParams['page'] = $page + 1;
+                            $nextQueryString = http_build_query($nextParams);
+                        ?>
+                            <a href="?<?php echo $nextQueryString; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
+                                Next
+                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m9 18 6-6-6-6" />
+                                </svg>
+                            </a>
+                        <?php else: ?>
+                            <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
+                                Next
+                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m9 18 6-6-6-6" />
+                                </svg>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 </div>
-
 <!-- View Order Modals -->
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
@@ -174,8 +325,8 @@
             <div class="flex justify-between">
               <!-- Col -->
               <div class="">
-                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order #</h2>
-                <span class="mt-1 block text-gray-500 text-lg"><?php echo htmlspecialchars ($row['order_id']); ?></span>
+                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order Code</h2>
+                <span class="mt-1 block text-gray-500"><?php echo htmlspecialchars ($row['order_code']); ?></span>
               </div>
               <!-- Col -->
 
@@ -214,17 +365,29 @@
                         <?php
                           $method = strtolower($row['payment_method']);
                           switch ($method) {
-                            case 'ewallet':
-                              $methodLabel = 'E-Wallet';
-                              $methodClass = 'bg-purple-100 text-purple-800';
+                            case 'gcash':
+                              $methodLabel = 'Gcash';
+                              $methodClass = 'bg-blue-100 text-blue-800';
+                              break;
+                            case 'paymaya':
+                              $methodLabel = 'Maya';
+                              $methodClass = 'bg-green-100 text-green-800';
+                              break;
+                            case 'grab_pay':
+                              $methodLabel = 'Grab Pay';
+                              $methodClass = 'bg-green-100 text-green-800';
+                              break;
+                            case 'qrph':
+                              $methodLabel = 'QR Ph';
+                              $methodClass = 'bg-red-100 text-red-800';
                               break;
                             case 'cod':
                               $methodLabel = 'Cash on Delivery';
                               $methodClass = 'bg-orange-100 text-orange-800';
                               break;
-                            case 'bank':
-                              $methodLabel = 'Bank Transfer';
-                              $methodClass = 'bg-blue-100 text-blue-800';
+                            case 'card':
+                              $methodLabel = 'Visa/Mastercard';
+                              $methodClass = 'bg-purple-100 text-purple-800';
                               break;
                             default:
                               $methodLabel = ucfirst($method);
@@ -296,22 +459,18 @@
               </div>
             </div>
 
-            <div class="mt-4 sm:mt-8 p-4">
-              <!-- Buttons -->
-              <div class="mt-6 flex justify-end gap-x-3">
-                <form action="./functions/export_waybill.php" method="POST">
-                  <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
-                  <button type="submit" name="" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
-                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="7 10 12 15 17 10"/>
-                      <line x1="12" x2="12" y1="15" y2="3"/>
-                    </svg>
-                    Generate Waybill
-                  </button>
-                </form>
-              </div>
-              <!-- End Buttons -->
+            <div class="mt-6 flex justify-end gap-x-3">
+              <form action="./functions/export_waybill.php" method="POST">
+                <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
+                <button type="submit" name="" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
+                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" x2="12" y1="15" y2="3"/>
+                  </svg>
+                  Generate Waybill
+                </button>
+              </form>
             </div>
           </div>
           <!-- End Card -->
@@ -320,6 +479,19 @@
     </div>
   <?php endwhile; ?>
 <?php endif; ?>
+
+<style>
+  .order-row {
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .order-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left-color: #3b82f6;
+  }
+</style>
 
 <script>
   // Function to fetch and display order items

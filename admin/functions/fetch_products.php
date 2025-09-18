@@ -147,7 +147,7 @@ $row = $result->fetch_assoc();
                     $image_id = $image['image_id'];
                     echo '
                     <div class="relative group">
-                        <img src="http://localhost/sjfbi-js/supadmin/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
+                        <img src="http://localhost/sjfbi-js/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
                         
                     </div>';
                 }
@@ -155,7 +155,7 @@ $row = $result->fetch_assoc();
                 // Show default image when no product images exist
                 echo '
                 <div class="relative group">
-                    <img src="http://localhost/sjfbi-js/supadmin/uploads/products/default.png" class="w-auto h-auto object-cover rounded-lg shadow">
+                    <img src="http://localhost/sjfbi-js/uploads/products/default.png" class="w-auto h-auto object-cover rounded-lg shadow">
                 </div>';
             }
             $image_stmt->close();

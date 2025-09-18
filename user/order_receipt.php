@@ -1,16 +1,21 @@
 <?php
 session_start();
-require_once __DIR__ . '/conn.php';
 
-// Load Composer autoload
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../conn.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
-// Load environment variables
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+// Load environment variables from project root
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
 
 // Include PayMongo helper
-require_once __DIR__ . '/functions/paymongo_helper.php';
+require_once __DIR__ . '/../functions/paymongo_helper.php';
+
+// Check if the user is logged in as user and account_id exists
+if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true || !isset($_SESSION['account_id'])) {
+    header("Location: ../../index.php");
+    exit;
+}
 
 // Get order by CODE instead of ID
 $orderCode = $_GET['order_code'] ?? $_SESSION['order_code'] ?? null;
@@ -20,7 +25,7 @@ $sessionId = $_GET['session_id'] ?? null;
 // If no order code, redirect to home
 if (!$orderCode) {
     $_SESSION['error'] = "Invalid access to order page.";
-    header("Location: index.php");
+    header("Location: checkout.php");
     exit();
 }
 
@@ -33,7 +38,7 @@ try {
     
     if (!$order) {
         $_SESSION['error'] = "Order not found.";
-        header("Location: index.php");
+        header("Location: ../index.php");
         exit();
     }
     
@@ -149,7 +154,7 @@ try {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order | St. Joseph Fish Brokerage Inc.</title>
+  <title>Order Success | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -158,22 +163,23 @@ try {
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend+wght@100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
-  <link href="./style.css" rel="stylesheet">
-  <link href="./output.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+  <link href="../output.css" rel="stylesheet">
   
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 </head>
 <body>
-<?php include('./components/preloader.php'); ?>
+<?php include('../components/preloader.php'); ?>
 
 <section id="order-success-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>
@@ -231,7 +237,7 @@ try {
         <!-- Grid -->
         <div class="flex justify-between">
           <div>
-            <img src="./assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+            <img src="../assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
             <h1 class="mt-2 md:text-lg font-semibold text-orange-600 ">St. Joseph Fish Brokerage Inc.</h1>
           </div>
 
@@ -425,7 +431,7 @@ try {
     </div>
   </div>
 
-  <?php include('./components/footer.php'); ?>
+  <?php include('../components/footer.php'); ?>
 </section>
 
 <script>
@@ -447,7 +453,8 @@ try {
 </script>
 <script src="node_modules/preline/dist/preline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
-<?php include('live_chat.php'); ?>
+
+<?php include('../live_chat.php'); ?>
 
 </body>
 </html>

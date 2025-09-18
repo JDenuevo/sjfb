@@ -3,7 +3,7 @@ session_start();
 include '../conn.php';
 
 // Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
@@ -11,112 +11,87 @@ if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== tru
 // Retrieve the logged-in admin's account_id
 $account_id = $_SESSION['account_id'];
 
-// Add filter handling at the top
+// Pagination setup
+$itemsPerPage = 10;
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;
+$offset = ($page - 1) * $itemsPerPage;
+
+// Base query
 $whereConditions = [];
 $params = [];
 $types = "";
 
-// Handle status filter
-if (isset($_GET['status']) && $_GET['status'] !== '' && $_GET['status'] !== 'All Statuses') {
-    $whereConditions[] = "o.order_status = ?";
-    $params[] = $_GET['status'];
+// Payment Status Filter
+if (!empty($_GET['payment_status'])) {
+    $whereConditions[] = "p.payment_status = ?";
+    $params[] = $_GET['payment_status'];
     $types .= "s";
 }
 
-// Handle search
-if (isset($_GET['search']) && $_GET['search'] !== '') {
-    $searchTerm = '%' . $_GET['search'] . '%';
-    $whereConditions[] = "(o.order_code LIKE ? OR CONCAT(o.first_name, ' ', o.last_name) LIKE ? OR o.email LIKE ?)";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= "sss";
+// Search Filter
+if (!empty($_GET['search'])) {
+    $whereConditions[] = "(o.order_code LIKE ? OR o.first_name LIKE ? OR o.last_name LIKE ? OR p.provider_id LIKE ? OR p.billing_email LIKE ?)";
+    $searchTerm = "%" . $_GET['search'] . "%";
+    $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+    $types .= "sssss";
 }
 
-// Build the WHERE clause
-$whereClause = "";
-if (!empty($whereConditions)) {
-    $whereClause = "WHERE " . implode(" AND ", $whereConditions);
+// Build WHERE clause
+$whereSQL = "";
+if (count($whereConditions) > 0) {
+    $whereSQL = "WHERE " . implode(" AND ", $whereConditions);
 }
 
-// Pagination variables
-$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-$perPage = 10;
-$offset = ($page - 1) * $perPage;
+// Count total records
+$countSql = "
+    SELECT COUNT(*) as total 
+    FROM payments p
+    JOIN orders o ON p.order_id = o.order_id
+    $whereSQL
+";
 
-// Get total count for pagination
-$countQuery = "SELECT COUNT(*) as total FROM orders o " . $whereClause;
-if (!empty($params)) {
-    $countStmt = $conn->prepare($countQuery);
-    if (!empty($types)) {
-        $countStmt->bind_param($types, ...$params);
-    }
-    $countStmt->execute();
-    $countResult = $countStmt->get_result();
-    $totalItems = $countResult->fetch_assoc()['total'];
-    $countStmt->close();
-} else {
-    $countResult = $conn->query($countQuery);
-    $totalItems = $countResult->fetch_assoc()['total'];
-}
-
-$totalPages = ceil($totalItems / $perPage);
+$stmt = $conn->prepare($countSql);
+if ($types) $stmt->bind_param($types, ...$params);
+$stmt->execute();
+$countResult = $stmt->get_result()->fetch_assoc();
+$totalItems = $countResult['total'];
+$totalPages = ceil($totalItems / $itemsPerPage);
+$stmt->close();
 
 // Main query with pagination
-$query = "SELECT
-    o.order_id,
-    o.order_code,
-    o.order_date,
-    o.order_status,
-    o.total_price,
-    o.payment_method,
-    o.is_guest_order,
-    o.first_name,
-    o.last_name,
-    o.address,
-    o.city,
-    o.postal_code,
-    o.email,
-    p.payment_status,
-    p.paid_at
-FROM orders o
-LEFT JOIN accounts a ON o.account_id = a.account_id
-LEFT JOIN payments p 
-    ON p.order_id = o.order_id
-    AND p.payment_id = (
-        SELECT MAX(p2.payment_id) 
-        FROM payments p2 
-        WHERE p2.order_id = o.order_id
-    )
-" . $whereClause . "
-ORDER BY o.order_date DESC
-LIMIT ? OFFSET ?";
+$sql = "
+    SELECT p.*, o.order_code, o.first_name, o.last_name
+    FROM payments p
+    JOIN orders o ON p.order_id = o.order_id
+    $whereSQL
+    ORDER BY p.created_at DESC
+    LIMIT ?, ?
+";
+$stmt = $conn->prepare($sql);
 
-// Add limit and offset to params
-$params[] = $perPage;
-$params[] = $offset;
-$types .= "ii";
+// Add pagination params
+$paramsWithPagination = $params; 
+$typesWithPagination = $types . "ii";
+$paramsWithPagination[] = $offset;
+$paramsWithPagination[] = $itemsPerPage;
 
-if (!empty($params)) {
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
+if ($types) {
+    $stmt->bind_param($typesWithPagination, ...$paramsWithPagination);
 } else {
-    $result = $conn->query($query);
+    $stmt->bind_param("ii", $offset, $itemsPerPage);
 }
 
-if (!$result) {
-    die("Query failed: " . mysqli_error($conn));
-}
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Orders | St. Joseph Fish Brokerage Inc.</title>
+  <title>Payments | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -165,7 +140,7 @@ if (!$result) {
           </svg>
         </li>
         <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
-          Dashboard
+          Payments
         </li>
       </ol>
       <!-- End Breadcrumb -->
@@ -193,23 +168,23 @@ if (!$result) {
           unset($_SESSION['message']);
         }
       ?>
-      <!-- Table Card -->
-      <?php include('./components/order_list.php'); ?>
-      <!-- Table End -->
+      
+      <!-- End Select -->
+    
+      <!-- Payment List Start -->
+      <?php include('./components/payment_list.php'); ?>
+      <!-- Payment List End -->
 
     </div>
   </div>
   <!-- End Content -->
 
   <!-- JS PLUGINS -->
-  <!-- Required plugins -->
-  <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
+  <!-- Preline JS -->
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
   
 </body>
 </html>
-

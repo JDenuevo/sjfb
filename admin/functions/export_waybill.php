@@ -4,11 +4,11 @@ require_once('../../conn.php');
 
 class WaybillPDF extends FPDF
 {
-    private $orderId;
+    private $orderCode;
     private $paymentMethod;
 
-    public function setOrderDetails($orderId, $paymentMethod) {
-        $this->orderId = $orderId;
+    public function setOrderDetails($orderCode, $paymentMethod) {
+        $this->orderCode = $orderCode;
         $this->paymentMethod = $paymentMethod;
     }
 
@@ -28,7 +28,7 @@ class WaybillPDF extends FPDF
         $logoImgX = $logoX + ($logoCellW - $logoImgW) / 2;
         $logoImgY = $logoY + ($logoCellH - $logoImgH) / 2;
 
-        // Right cell (Order ID / Payment)
+        // Right cell (Order Code / Payment)
         $rightColX = $logoX + $logoCellW;
         $rightColW = 40;
         $rowHeight = $logoCellH / 2;
@@ -37,10 +37,10 @@ class WaybillPDF extends FPDF
         $this->Rect($logoX, $logoY, $logoCellW, $logoCellH);
         $this->Image('../../assets/icons/landscape-logo.png', $logoImgX, $logoImgY, $logoImgW, $logoImgH);
 
-        // Order ID
+        // Order Code
         $this->SetXY($rightColX, $logoY);
         $this->SetFont('Arial', 'B', 7);
-        $this->Cell($rightColW, $rowHeight, 'Order ID: ' . $this->orderId, 1, 2, 'C');
+        $this->Cell($rightColW, $rowHeight, $this->orderCode, 1, 2, 'C');
 
         // Payment Method
         $paymentText = ($this->paymentMethod == 'cod') ? 'Cash on Delivery' : ucfirst($this->paymentMethod);
@@ -48,7 +48,7 @@ class WaybillPDF extends FPDF
         $this->Cell($rightColW, $rowHeight, $paymentText, 1, 2, 'C');
 
         // Reset position for next content like Buyer's Name
-        $this->SetY($logoY + $logoCellH + 5); // Added extra space below header
+        $this->SetY($logoY + $logoCellH); // Added extra space below header
         $this->SetX($logoX); // reset to left margin
     }
 
@@ -172,7 +172,7 @@ $order = $order_result->fetch_assoc();
 // Create PDF with custom size
 $pdf = new WaybillPDF('P', 'mm', [100, 150]);
 $pdf->setOrderDetails(
-    $order['order_id'],
+    $order['order_code'], // Changed from order_id to order_code
     $order['payment_method']
 );
 
@@ -182,7 +182,7 @@ $pdf->SellerSection();
 $pdf->DeliveryDetails();
 
 // Output PDF for download
-$pdf->Output('D', 'Waybill_Order_' . $order_id . '.pdf');
+$pdf->Output('D', 'Waybill_Order_' . $order['order_code'] . '.pdf'); // Changed filename to use order_code
 
 // Close database connection
 $conn->close();

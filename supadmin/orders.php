@@ -8,46 +8,104 @@ if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !
   exit;
 }
 
-// Retrieve the logged-in admin's account_id
-$account_id = $_SESSION['account_id'];
+// Add filter handling at the top
+$whereConditions = [];
+$params = [];
+$types = "";
 
-$query = "SELECT 
-            o.order_id, 
-            o.is_guest_order, 
-            o.email, 
-            o.phone_number, 
-            o.first_name, 
-            o.last_name, 
-            o.address, 
-            o.postal_code, 
-            o.city, 
-            o.total_price, 
-            o.order_date, 
-            o.order_status,
-            o.payment_method
-          FROM orders o
-          ORDER BY o.order_date DESC;";
+// Handle status filter
+if (isset($_GET['status']) && $_GET['status'] !== '' && $_GET['status'] !== 'All Statuses') {
+    $whereConditions[] = "o.order_status = ?";
+    $params[] = $_GET['status'];
+    $types .= "s";
+}
 
-$result = mysqli_query($conn, $query);
+// Handle search
+if (isset($_GET['search']) && $_GET['search'] !== '') {
+    $searchTerm = '%' . $_GET['search'] . '%';
+    $whereConditions[] = "(o.order_code LIKE ? OR CONCAT(o.first_name, ' ', o.last_name) LIKE ? OR o.email LIKE ?)";
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $types .= "sss";
+}
+
+// Build the WHERE clause
+$whereClause = "";
+if (!empty($whereConditions)) {
+    $whereClause = "WHERE " . implode(" AND ", $whereConditions);
+}
+
+// Pagination variables
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
+
+// Get total count for pagination
+$countQuery = "SELECT COUNT(*) as total FROM orders o " . $whereClause;
+if (!empty($params)) {
+    $countStmt = $conn->prepare($countQuery);
+    if (!empty($types)) {
+        $countStmt->bind_param($types, ...$params);
+    }
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    $totalItems = $countResult->fetch_assoc()['total'];
+    $countStmt->close();
+} else {
+    $countResult = $conn->query($countQuery);
+    $totalItems = $countResult->fetch_assoc()['total'];
+}
+
+$totalPages = ceil($totalItems / $perPage);
+
+// Main query with pagination
+$query = "SELECT
+    o.order_id,
+    o.order_code,
+    o.order_date,
+    o.order_status,
+    o.total_price,
+    o.payment_method,
+    o.is_guest_order,
+    o.first_name,
+    o.last_name,
+    o.address,
+    o.city,
+    o.postal_code,
+    o.email,
+    p.payment_status,
+    p.paid_at
+FROM orders o
+LEFT JOIN accounts a ON o.account_id = a.account_id
+LEFT JOIN payments p 
+    ON p.order_id = o.order_id
+    AND p.payment_id = (
+        SELECT MAX(p2.payment_id) 
+        FROM payments p2 
+        WHERE p2.order_id = o.order_id
+    )
+" . $whereClause . "
+ORDER BY o.order_date DESC
+LIMIT ? OFFSET ?";
+
+// Add limit and offset to params
+$params[] = $perPage;
+$params[] = $offset;
+$types .= "ii";
+
+if (!empty($params)) {
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    $result = $conn->query($query);
+}
 
 if (!$result) {
-  die("Query failed: " . mysqli_error($conn));
+    die("Query failed: " . mysqli_error($conn));
 }
-
-// Inside order_list.php or wherever you're handling:
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-  $order_id = $_POST['order_id'];
-  $order_status = $_POST['order_status'];
-
-  $stmt = $conn->prepare("UPDATE orders SET order_status = ? WHERE order_id = ?");
-  $stmt->bind_param("si", $order_status, $order_id);
-  $stmt->execute();
-  $stmt->close();
-  $conn->close();
-
-}
-
-
 ?>
 
 <!DOCTYPE html>
@@ -148,6 +206,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
+  
 </body>
 </html>
 

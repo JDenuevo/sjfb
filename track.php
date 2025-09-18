@@ -7,41 +7,35 @@ date_default_timezone_set('Asia/Manila');
 
 // Check if form was submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['track_order'])) {
-    $orderId = trim($_POST['order_id']);
-    $email = trim($_POST['email']);
+    $orderCode = trim($_POST['order_code']);
 
     // Basic validation
-    if (empty($orderId)) {
-        $_SESSION['error'] = "Order ID is required";
+    if (empty($orderCode)) {
+        $_SESSION['error'] = "Order Code is required";
         header("Location: track.php");
         exit();
     }
 
-    if (empty($email)) {
-        $_SESSION['error'] = "Email is required";
-        header("Location: track.php");
-        exit();
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['error'] = "Invalid email format";
-        header("Location: track.php");
-        exit();
-    }
-
-    // Query the database
+    // Query the database - FIXED: Changed to search by order_code instead of order_id
     $stmt = $conn->prepare("
-        SELECT o.order_id, o.order_date, o.total_price, o.order_status, 
+        SELECT o.order_id, o.order_code, o.order_date, o.total_price, o.order_status, 
            o.payment_method, o.first_name, o.last_name, o.email,
            o.phone_number, o.address, o.postal_code, o.city
         FROM orders o
-        WHERE o.order_id = ? 
-        AND o.email = ?
+        WHERE o.order_code = ? 
     ");
-    $stmt->bind_param("is", $orderId, $email);
+    $stmt->bind_param("s", $orderCode);
     $stmt->execute();
     $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        $_SESSION['error'] = "No order found with that Order Code";
+        header("Location: track.php");
+        exit();
+    }
 
+    $order = $result->fetch_assoc();
+    $orderId = $order['order_id'];
     
     // Get order items
     $itemsStmt = $conn->prepare("
@@ -50,20 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['track_order'])) {
       LEFT JOIN products p ON oi.product_id = p.product_id
       LEFT JOIN product_variants v ON oi.variant_id = v.variant_id
       WHERE oi.order_id = ?");
-      $itemsStmt->bind_param("i", $orderId);
-      $itemsStmt->execute();
-      // After you fetch the order items
-      $items = $itemsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $itemsStmt->bind_param("i", $orderId);
+    $itemsStmt->execute();
+    $items = $itemsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-    if ($result->num_rows === 0) {
-        $_SESSION['error'] = "No order found with that ID and email combination";
-        header("Location: track.php");
-        exit();
-    }
-
-    $order = $result->fetch_assoc();
     $_SESSION['tracked_order'] = $order;
-    $_SESSION['tracked_order_items'] = $items;  // Add this line
+    $_SESSION['tracked_order_items'] = $items;
     header("Location: track.php");
     exit();
 }
@@ -82,7 +68,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale-1.0">
   <title>Track Order | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
@@ -123,24 +109,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="p-6 sm:p-8">
         <div class="text-center mb-8">
           <h2 class="text-2xl font-bold text-gray-900">Track Your Order</h2>
-          <p class="mt-2 text-sm text-gray-600">Enter your order ID and email address to view your order status</p>
+          <p class="mt-2 text-sm text-gray-600">Enter your order code to view your order status</p>
         </div>
+
+        <?php if (isset($_SESSION['error'])): ?>
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></span>
+          </div>
+        <?php endif; ?>
 
         <form method="POST" class="space-y-6 mt-5">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label for="order_id" class="block text-sm font-medium text-gray-700">Order ID</label>
+              <label for="order_code" class="block text-sm font-medium text-gray-700">Order Code</label>
               <div class="mt-1">
-                <input type="text" id="order_id" name="order_id" required
-                  class="py-3 px-4 block w-full border border-black rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">
-              </div>
-            </div>
-
-            <div>
-              <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
-              <div class="mt-1">
-                <input type="email" id="email" name="email" required
-                  class="py-3 px-4 block w-full border border-black rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500">
+                <input type="text" id="order_code" name="order_code" required
+                  class="py-3 px-4 block w-full border border-black rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500"
+                  placeholder="Enter your order code">
               </div>
             </div>
           </div>
@@ -156,125 +141,133 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 
     <?php if (isset($_SESSION['tracked_order'])): ?>
+      <?php
+        $orderStatus = $_SESSION['tracked_order']['order_status'] ?? '';
+        
+        // Define the order status flow - INCLUDING PENDING
+        $statusFlow = ['Pending', 'Processing', 'OutForDelivery', 'Delivered', 'Cancelled'];
+        
+        // Map status to display names
+        $statusDisplay = [
+          'Pending' => 'Pending',
+          'Processing' => 'Processing',
+          'OutForDelivery' => 'Out for Delivery', 
+          'Delivered' => 'Delivered',
+          'Cancelled' => 'Cancelled'
+        ];
+        
+        // Get current status index
+        $currentStatusIndex = array_search($orderStatus, $statusFlow);
+        if ($currentStatusIndex === false) {
+          $currentStatusIndex = 0; // Default to first status if not found
+        }
+        
+        // Calculate progress percentage
+        $progressPercentage = ($currentStatusIndex + 1) / count($statusFlow) * 100;
+        
+        // Define status icons
+        $statusIcons = [
+          'Pending' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+          'Processing' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M14.5 9h-5L7 12l2.5 3h5L17 12l-2.5-3z"/></svg>',
+          'OutForDelivery' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17h14v-3.5a1.5 1.5 0 0 0-1.5-1.5h-11A1.5 1.5 0 0 0 5 13.5V17z"/><path d="M5 9V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/></svg>',
+          'Delivered' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>',
+          'Cancelled' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
+        ];
+        
+        // Define status colors
+        $statusColors = [
+          'Pending' => ['bg-gray-100', 'text-gray-800', 'border-gray-500'],
+          'Processing' => ['bg-blue-100', 'text-blue-800', 'border-blue-500'],
+          'OutForDelivery' => ['bg-orange-100', 'text-orange-800', 'border-orange-500'],
+          'Delivered' => ['bg-green-100', 'text-green-800', 'border-green-500'],
+          'Cancelled' => ['bg-red-100', 'text-red-800', 'border-red-500']
+        ];
+      ?>
 
       <div class="sm:w-11/12 lg:w-3/4 mx-auto my-4">
-        <div class="max-w-[40rem] px-4 sm:px-6 lg:px-8 mx-auto mt-10">
-
-          <?php
-            $orderStatus = $_SESSION['tracked_order']['status'] ?? 'Pending';
-
-            $steps = [
-              'Shipped' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 12.5l-5 -3l5 -3l5 3v5.5l-5 3z" /><path d="M11 9.5v5.5l5 3" /><path d="M16 12.545l5 -3.03" /><path d="M7 9h-5" /><path d="M7 12h-3" /><path d="M7 15h-1" /></svg>',
-              'Out for Delivery' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 17h-2v-4m-1 -8h11v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" /><path d="M3 9l4 0" /></svg>',
-              'Delivered' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9 12l2 2l4 -4" /></svg>',
-            ];
-
-            $stepLabels = array_keys($steps);
-            $currentIndex = array_search($orderStatus, $stepLabels);
-            $totalSteps = count($steps);
-
-            // Define color mapping for statuses
-            $statusColors = [
-              'Pending' => ['bg-gray-100', 'text-gray-800', 'border-gray-300'],
-              'Shipped' => ['bg-blue-100', 'text-blue-800', 'border-blue-500'],
-              'Out for Delivery' => ['bg-orange-100', 'text-orange-800', 'border-orange-500'],
-              'Delivered' => ['bg-green-100', 'text-green-800', 'border-green-500'],
-            ];
-          ?>
-
-          <div class="w-full max-w-4xl mx-auto mt-10">
-            <div class="flex justify-between items-center relative">
-              <?php foreach ($steps as $label => $icon): ?>
-                <?php
-                  $stepIndex = array_search($label, $stepLabels);
-                  $isDone = $stepIndex < $currentIndex;
-                  $isActive = $stepIndex === $currentIndex;
-
-                  // Determine colors based on status
-                  $circleBg = 'bg-white';
-                  $circleText = 'text-gray-400';
-                  $circleBorder = 'border-gray-300';
-                  $labelTextClass = 'text-gray-700';
-                  $connectorBg = 'bg-gray-300';
-
-                  if (isset($statusColors[$label])) {
-                    if ($isDone) {
-                      $circleBg = 'bg-green-500';
-                      $circleText = 'text-white';
-                      $circleBorder = 'border-green-500';
-                      $connectorBg = 'bg-green-500';
-                    } elseif ($isActive) {
-                      $circleBg = $statusColors[$label][0];
-                      $circleText = $statusColors[$label][1];
-                      $circleBorder = $statusColors[$label][2];
-                      $labelTextClass = 'text-blue-600 font-semibold';
-                    }
-                  } elseif ($isDone) {
-                    $circleBg = 'bg-green-500';
-                    $circleText = 'text-white';
-                    $circleBorder = 'border-green-500';
-                    $connectorBg = 'bg-green-500';
-                  } elseif ($isActive) {
-                    $circleBg = 'bg-orange-500'; // Default active color
-                    $circleText = 'text-white';
-                    $circleBorder = 'border-orange-500';
-                    $labelTextClass = 'text-blue-600 font-semibold';
-                  }
-                ?>
-
-                <div class="flex-1 flex items-center justify-center relative">
-                  <div class="z-10 flex items-center justify-center w-10 h-10 rounded-full border-4
-                    <?= $circleBorder ?> <?= $circleBg ?> <?= $circleText ?>">
-                    <?= $isDone ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' : $icon ?>
-                  </div>
-
-                  <?php if ($stepIndex < $totalSteps - 1): ?>
-                    <div class="absolute top-1/2 left-full w-full h-1 -translate-y-1/2 bg-gray-300 z-0">
-                      <div class="h-1 transition-all duration-500 <?= $stepIndex < $currentIndex ? 'bg-green-500' : 'bg-gray-300' ?>"></div>
-                    </div>
-                  <?php endif; ?>
+        <!-- Order Status Progress -->
+        <div class="max-w-4xl mx-auto mt-10 bg-white p-6 rounded-lg shadow">
+          <h3 class="text-xl font-semibold text-gray-800 mb-6 text-center">Order Status</h3>
+          
+          <!-- Progress Bar -->
+          <div class="mb-8">
+            <div class="inline-block mb-2 ms-[calc(50%-20px)] py-0.5 px-1.5 bg-blue-50 border border-blue-200 text-xs font-medium text-blue-600 rounded-lg">
+              <?= round($progressPercentage) ?>%
+            </div>
+            <div class="flex w-full h-2 bg-gray-200 rounded-full overflow-hidden" role="progressbar" aria-valuenow="<?= $progressPercentage ?>" aria-valuemin="0" aria-valuemax="100">
+              <div class="flex flex-col justify-center rounded-full overflow-hidden bg-blue-600 text-xs text-white text-center whitespace-nowrap transition duration-500" style="width: <?= $progressPercentage ?>%"></div>
+            </div>
+          </div>
+          
+          <!-- Status Steps -->
+          <div class="flex justify-between relative">
+            <?php foreach ($statusFlow as $index => $status): ?>
+              <?php
+                $isCompleted = $index < $currentStatusIndex;
+                $isCurrent = $index === $currentStatusIndex;
+                $isCancelled = $orderStatus === 'Cancelled';
+                
+                // Determine styling based on status
+                if ($isCancelled && $status === 'Cancelled') {
+                  $circleClass = "bg-red-500 text-white border-red-500";
+                  $textClass = "text-red-600 font-semibold";
+                } elseif ($isCompleted) {
+                  $circleClass = "bg-green-500 text-white border-green-500";
+                  $textClass = "text-green-600";
+                } elseif ($isCurrent) {
+                  $circleClass = (isset($statusColors[$status][0]) ? $statusColors[$status][0] : 'bg-gray-100') . " " . 
+                                (isset($statusColors[$status][1]) ? $statusColors[$status][1] : 'text-gray-800') . " border-2 " . 
+                                (isset($statusColors[$status][2]) ? $statusColors[$status][2] : 'border-gray-500');
+                  $textClass = "text-blue-600 font-semibold";
+                } else {
+                  $circleClass = "bg-gray-100 text-gray-400 border-gray-300";
+                  $textClass = "text-gray-500";
+                }
+              ?>
+              
+              <div class="flex flex-col items-center relative z-10" style="width: <?= 100/count($statusFlow) ?>%">
+                <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center mb-2 <?= $circleClass ?>">
+                  <?= isset($statusIcons[$status]) ? $statusIcons[$status] : $statusIcons['Pending'] ?>
                 </div>
-              <?php endforeach; ?>
-            </div>
-
-            <div class="flex justify-between mt-4 text-sm">
-              <?php foreach ($stepLabels as $label): ?>
-                <?php
-                  $stepIndex = array_search($label, $stepLabels);
-                  $isActive = $stepIndex === $currentIndex;
-                  $labelTextClass = 'text-gray-700';
-                  if (isset($statusColors[$label]) && $isActive) {
-                    $labelTextClass = 'text-blue-600 font-semibold';
-                  } elseif ($isActive && !isset($statusColors[$label])) {
-                    $labelTextClass = 'text-blue-600 font-semibold'; // Default active label color
-                  }
-                ?>
-                <div class="w-1/3 text-center <?= $labelTextClass ?>">
-                  <?= $label ?>
-                </div>
-              <?php endforeach; ?>
-            </div>
-
-            <div class="mt-4 text-center text-sm font-medium text-gray-700">
-              <?= round((($currentIndex + 1) / $totalSteps) * 100) ?>% Complete
-            </div>
+                <span class="text-sm font-medium <?= $textClass ?> text-center"><?= isset($statusDisplay[$status]) ? $statusDisplay[$status] : $status ?></span>
+              </div>
+              
+              <!-- Connector line (except for last item) -->
+              <?php if ($index < count($statusFlow) - 1): ?>
+                <div class="absolute top-5 left-<?= ($index + 1) * (100 / count($statusFlow)) - (100 / (count($statusFlow) * 2)) ?>% w-<?= 100 / count($statusFlow) - 10 ?>% h-0.5 bg-gray-300 z-0"></div>
+              <?php endif; ?>
+            <?php endforeach; ?>
+          </div>
+          
+          <!-- Current Status Display -->
+          <div class="mt-8 text-center">
+            <p class="text-lg font-medium text-gray-700">Current Status:</p>
+            <p class="text-xl font-bold <?= isset($statusColors[$orderStatus][1]) ? $statusColors[$orderStatus][1] : 'text-gray-800' ?>">
+              <?= isset($statusDisplay[$orderStatus]) ? $statusDisplay[$orderStatus] : $orderStatus ?>
+            </p>
+            <?php if ($orderStatus === 'Delivered'): ?>
+              <p class="text-sm text-gray-600 mt-2">Your order has been successfully delivered.</p>
+            <?php elseif ($orderStatus === 'Cancelled'): ?>
+              <p class="text-sm text-gray-600 mt-2">This order has been cancelled.</p>
+            <?php elseif ($orderStatus === 'Pending'): ?>
+              <p class="text-sm text-gray-600 mt-2">Your order is pending confirmation.</p>
+            <?php endif; ?>
           </div>
         </div>
 
-        <!-- Card -->
-        <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
+        <!-- Order Details Card -->
+        <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl mt-8" id="orderReceipt">
           <!-- Grid -->
           <div class="flex justify-between">
             <div>
               <img src="./assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
-
               <h1 class="mt-2 md:text-lg font-semibold text-orange-600 ">St. Joseph Fish Brokerage Inc.</h1>
             </div>
             <!-- Col -->
 
             <div class="text-end">
               <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order #</h2>
-              <span class="mt-1 block text-gray-500 text-lg"><?= htmlspecialchars($_SESSION['tracked_order']['order_id']) ?></span>
+              <span class="mt-1 block text-gray-500 text-lg"><?= htmlspecialchars($_SESSION['tracked_order']['order_code']) ?></span>
 
               <address class="mt-4 not-italic text-gray-800 ">
                 Bulungan Avenue corner HACCP St.<br>
@@ -335,6 +328,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <dl class="grid sm:grid-cols-5 gap-x-3">
                   <dt class="col-span-3 font-semibold text-gray-800 ">Date Ordered:</dt>
                   <dd class="col-span-2 text-gray-500 "><?= date('F j, Y \a\t g:i A', strtotime($_SESSION['tracked_order']['order_date'])) ?></dd>
+                </dl>
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                  <dt class="col-span-3 font-semibold text-gray-800 ">Order Status:</dt>
+                  <dd class="col-span-2">
+                    <?php
+                    $statusClass = 'bg-gray-100 text-gray-800';
+                    if (isset($statusColors[$orderStatus])) {
+                      $statusClass = $statusColors[$orderStatus][0] . ' ' . $statusColors[$orderStatus][1];
+                    }
+                    ?>
+                    <span class="inline-block px-2 py-1 rounded <?= $statusClass ?> text-sm font-medium">
+                      <?= isset($statusDisplay[$orderStatus]) ? $statusDisplay[$orderStatus] : $orderStatus ?>
+                    </span>
+                  </dd>
                 </dl>
               </div>
               <!-- End Grid -->
@@ -402,15 +409,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               
               <dd class="text-lg font-semibold text-gray-800">₱<?= number_format($_SESSION['tracked_order']['total_price'], 2) ?></dd>
             
-            </div>
-          </div>
-
-          <div class="mt-4 sm:mt-8 p-4">
-            <h4 class="text-lg font-semibold text-gray-800 ">Thank you!</h4>
-            <p class="text-gray-500 ">If you have any questions concerning this receipt, use the following contact information:</p>
-            <div class="mt-2">
-              <p class="block text-sm font-medium text-gray-800 ">fisbrokers.net</p>
-              <p class="block text-sm font-medium text-gray-800 ">(+63) 946-497-3689</p>
             </div>
           </div>
         </div>

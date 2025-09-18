@@ -79,7 +79,7 @@ $row = $result->fetch_assoc();
           </svg>
         </li>
         <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
-          Dashboard
+          Profile
         </li>
       </ol>
       <!-- End Breadcrumb -->
@@ -105,6 +105,7 @@ $row = $result->fetch_assoc();
     </div>
   </div>
   <!-- End Content -->
+
 
 
   <!-- JS Implementing Plugins -->

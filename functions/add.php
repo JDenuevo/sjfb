@@ -18,6 +18,18 @@ function redirectWithMessage($location, $message, $type = 'error') {
     exit();
 }
 
+// Function to generate order code
+function generateOrderCode() {
+    $prefix = "ORD"; 
+    $date   = date('ymd'); 
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $random = '';
+    for ($i = 0; $i < 6; $i++) {
+        $random .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+    return $prefix . $date . $random;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['register_account'])) {  
         // Redirect if the user is already logged in (only for registration)
@@ -157,25 +169,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Invalid order total");
             }
 
-             // Start transaction
+            // Start transaction
             $conn->begin_transaction();
 
             // Prepare values for order insertion
             $accountId = isset($_SESSION['account_id']) ? $_SESSION['account_id'] : null;
             $isGuest = $accountId ? 0 : 1;
            
+            // Generate custom order code
+            $orderCode = generateOrderCode();
+            
             // Create order with proper status
             $stmt = $conn->prepare("
                 INSERT INTO orders (
                     account_id, email, phone_number, first_name, last_name, 
                     address, postal_code, city, total_price, payment_method, 
-                    is_guest_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_guest_order, order_code
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             // Bind parameters correctly
             $stmt->bind_param(
-                "isssssssdsi", 
+                "isssssssdsis", 
                 $accountId, 
                 $email, 
                 $phoneNumber, 
@@ -186,7 +201,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $city, 
                 $totalAmount, 
                 $paymentMethod, 
-                $isGuest
+                $isGuest,
+                $orderCode
             );
             
             if (!$stmt->execute()) {
@@ -254,11 +270,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Create the checkout session with success and cancel URLs
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
-                    "Order #$orderId",
+                    "Order #$orderCode",  // Use friendly order code
                     [
                         'payment_method_types' => [$paymentMethod],
-                        'success_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId . '&status=success',
-                        'cancel_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_id=' . $orderId . '&status=cancelled',
+                        'success_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_code=' . $orderCode . '&status=success',
+                        'cancel_url' => $baseUrl . '/order_receipt.php?session_id={CHECKOUT_SESSION_ID}&order_code=' . $orderCode . '&status=cancelled',
                         'customer_info' => $customerInfo,
                         'billing' => [
                             'address' => $billingAddress,
@@ -267,7 +283,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'phone' => $phoneNumber
                         ],
                         'metadata' => [
-                            'order_id' => $orderId,
+                            'order_id' => $orderId,       // system ID
+                            'order_code' => $orderCode,   // friendly code
                             'customer_email' => $email,
                             'customer_name' => "$firstName $lastName",
                             'customer_phone' => $phoneNumber,
@@ -328,8 +345,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Don't throw exception as order is already created
                 }
                 
-                // Store order ID in session for verification
+                // Store order ID and code in session for verification
                 $_SESSION['current_order_id'] = $orderId;
+                $_SESSION['current_order_code'] = $orderCode;
                 $_SESSION['pending_payment_order'] = $orderId;
                 $_SESSION['payment_method'] = $paymentMethod;
                 $_SESSION['checkout_session_id'] = $checkoutSessionId;
@@ -387,11 +405,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Clear cart only after successful order creation
                 unset($_SESSION['cart']);
                 
-                // Store order ID for confirmation page
+                // Store order ID and code for confirmation page
                 $_SESSION['order_id'] = $orderId;
+                $_SESSION['order_code'] = $orderCode;
                 
                 // Redirect to order confirmation page
-                header("Location: ../order_receipt.php?order_id=" . $orderId);
+                header("Location: ../order_receipt.php?order_code=" . $orderCode);
                 exit();
                 
             } else {
@@ -408,7 +427,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: ../checkout.php");
             exit();
         }
-    }
+    }   
 }
-
 ?>

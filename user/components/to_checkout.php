@@ -98,20 +98,80 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
           <form action="./functions/add.php" method="POST" class="mt-6">
             <input type="hidden" name="complete_order" value="1">
             
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-              <select name="payment_method" required
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500">
-                <option value="">Select payment method</option>
-                <option value="cod">Cash on Delivery</option>
-                <option value="gcash">GCash</option>
-                <option value="bank">Bank Transfer</option>
-              </select>
+            <h3 class="text-xl font-bold">Payment</h3>
+            <p class="text-sm text-gray-600">
+              Choose your preferred payment method.
+            </p>
+
+            <div class="grid grid-cols-1 gap-4">
+            
+                <div class="payment-method">
+                  <input type="radio" name="payment_method" id="cod" value="cod">
+                  <label for="cod">
+                    <!-- Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="#145207" stroke="#FFFFFF"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3" />
+                    <path d="M7 9m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
+                    <path d="M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                    </svg>
+                    <!-- Label text -->
+                    <span class="text-gray-700 font-medium">Cash on Delivery</span>
+                  </label>
+                </div>
+
+                <div class="payment-method">
+                  <input type="radio" name="payment_method" id="gcash" value="gcash">
+                  <label for="gcash">
+                    <img src="../assets/icons/gcash.png" alt="GCash" style="width: 24px; margin-right: 5px;">
+                    <span class="text-gray-700 font-medium">GCash</span>
+                  </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="maya" value="paymaya">
+                    <label for="maya">
+                      <img src="../assets/icons/maya.png" alt="Maya" style="width: 24px; margin-right: 5px;">
+                      <span class="text-gray-700 font-medium">Maya</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="qrph" value="qrph">
+                    <label for="qrph">
+                      <img src="../assets/icons/qrph.png" alt="QR Ph" style="width: 24px; margin-right: 5px;">
+                      <span class="text-gray-700 font-medium">QR Ph</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="grab_pay" value="grab_pay">
+                    <label for="grab_pay">
+                      <img src="../assets/icons/grabpay.png" alt="Grab Pay" style="width: 24px; margin-right: 5px;">
+                      <span class="text-gray-700 font-medium">GrabPay</span>
+                    </label>
+                </div>
+
+                <div class="payment-method">
+                    <input type="radio" name="payment_method" id="card" value="card">
+                    <label for="card">
+                      <img src="../assets/icons/card.png" alt="Credit/Debit Card" style="width: 24px; margin-right: 5px;">
+                      <span class="text-gray-700 font-medium">Credit/Debit Card</span>
+                    </label>
+                </div>
             </div>
-      
+
+            <input type="hidden" name="total_amount" id="total_amount" value="<?php echo array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart)) ?>">
+
             <button type="submit" name="complete_order" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
-                Complete Order
+              Complete Order
             </button>
+
+          </div>
+          <!-- End Form -->
+      
           </form>
         </div>
       </div>
@@ -119,26 +179,49 @@ $cart = $_SESSION['cart'] ?? []; // Retrieve cart data from the session
   </div>
 </div>
 
-<script>
-// Simple form validation
-document.querySelector('form').addEventListener('submit', function(e) {
-  const paymentMethod = this.querySelector('[name="payment_method"]');
-  
-  if (!paymentMethod.value) {
-    e.preventDefault();
-    alert('Please select a payment method');
-    paymentMethod.focus();
-  }
-});
-</script>
-
 <style>
   input[type=number]::-webkit-inner-spin-button, 
   input[type=number]::-webkit-outer-spin-button { 
     -webkit-appearance: none; 
     margin: 0; 
   } 
-  
+
+  /* Hide the radio but keep it focusable */
+.payment-method input[type="radio"] {
+  display: none;
+}
+
+/* Default style for the label */
+.payment-method label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+.payment-method label:hover {
+  border-color: #f97316; /* orange-500 */
+  box-shadow: 0 0 5px rgba(249, 115, 22, 0.3);
+}
+
+/* When radio is checked → style the label */
+.payment-method input[type="radio"]:checked + label {
+  border-color: #f97316;
+  background-color: #fff7ed; /* orange-50 */
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+}
+
+/* Change text color when selected */
+.payment-method input[type="radio"]:checked + label span {
+  color: #f97316;
+}
+  .iti { width: 100%; } /* makes the input full width with flag */
+
 #toastContainer {
     position: fixed;
     bottom: 1.5rem;
@@ -306,7 +389,6 @@ async function removeCartItem(item) {
         showToast('An error occurred', 'error');
     }
 }
-
 
 function showToast(message) {
     const toast = document.createElement('div');
