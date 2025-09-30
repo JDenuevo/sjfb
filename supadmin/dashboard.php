@@ -8,9 +8,58 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
   exit;
 }
 
-// Retrieve the logged-in supadmin's account_id
 $account_id = $_SESSION['account_id'];
+$role = $_SESSION['role']; // super_admin, admin, customer, rider
 
+// Pagination variables
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 25; // Logs per page
+$offset = ($page - 1) * $perPage;
+
+// Count total activity_log
+if ($role === 'super_admin') {
+    $countQuery = "SELECT COUNT(*) as total FROM activity_log";
+    $countResult = $conn->query($countQuery);
+    $totalItems = $countResult->fetch_assoc()['total'];
+
+    // Join orders to get order_code if entity_type = 'order'
+    $query = "
+        SELECT al.*, o.order_code
+        FROM activity_log al
+        LEFT JOIN orders o ON al.entity_type = 'order' AND al.entity_id = o.order_id
+        ORDER BY al.created_at DESC
+        LIMIT $perPage OFFSET $offset
+    ";
+    $stmt = $conn->prepare($query);
+
+} else {
+    $countQuery = "SELECT COUNT(*) as total FROM activity_log WHERE user_id = ?";
+    $stmtCount = $conn->prepare($countQuery);
+    $stmtCount->bind_param("i", $account_id);
+    $stmtCount->execute();
+    $countResult = $stmtCount->get_result();
+    $totalItems = $countResult->fetch_assoc()['total'];
+    $stmtCount->close();
+
+    // Join orders for normal users too
+    $query = "
+        SELECT al.*, o.order_code
+        FROM activity_log al
+        LEFT JOIN orders o ON al.entity_type = 'order' AND al.entity_id = o.order_id
+        WHERE al.user_id = ?
+        ORDER BY al.created_at DESC
+        LIMIT $perPage OFFSET $offset
+    ";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $account_id);
+}
+
+$stmt->execute();
+$result = $stmt->get_result();
+$activity_log = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
+$totalPages = ceil($totalItems / $perPage);
 ?>
 
 <!DOCTYPE html>
@@ -89,19 +138,11 @@ $account_id = $_SESSION['account_id'];
       <!-- Monitoring Card Grid -->
       <?php include('./components/monitoring.php'); ?>
       <!-- Monitoring Card End -->
-        
-      <!-- Table Card -->
-      
-      <!-- Table End -->
 
     </div>
   </div>
   <!-- End Content -->
-
-
-  <!-- JS Implementing Plugins -->
-
-  <!-- JS PLUGINS -->
+   
   <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
   <script src="node_modules/preline/dist/preline.js"></script>

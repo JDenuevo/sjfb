@@ -13,6 +13,9 @@ $whereConditions = [];
 $params = [];
 $types = "";
 
+// Force to only show Pending and Paid payment_status
+$whereConditions[] = "p.payment_status IN ('Pending', 'Paid', 'Refunded')";
+
 // Handle status filter
 if (isset($_GET['status']) && $_GET['status'] !== '' && $_GET['status'] !== 'All Statuses') {
     $whereConditions[] = "o.order_status = ?";
@@ -42,7 +45,16 @@ $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
 // Get total count for pagination
-$countQuery = "SELECT COUNT(*) as total FROM orders o " . $whereClause;
+$countQuery = "SELECT COUNT(*) as total FROM orders o
+LEFT JOIN payments p 
+    ON p.order_id = o.order_id
+    AND p.payment_id = (
+        SELECT MAX(p2.payment_id) 
+        FROM payments p2 
+        WHERE p2.order_id = o.order_id
+    )
+" . $whereClause;
+
 if (!empty($params)) {
     $countStmt = $conn->prepare($countQuery);
     if (!empty($types)) {

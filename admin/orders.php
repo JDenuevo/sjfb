@@ -3,18 +3,18 @@ session_start();
 include '../conn.php';
 
 // Check if the admin is logged in as admin and account_id exists
-if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
+if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");
   exit;
 }
-
-// Retrieve the logged-in admin's account_id
-$account_id = $_SESSION['account_id'];
 
 // Add filter handling at the top
 $whereConditions = [];
 $params = [];
 $types = "";
+
+// Force to only show Pending and Paid payment_status
+$whereConditions[] = "p.payment_status IN ('Pending', 'Paid', 'Refunded')";
 
 // Handle status filter
 if (isset($_GET['status']) && $_GET['status'] !== '' && $_GET['status'] !== 'All Statuses') {
@@ -45,7 +45,16 @@ $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
 // Get total count for pagination
-$countQuery = "SELECT COUNT(*) as total FROM orders o " . $whereClause;
+$countQuery = "SELECT COUNT(*) as total FROM orders o
+LEFT JOIN payments p 
+    ON p.order_id = o.order_id
+    AND p.payment_id = (
+        SELECT MAX(p2.payment_id) 
+        FROM payments p2 
+        WHERE p2.order_id = o.order_id
+    )
+" . $whereClause;
+
 if (!empty($params)) {
     $countStmt = $conn->prepare($countQuery);
     if (!empty($types)) {

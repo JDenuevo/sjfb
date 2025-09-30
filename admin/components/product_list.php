@@ -79,7 +79,7 @@
 
           <tbody class="divide-y divide-gray-200 ">
             <?php while ($row = $result->fetch_assoc()): ?>
-            <tr>
+            <tr class="product-row bg-white">
               <td class="ps-6 py-3">
                 <div class="flex items-center gap-x-3">
                   <div class="grow">
@@ -116,7 +116,7 @@
               </td>
 
               <td class="px-6 py-3">
-                <span class="block text-sm font-semibold text-gray-800 "><?= !empty($row['prices']) ? htmlspecialchars($row['prices']) : 'No Prices Available' ?></span>
+                <span class="block text-sm font-semibold text-gray-800 ">₱<?= !empty($row['prices']) ? htmlspecialchars($row['prices']) : 'No Prices Available' ?></span>
               </td>
 
               <td class="px-6 py-3">
@@ -224,10 +224,25 @@
           </div>
         </div>
         <!-- End Footer -->
+         
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .product-row {
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .product-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left-color: #3b82f6;
+  }
+</style>
+
 
 <script>
 function openEditModal(productId) {
@@ -350,44 +365,4 @@ function handleImageUpload(inputId, previewId) {
   }
 }
 </script>
-
-<script>
-  // Function to open the delete modal
-function openDeleteModal(productId, productName) {
-  document.getElementById('deleteProductId').value = productId;
-  document.getElementById('deleteProductName').innerText = `Are you sure you want to delete ${productName}?`;
-  document.getElementById('deleteProductModal').classList.remove('hidden');
-}
-
-// Function to close any modal
-window.closeModal = function (modalId) {
-  document.getElementById(modalId).classList.add('hidden');
-};
-</script>
-
-<script>
-function deleteImage(imageId, productId) {
-    if (confirm("Are you sure you want to delete this image?")) {
-        fetch('./functions/delete_image.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                image_id: imageId,
-                product_id: productId
-            })
-        })
-        .then(response => response.text())
-        .then(data => {
-            console.log(data); // Debugging response
-            if (data.trim() === "success") {
-                location.reload();
-            } else {
-                alert("Failed to delete image: " + data);
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
-}
-</script>
-
 

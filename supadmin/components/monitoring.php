@@ -110,129 +110,209 @@
         Logs
       </h2>
     </div>
-   
   </div>
   <!-- End Header -->
 
-  <!-- Table -->
-  <table class="min-w-full divide-y divide-gray-200 ">
-    <thead class="bg-gray-50 ">
+  <!-- Activity Log Table -->
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
       <tr>
         <th scope="col" class="px-6 py-3 text-start">
-          <div class="flex items-center gap-x-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-             Type
-            </span>
-          </div>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">
+            User Type
+          </span>
         </th>
         <th scope="col" class="px-6 py-3 text-start">
-          <div class="flex items-center gap-x-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-              User Type
-            </span>
-          </div>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">
+            Action
+          </span>
         </th>
         <th scope="col" class="px-6 py-3 text-start">
-          <div class="flex items-center gap-x-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-              Description
-            </span>
-          </div>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">
+            Order Code
+          </span>
         </th>
         <th scope="col" class="px-6 py-3 text-start">
-          <div class="flex items-center gap-x-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-              Status
-            </span>
-          </div>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">
+            Details
+          </span>
         </th>
         <th scope="col" class="px-6 py-3 text-start">
-          <div class="flex items-center gap-x-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-              Date and Time
-            </span>
-          </div>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">
+            Date
+          </span>
         </th>
-        
-        <th scope="col" class="px-6  text-end"></th>
       </tr>
     </thead>
+    <tbody class="divide-y divide-gray-200">
+      <?php if (!empty($activity_log)): ?>
+        <?php foreach ($activity_log as $row): ?>
+          <tr class="logs-row bg-white">
+            <td class="px-6 py-3">
+              <?php 
+                $status = $row['user_type'];
 
-    <tbody class="divide-y divide-gray-200 ">
-      <tr>
-        
-        <td class="size-px whitespace-nowrap">
-          <div class="ps-6 py-2">
-            <div class="flex items-center gap-x-3">
-              <div class="grow">
-                <span class="block text-sm font-semibold text-gray-800 ">Ordered</span>
-              </div>
-            </div>
-          </div>
-        </td>
-        
-        <td class="size-px whitespace-nowrap">
-          <div class="ps-6 lg:ps-3 xl:ps-0 pe-6 ">
-            <div class="px-6 py-2">
-              <span class="py-1 px-1.5 inline-flex items-center gap-x-1 text-xs font-medium bg-teal-100 text-teal-800 rounded-full ">
-              <svg class="size-2.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
-              </svg>
-              On process
-            </span>
-            </div>
-          </div>
-        </td>
-        <td class="h-px w-72 whitespace-nowrap">
-          <div class="px-6 py-2">
-            <div class="flex items-center gap-x-3">
-              <div class="grow">
-                <span class="block text-sm font-semibold text-gray-800 ">Hahahahahahahahaha</span>
-              </div>
-            </div>
-          </div>
-        </td>
-        <td class="h-px w-72 whitespace-nowrap">
-          <div class="px-6 py-2">
-            <div class="flex items-center gap-x-3">
-              <div class="grow">
-                <span class="block text-sm font-semibold text-gray-800 ">3299.99</span>
-              </div>
-            </div>
-          </div>
-        </td>
-        
-      </tr>
+                switch ($status) {
+                  case 'super_admin':
+                    $badgeColor = 'bg-orange-500 text-white';
+                    $label = 'Super Admin';
+                    break;
+                  case 'admin':
+                    $badgeColor = 'bg-yellow-500 text-white';
+                    $label = 'Admin';
+                    break;
+                  case 'customer':
+                    $badgeColor = 'bg-blue-500 text-white';
+                    $label = 'Customer';
+                    break;
+                  case 'rider':
+                    $badgeColor = 'bg-purple-500 text-white';
+                    $label = 'Rider';
+                    break;
+                  default:
+                    $badgeColor = 'bg-gray-400 text-white';
+                    $label = ucfirst($status);
+                    break;
+                }
+              ?>
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?> whitespace-nowrap">
+                <?php echo $label; ?>
+              </span>
+            </td>
 
+            <!-- Action -->
+            <td class="px-6 py-3">
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium">
+                <?= htmlspecialchars($row['action']) ?>
+              </span>
+            </td>
+
+            <!-- Entity (entity_type + entity_id) -->
+            <td class="px-6 py-3">
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium">
+                <?= htmlspecialchars($row['order_code']) ?>
+              </span>
+            </td>
+
+            <!-- Details -->
+            <td class="px-6 py-3">
+              <span class="block text-sm text-gray-500 rounded-full">
+                <?= !empty($row['details']) ? htmlspecialchars($row['details']) : '-' ?>
+              </span>
+            </td>
+
+            <!-- Date -->
+            <td class="px-6 py-3">
+              <span class="block text-sm text-gray-500 whitespace-nowrap">
+                <?= date("M d, Y h:i A", strtotime($row['created_at'])) ?>
+              </span>
+            </td>
+
+          </tr>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <tr>
+          <td colspan="6" class="px-6 py-3 text-center text-sm text-gray-500">
+            No logs found
+          </td>
+        </tr>
+      <?php endif; ?>
     </tbody>
   </table>
-  <!-- End Table -->
 
   <!-- Footer -->
-  <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200 ">
+  <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
     <div>
-      <p class="text-sm text-gray-600 dark:text-neutral-400">
-        <span class="font-semibold text-gray-800 ">1</span> results
+      <p class="text-sm text-gray-600">
+        <span class="font-semibold text-gray-800">
+          <?php echo $totalItems; ?>
+        </span> results
       </p>
     </div>
 
     <div>
       <div class="inline-flex gap-x-2">
-        <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 ">
-          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Prev
-        </button>
+        <?php
+        // Previous button
+        if ($page > 1): ?>
+          <a href="?page=<?php echo $page - 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
+            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            Prev
+          </a>
+        <?php else: ?>
+          <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
+            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            Prev
+          </span>
+        <?php endif; ?>
 
-        <button type="button" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 ">
-          Next
-          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
+        <!-- Page numbers -->
+        <?php 
+        $start = max(1, $page - 2);
+        $end = min($totalPages, $page + 2);
+        
+        // Show first page if not in range
+        if ($start > 1): ?>
+          <a href="?page=1" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
+            1
+          </a>
+          <?php if ($start > 2): ?>
+            <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
+          <?php endif;
+        endif;
+        
+        for ($i = $start; $i <= $end; $i++): ?>
+          <a href="?page=<?php echo $i; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
+            <?php echo $i; ?>
+          </a>
+        <?php endfor; 
+        
+        // Show last page if not in range
+        if ($end < $totalPages): ?>
+          <?php if ($end < $totalPages - 1): ?>
+            <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
+          <?php endif; ?>
+          <a href="?page=<?php echo $totalPages; ?>" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
+            <?php echo $totalPages; ?>
+          </a>
+        <?php endif; ?>
+
+        <!-- Next button -->
+        <?php if ($page < $totalPages): ?>
+          <a href="?page=<?php echo $page + 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
+            Next
+            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </a>
+        <?php else: ?>
+          <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
+            Next
+            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </span>
+        <?php endif; ?>
       </div>
     </div>
   </div>
   <!-- End Footer -->
+    
 </div>
+
+<style>
+  .logs-row {
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .logs-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left-color: #3b82f6;
+  }
+</style>

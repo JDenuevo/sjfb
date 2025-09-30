@@ -9,19 +9,35 @@ function redirectWithMessage($location, $message, $type) {
 }
 
 if (isset($_POST['add_account'])) {
-    $username = trim($_POST['username']);
-    $role = $_POST['role'];
-    $password = trim($_POST['password']);
-    $confirm_password = trim($_POST['confirm_password']);
-    $first_name = trim($_POST['first_name']);
-    $last_name = trim($_POST['last_name']);
-    $email = trim($_POST['email']);
-    $phone_number = trim($_POST['phone_number']);
-    $address = trim($_POST['address']);
-    $city = trim($_POST['city']);
-    $postal_code = trim($_POST['postal']); // Changed from $postal to $postal_code
+    // Get and validate form data
+    $username = trim($_POST['username'] ?? '');
+    $role = $_POST['role'] ?? '';
+    $password = trim($_POST['password'] ?? '');
+    $confirm_password = trim($_POST['confirm_password'] ?? '');
+    $first_name = trim($_POST['first_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $phone_number = trim($_POST['phone_number'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $city = trim($_POST['city'] ?? '');
+    $postal_code = trim($_POST['postal'] ?? '');
 
-    // Check if passwords match
+    // Validate required fields
+    $required_fields = [
+        'username' => $username,
+        'role' => $role,
+        'password' => $password,
+        'first_name' => $first_name,
+        'last_name' => $last_name,
+        'email' => $email
+    ];
+
+    foreach ($required_fields as $field => $value) {
+        if (empty($value)) {
+            redirectWithMessage("../accounts.php", "Field '$field' is required.", "error");
+        }
+    }
+
     if ($password !== $confirm_password) {
         redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
     }
@@ -29,28 +45,71 @@ if (isset($_POST['add_account'])) {
     // Hash password
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    // Check if username or email already exists
-    $checkQuery = "SELECT * FROM accounts WHERE username = ? OR email = ?";
-    $stmt = $conn->prepare($checkQuery);
-    $stmt->bind_param("ss", $username, $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
+    // Check for existing username/email
+    $checkQuery = "SELECT account_id FROM accounts WHERE username = ? OR email = ?";
+    $checkStmt = $conn->prepare($checkQuery);
+    $checkStmt->bind_param("ss", $username, $email);
+    $checkStmt->execute();
+    
+    if ($checkStmt->get_result()->num_rows > 0) {
         redirectWithMessage("../accounts.php", "Username or Email already exists.", "error");
     }
 
-    // Insert new user (Updated column names)
-    $insertQuery = "INSERT INTO accounts (username, role, password_hash, first_name, last_name, email, phone_number, address, city, postal_code) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    // Start transaction for data consistency
+    $conn->begin_transaction();
 
-    $stmt = $conn->prepare($insertQuery);
-    $stmt->bind_param("ssssssssss", $username, $role, $hashed_password, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code);
+    try {
+        // Insert account
+        $insertQuery = "INSERT INTO accounts (username, role, password_hash, first_name, last_name, email, phone_number, address, city, postal_code) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $conn->prepare($insertQuery);
+        $stmt->bind_param("ssssssssss", $username, $role, $hashed_password, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Failed to insert account: " . $stmt->error);
+        }
 
-    if ($stmt->execute()) {
-        redirectWithMessage("../accounts.php", "Account successfully created!", "success");
-    } else {
-        redirectWithMessage("../accounts.php", "Failed to add account.", "error");
+        // Get the new account ID
+        $new_account_id = $conn->insert_id;
+        
+        if ($new_account_id === 0) {
+            // If insert_id is 0, try to get the ID by querying
+            $getIdQuery = "SELECT account_id FROM accounts WHERE username = ? AND email = ? ORDER BY account_id DESC LIMIT 1";
+            $getIdStmt = $conn->prepare($getIdQuery);
+            $getIdStmt->bind_param("ss", $username, $email);
+            $getIdStmt->execute();
+            $result = $getIdStmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $new_account_id = $result->fetch_assoc()['account_id'];
+            } else {
+                throw new Exception("Could not retrieve new account ID");
+            }
+        }
+
+        // Create rider record if role is rider
+        if ($role === 'rider') {
+            $riderQuery = "INSERT INTO riders (account_id, vehicle_type, license_number, is_available) 
+                           VALUES (?, 'motorcycle', 'PENDING', 1)";
+            $riderStmt = $conn->prepare($riderQuery);
+            $riderStmt->bind_param("i", $new_account_id);
+            
+            if (!$riderStmt->execute()) {
+                throw new Exception("Failed to create rider record: " . $riderStmt->error);
+            }
+        }
+
+        // Commit transaction
+        $conn->commit();
+        
+        redirectWithMessage("../accounts.php", "Account successfully created! ID: " . $new_account_id, "success");
+
+    } catch (Exception $e) {
+        // Rollback on error
+        $conn->rollback();
+        error_log("Account creation error: " . $e->getMessage());
+        redirectWithMessage("../accounts.php", "Error: " . $e->getMessage(), "error");
     }
 }
 

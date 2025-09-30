@@ -133,27 +133,48 @@
                             <?php 
                               $status = $row['payment_status'];
                               $statusClass = '';
+                              $statusIcon = '';
 
-                              // Assign badge colors depending on the status
                               switch ($status) {
                                 case 'Pending':
                                   $statusClass = 'bg-yellow-100 text-yellow-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>';
                                   break;
                                 case 'Paid':
                                   $statusClass = 'bg-green-100 text-green-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M5 13l4 4L19 7"/>
+                                                </svg>';
                                   break;
                                 case 'Failed':
                                   $statusClass = 'bg-red-100 text-red-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>';
                                   break;
                                 case 'Refunded':
                                   $statusClass = 'bg-purple-100 text-purple-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M4 4v16h16V4H4zm4 8h8"/>
+                                                </svg>';
                                   break;
                                 default:
                                   $statusClass = 'bg-gray-100 text-gray-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 4v16m8-8H4"/>
+                                                </svg>';
                                   break;
                               }
                             ?>
-                            <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
+                              <?php echo $statusIcon; ?>
                               <?php echo ucfirst($status); ?>
                             </span>
                             <?php if ($row['failed_code']): ?>
@@ -176,8 +197,8 @@
 
                         <td class="size-px whitespace-nowrap">
                           <div class="px-6 py-1.5 flex justify-end">
-                            <button class="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline font-medium view-payment-btn" data-modal-target="viewPaymentModal<?php echo $row['payment_id']; ?>">
-                              View
+                            <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl"  data-modal-target="viewPaymentModal<?php echo $row['payment_id']; ?>">
+                              <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
                             </button>
                           </div>
                         </td>

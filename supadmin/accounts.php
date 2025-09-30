@@ -15,18 +15,19 @@ $account_id = $_SESSION['account_id'];
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $perPage = 10; // Items per page
 
-// First get the total count of customers
-$countQuery = "SELECT COUNT(*) as total FROM accounts WHERE role = 'customer'";
+// Get the total count of customers, admins, and riders
+$countQuery = "SELECT COUNT(*) as total FROM accounts WHERE role IN ('customer','admin','rider')";
 $countResult = $conn->query($countQuery);
 $totalItems = $countResult->fetch_assoc()['total'];
 $totalPages = ceil($totalItems / $perPage);
 
 // Main query with pagination
 $offset = ($page - 1) * $perPage;
-$query = "SELECT * FROM accounts WHERE role = 'customer' OR role = 'admin' LIMIT $perPage OFFSET $offset";
+$query = "SELECT * FROM accounts WHERE role IN ('customer','admin','rider') LIMIT $perPage OFFSET $offset";
 $result = $conn->query($query);
 
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -137,6 +138,7 @@ $result = $conn->query($query);
             <select name="role" required class="w-full px-3 py-2 border rounded-lg">
               <option value="" disabled selected>Select a role</option>
               <option value="admin">Admin</option>
+              <option value="rider">Rider</option>
               <option value="customer">Customer</option>
               <option value="guest">Guest</option>
             </select>          
@@ -168,7 +170,7 @@ $result = $conn->query($query);
         </div>
         <div class="mb-3">
           <label class="block text-sm font-medium text-gray-700">Phone Number</label>
-          <input type="number" name="phone_number" required class="w-full px-3 py-2 border rounded-lg" placeholder="Phone Number">
+          <input type="number" name="phone_number" required class="w-full px-3 py-2 border rounded-lg" placeholder="Phone Number" maxlength="11">
         </div>
         <div class="mb-3">
           <label class="block text-sm font-medium text-gray-700">Address</label>
@@ -181,7 +183,7 @@ $result = $conn->query($query);
           </div>
           <div class="mb-3">
             <label class="block text-sm font-medium text-gray-700">Postal Code</label>
-            <input type="number" name="postal" required class="w-full px-3 py-2 border rounded-lg" placeholder="Postal Code">
+            <input type="number" name="postal_code" required class="w-full px-3 py-2 border rounded-lg" placeholder="Postal Code">
           </div>
         </div>
         <!-- Action Buttons -->

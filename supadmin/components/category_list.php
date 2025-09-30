@@ -49,7 +49,7 @@
 
           <tbody class="divide-y divide-gray-200 ">
             <?php while ($row = $result->fetch_assoc()): ?>
-            <tr>
+            <tr class="category-row bg-white">
               <td class="ps-6 py-3">
                 <div class="flex items-center gap-x-3">
                   <div class="grow">
@@ -210,3 +210,16 @@
     </div>
   </div>
 </div>
+
+<style>
+  .category-row {
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .category-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left-color: #3b82f6;
+  }
+</style>

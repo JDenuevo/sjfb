@@ -44,6 +44,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION["loggedinassupadmin"] = true;
                     header("Location: ../supadmin/dashboard.php");
                     exit();
+                } elseif ($row['role'] === 'rider') {
+                    $_SESSION["loggedinasrider"] = true;
+                    header("Location: ../rider/dashboard.php");
+                    exit();
                 } else {
                     $_SESSION['error_message'] = "Unknown user role.";
                 }

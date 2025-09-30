@@ -68,7 +68,7 @@
 
           <tbody class="divide-y divide-gray-200 ">
             <?php while ($row = $result->fetch_assoc()): ?>
-            <tr>
+            <tr  class="accounts-row bg-white">
               <td class="px-6 py-3">
                 <span class="block text-sm font-semibold text-gray-800 "><?= $row['role'] ?></span>
               </td>
@@ -233,3 +233,16 @@
     </div>
   </div>
 </div>
+
+<style>
+  .accounts-row {
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .accounts-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left-color: #3b82f6;
+  }
+</style>

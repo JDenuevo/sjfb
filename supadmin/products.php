@@ -453,11 +453,7 @@ $result = $conn->query($query);
   <?php $conn->close(); ?>
 
   <!-- JS Implementing Plugins -->
-
-  <!-- JS PLUGINS -->
-  <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-  <script src="../node_modules/preline/dist/preline.js"></script>
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>

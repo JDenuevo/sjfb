@@ -178,12 +178,13 @@ $result = $stmt->get_result();
     </div>
   </div>
   <!-- End Content -->
+   
+  <!-- Required plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
 
-  <!-- JS PLUGINS -->
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
-  <!-- Preline JS -->
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
   
 </body>

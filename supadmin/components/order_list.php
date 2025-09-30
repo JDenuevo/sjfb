@@ -118,7 +118,7 @@
                           <div class="px-6 py-3">
                             <?php 
                               $userType = $row['is_guest_order'] == 0 ? 'Customer' : 'Guest';
-                              $badgeColor = $row['is_guest_order'] == 0 ? 'bg-orange-500 text-white' : 'bg-green-500 text-white';
+                              $badgeColor = $row['is_guest_order'] == 0 ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white';
                             ?>
                             <span class="block text-sm font-semibold text-gray-800">
                               <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
@@ -139,36 +139,64 @@
                           <div class="px-6 py-3">
                             <?php 
                               $status = $row['order_status'];
+                              $statusClass = '';
+                              $statusIcon = '';
 
-                              // Assign badge colors depending on the status
                               switch ($status) {
                                 case 'Pending':
-                                  $badgeColor = 'bg-yellow-500 text-white';
+                                  $statusClass = 'bg-yellow-100 text-yellow-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>';
                                   break;
                                 case 'Processing':
-                                  $badgeColor = 'bg-blue-500 text-white';
+                                  $statusClass = 'bg-blue-100 text-blue-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle>
+                                                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                                </svg>';
                                   break;
                                 case 'Shipped':
-                                  $badgeColor = 'bg-indigo-500 text-white';
+                                  $statusClass = 'bg-indigo-100 text-indigo-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M3 3h18l-2 13H5L3 3zm3 16h12a2 2 0 11-4 0H9a2 2 0 11-4 0z"/>
+                                                </svg>';
                                   break;
                                 case 'OutForDelivery':
-                                  $badgeColor = 'bg-purple-500 text-white';
+                                  $statusClass = 'bg-purple-100 text-purple-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M3 13l4-4 4 4m0 0l4-4 4 4M5 17h14"/>
+                                                </svg>';
                                   break;
                                 case 'Delivered':
-                                  $badgeColor = 'bg-green-500 text-white';
+                                  $statusClass = 'bg-green-100 text-green-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M5 13l4 4L19 7"/>
+                                                </svg>';
                                   break;
                                 case 'Cancelled':
-                                  $badgeColor = 'bg-red-500 text-white';
+                                  $statusClass = 'bg-red-100 text-red-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>';
                                   break;
                                 default:
-                                  $badgeColor = 'bg-gray-400 text-white'; // fallback for unexpected statuses
+                                  $statusClass = 'bg-gray-100 text-gray-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 4v16m8-8H4"/>
+                                                </svg>';
                                   break;
                               }
                             ?>
-                            <span class="block text-sm font-semibold text-gray-800">
-                              <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
-                                <?php echo $status; ?>
-                              </span>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
+                              <?php echo $statusIcon; ?>
+                              <?php echo ($status === 'OutForDelivery') ? 'Out For Delivery' : ucfirst($status); ?>
                             </span>
                           </div>
                         </td>
@@ -177,39 +205,59 @@
                           <div class="px-6 py-3">
                             <?php 
                               $status = $row['payment_status'];
+                              $statusClass = '';
+                              $statusIcon = '';
 
-                              // Assign badge colors depending on the status
                               switch ($status) {
                                 case 'Pending':
-                                  $badgeColor = 'bg-yellow-500 text-white';
+                                  $statusClass = 'bg-yellow-100 text-yellow-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>';
                                   break;
                                 case 'Paid':
-                                  $badgeColor = 'bg-green-500 text-white';
+                                  $statusClass = 'bg-green-100 text-green-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M5 13l4 4L19 7"/>
+                                                </svg>';
                                   break;
                                 case 'Failed':
-                                  $badgeColor = 'bg-red-500 text-white';
+                                  $statusClass = 'bg-red-100 text-red-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>';
                                   break;
                                 case 'Refunded':
-                                  $badgeColor = 'bg-blue-500 text-white';
+                                  $statusClass = 'bg-purple-100 text-purple-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M4 4v16h16V4H4zm4 8h8"/>
+                                                </svg>';
                                   break;
                                 default:
-                                  $badgeColor = 'bg-gray-400 text-white'; // fallback for unexpected statuses
+                                  $statusClass = 'bg-gray-100 text-gray-800';
+                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                        d="M12 4v16m8-8H4"/>
+                                                </svg>';
                                   break;
                               }
                             ?>
-                            <span class="block text-sm font-semibold text-gray-800">
-                              <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $badgeColor; ?>">
-                                <?php echo $status; ?>
-                              </span>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
+                              <?php echo $statusIcon; ?>
+                              <?php echo ucfirst($status); ?>
                             </span>
+
                           </div>
                         </td>
 
                         <td class="p-2 size-px whitespace-nowrap">
                             <div class="px-6 py-1.5 flex justify-end">
-                                <button class="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline font-medium" data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
-                                    View
-                                </button>
+                                <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl"  data-modal-target="viewOrderModal<?php echo $row['order_id']; ?>">
+                                  <svg xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>                                </button>
                             </div>
                         </td>
 
@@ -312,6 +360,7 @@
     </div>
   </div>
 </div>
+
 <!-- View Order Modals -->
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
@@ -471,6 +520,31 @@
                   Generate Waybill
                 </button>
               </form>
+              <a href="./order_manage.php?order_id=<?php echo $row['order_id']; ?>" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 focus:outline-hidden focus:bg-green-700">
+                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Manage Order
+              </a>
+              <?php if ($row['order_status'] === 'Pending'): ?>
+              <form action="./functions/order_process.php" method="POST">
+                  <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
+                  <input type="hidden" name="redirect_to" value="order_manage">
+                  <button type="submit" name="approve_order" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">
+                      <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart-check">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                          <path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/>
+                          <path d="M11.5 17h-5.5v-14h-2"/>
+                          <path d="M6 5l14 1l-1 7h-13"/>
+                          <path d="M15 19l2 2l4 -4"/>
+                      </svg>
+                      Approve Order
+                  </button>
+              </form>
+              <?php endif; ?>
+              
             </div>
           </div>
           <!-- End Card -->
