@@ -132,121 +132,144 @@ elseif (isset($_POST['update_profile'])) {
 }
 
 elseif (isset($_POST['update_product'])) {
-    // Sanitize inputs
     $product_id = intval($_POST['product_id']);
     $product_name = htmlspecialchars(trim($_POST['product_name']));
     $product_description = htmlspecialchars(trim($_POST['product_description']));
     $product_category = intval($_POST['product_category']);
 
-    // Validate required fields
     if (empty($product_name) || empty($product_description) || empty($product_category)) {
-        redirectWithMessage("../products.php", "All fields are required.", "danger");
+        redirectWithMessage("../products.php", "All fields are required.", "error");
     }
 
-    // Start transaction
     $conn->begin_transaction();
 
     try {
-        // Update product details
-        $update_product_query = "UPDATE products SET product_name = ?, product_description = ?, product_category = ? WHERE product_id = ?";
-        $stmt = $conn->prepare($update_product_query);
+        // Update product
+        $stmt = $conn->prepare("UPDATE products SET product_name = ?, product_description = ?, product_category = ? WHERE product_id = ?");
         $stmt->bind_param("ssii", $product_name, $product_description, $product_category, $product_id);
         $stmt->execute();
         $stmt->close();
 
-        // Handle variants
+        // Handle deleted variants
+        if (!empty($_POST['deleted_variants'])) {
+            $deletedVariants = explode(',', $_POST['deleted_variants']);
+            foreach ($deletedVariants as $variantId) {
+                $variantId = intval($variantId);
+                if ($variantId > 0) {
+                    $stmt = $conn->prepare("DELETE FROM product_variants WHERE variant_id = ? AND product_id = ?");
+                    $stmt->bind_param("ii", $variantId, $product_id);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
+
+        // Handle variants (update existing and insert new)
         if (isset($_POST['variant_name']) && is_array($_POST['variant_name'])) {
             $variant_ids = $_POST['variant_id'];
             $variant_names = $_POST['variant_name'];
+            $unit_types = $_POST['unit_type'];
+            $minimum_orders = $_POST['minimum_order'];
+            $order_increments = $_POST['order_increment'];
             $stock_quantities = $_POST['stock_quantity'];
             $variant_prices = $_POST['variant_price'];
-            $discount_prices = isset($_POST['discount_price']) ? $_POST['discount_price'] : [];
+            $discount_prices = $_POST['discount_price'] ?? [];
 
             for ($i = 0; $i < count($variant_names); $i++) {
                 $variant_id = !empty($variant_ids[$i]) ? intval($variant_ids[$i]) : null;
                 $variant_name = htmlspecialchars(trim($variant_names[$i]));
+                $unit_type = $unit_types[$i];
+                $minimum_order = floatval($minimum_orders[$i]);
+                $order_increment = floatval($order_increments[$i]);
                 $stock_quantity = intval($stock_quantities[$i]);
                 $variant_price = floatval($variant_prices[$i]);
-                $discount_price = (!empty($discount_prices[$i]) && $discount_prices[$i] != "0") ? floatval($discount_prices[$i]) : null;
+                $discount_price = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
+                $stock_status = $stock_quantity > 0 ? 'In Stock' : 'Out of Stock';
 
                 if ($variant_id) {
-                    // Update existing variant
-                    $update_variant_query = "UPDATE product_variants SET variant_name = ?, stock_quantity = ?, variant_price = ?, discount_price = ? WHERE variant_id = ?";
-                    $stmt = $conn->prepare($update_variant_query);
-                    $stmt->bind_param("siddi", $variant_name, $stock_quantity, $variant_price, $discount_price, $variant_id);
+                    // Update existing
+                    $stmt = $conn->prepare("UPDATE product_variants SET variant_name = ?, unit_type = ?, minimum_order = ?, order_increment = ?, stock_quantity = ?, variant_price = ?, discount_price = ?, stock_status = ? WHERE variant_id = ?");
+                    $stmt->bind_param("ssddiddsi", $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status, $variant_id);
                 } else {
-                    // Insert new variant
-                    $insert_variant_query = "INSERT INTO product_variants (product_id, variant_name, stock_quantity, variant_price, discount_price) VALUES (?, ?, ?, ?, ?)";
-                    $stmt = $conn->prepare($insert_variant_query);
-                    $stmt->bind_param("isidd", $product_id, $variant_name, $stock_quantity, $variant_price, $discount_price);
+                    // Insert new
+                    $stmt = $conn->prepare("INSERT INTO product_variants (product_id, variant_name, unit_type, minimum_order, order_increment, stock_quantity, variant_price, discount_price, stock_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("issddidds", $product_id, $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status);
                 }
                 $stmt->execute();
                 $stmt->close();
             }
         }
 
-        // Check if product currently has any images
-        $check_images_query = "SELECT COUNT(*) AS image_count FROM product_images WHERE product_id = ?";
-        $stmt = $conn->prepare($check_images_query);
-        $stmt->bind_param("i", $product_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $image_count = $result->fetch_assoc()['image_count'];
-        $stmt->close();
+        // Handle deleted images
+        if (!empty($_POST['deleted_images'])) {
+            $deletedImages = explode(',', $_POST['deleted_images']);
+            foreach ($deletedImages as $imageId) {
+                $imageId = intval($imageId);
+                if ($imageId > 0) {
+                    // Get image path
+                    $stmt = $conn->prepare("SELECT image_path FROM product_images WHERE image_id = ?");
+                    $stmt->bind_param("i", $imageId);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    if ($row = $result->fetch_assoc()) {
+                        $imagePath = "../../uploads/products/" . $row['image_path'];
+                        if (file_exists($imagePath)) {
+                            unlink($imagePath);
+                        }
+                    }
+                    $stmt->close();
+                    
+                    // Delete from database
+                    $stmt = $conn->prepare("DELETE FROM product_images WHERE image_id = ?");
+                    $stmt->bind_param("i", $imageId);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
 
-        $has_no_images = ($image_count == 0);
-        $new_images_added = false;
-
-        // Handle image uploads
+        // Handle new images
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../../uploads/products/";
+            
+            // Check how many images exist
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM product_images WHERE product_id = ?");
+            $stmt->bind_param("i", $product_id);
+            $stmt->execute();
+            $existingCount = $stmt->get_result()->fetch_assoc()['count'];
+            $stmt->close();
+            
+            $isPrimary = ($existingCount == 0) ? 1 : 0;
+            
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
-                $file_name = basename($_FILES['product_images']['name'][$key]);
-                $file_size = $_FILES['product_images']['size'][$key];
-                $file_type = mime_content_type($tmp_name);
+                if ($_FILES['product_images']['error'][$key] === UPLOAD_ERR_OK) {
+                    $file_name = basename($_FILES['product_images']['name'][$key]);
+                    $file_size = $_FILES['product_images']['size'][$key];
+                    $file_type = mime_content_type($tmp_name);
 
-                // Validate file type and size
-                if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) { // 5MB limit
-                    $unique_file_name = uniqid() . '_' . $file_name;
-                    $target_file = $target_dir . $unique_file_name;
+                    if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) {
+                        $unique_file_name = uniqid() . '_' . $file_name;
+                        $target_file = $target_dir . $unique_file_name;
 
-                    if (move_uploaded_file($tmp_name, $target_file)) {
-                        // Determine if this should be primary (first image added to product with no images)
-                        $is_primary = ($has_no_images && !$new_images_added) ? 1 : 0;
-                        
-                        // Insert new image into the database
-                        $insert_image_query = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)";
-                        $stmt = $conn->prepare($insert_image_query);
-                        $stmt->bind_param("isi", $product_id, $unique_file_name, $is_primary);
-                        $stmt->execute();
-                        $stmt->close();
-                        
-                        $new_images_added = true;
+                        if (move_uploaded_file($tmp_name, $target_file)) {
+                            $stmt = $conn->prepare("INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)");
+                            $stmt->bind_param("isi", $product_id, $unique_file_name, $isPrimary);
+                            $stmt->execute();
+                            $stmt->close();
+                            $isPrimary = 0;
+                        }
                     }
                 }
             }
         }
 
-        // If product had no images and we added some, ensure one is marked as primary
-        if ($has_no_images && $new_images_added) {
-            // Find the first image we just added and make it primary
-            $set_primary_query = "UPDATE product_images SET is_primary = 1 
-                                WHERE product_id = ? AND is_primary = 0 
-                                ORDER BY image_id ASC LIMIT 1";
-            $stmt = $conn->prepare($set_primary_query);
-            $stmt->bind_param("i", $product_id);
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        // Commit transaction
         $conn->commit();
         redirectWithMessage("../products.php", "Product updated successfully!", "success");
+
     } catch (Exception $e) {
-        // Rollback transaction on error
         $conn->rollback();
-        error_log("Error updating product: " . $e->getMessage());
-        redirectWithMessage("../products.php", "Failed to update product.", "danger");
+        error_log("Update error: " . $e->getMessage());
+        redirectWithMessage("../products.php", "Failed to update product: " . $e->getMessage(), "error");
     }
 }
 

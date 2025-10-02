@@ -1,6 +1,18 @@
 <?php
 $cart = $_SESSION['cart'] ?? [];
+
+function formatUnit($unitType, $quantity = null) {
+    switch ($unitType) {
+        case 'piece': $unitLabel = 'pcs'; break;
+        case 'kilogram': $unitLabel = 'kg'; break;
+        case 'gram': $unitLabel = 'g'; break;
+        case 'liter': $unitLabel = 'L'; break;
+        default: $unitLabel = $unitType;
+    }
+    return $quantity !== null ? "{$quantity} {$unitLabel}" : $unitLabel;
+}
 ?>
+
 
 <div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
     <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-full">
@@ -18,22 +30,36 @@ $cart = $_SESSION['cart'] ?? [];
 
             <div id="cart-items-list" class="p-4">
                 <?php if (!empty($cart)): ?>
-                    <?php foreach ($cart as $index => $item): ?>
+                    <?php foreach ($cart as $index => $item): 
+                        $unitType = $item['unit_type'] ?? 'piece';
+                        $unitDisplay = $unitType === 'piece' ? 'pcs' : $unitType;
+                        $minimumOrder = $item['minimum_order'] ?? 1;
+                        $orderIncrement = $item['order_increment'] ?? 1;
+                        $displayQty = $unitType === 'piece' ? (int)$item['quantity'] : number_format($item['quantity'], 2);
+                    ?>
                         <div class="cart-item flex items-start mb-4 pb-2 border-b border-gray-200" 
+                             data-cart-index="<?= $index ?>"
                              data-product-id="<?= $item['product_id'] ?>" 
-                             data-variant-id="<?= $item['variant_id'] ?>">
+                             data-variant-id="<?= $item['variant_id'] ?>"
+                             data-unit-type="<?= $unitType ?>"
+                             data-minimum-order="<?= $minimumOrder ?>"
+                             data-order-increment="<?= $orderIncrement ?>">
                             <img src="<?= $item['image_url'] ?>" alt="<?= $item['product_name'] ?>" class="w-24 h-24 p-2 object-cover rounded-3xl mr-6">
                             <div class="flex-grow">
-                                <h3 class="font-medium text-base mb-2 flex justify-between"><?= $item['product_name'] ?></h3>
-                                <p class="text-sm text-gray-500 mb-4"><?= $item['variant_name'] ?></p>
+                                <h3 class="font-medium text-base mb-2"><?= $item['product_name'] ?></h3>
+                                <p class="text-sm text-gray-500 mb-1"><?= $item['variant_name'] ?></p>
+                                <p class="text-xs text-gray-400 mb-2">Min: <?= $minimumOrder ?> <?= $unitDisplay ?></p>
                                 <div class="flex items-center justify-between mt-2">
-                                    <div class="flex items-center border border-gray-300 rounded">
-                                        <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600">-</button>
-                                        <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" 
-                                               value="<?= $item['quantity'] ?>" readonly> pcs.
-                                        <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center border border-gray-300 rounded">
+                                            <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">-</button>
+                                            <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="<?= formatUnit($unitType, $displayQty) ?>" readonly>
+                                            <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600 hover:text-white">+</button>
+                                        </div>
+                                        &nbsp;
+                                        <span class="text-xs text-gray-500"><?= $unitDisplay ?></span>
                                     </div>
-                                    <span class="price ml-4 font-medium text-sm" data-price-per-unit="<?= $item['price'] ?>">
+                                    <span class="price ml-4 font-medium text-sm">
                                         ₱<?= number_format($item['price'] * $item['quantity'], 2) ?>
                                     </span>
                                 </div>
@@ -59,7 +85,7 @@ $cart = $_SESSION['cart'] ?? [];
                     </span>
                 </div>
                 <p class="text-sm text-gray-500">Taxes and shipping calculated at checkout</p>
-                <a href="<?= $baseUrl ?>checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
+                <a href="checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
                     Checkout
                 </a>
                 
@@ -165,8 +191,10 @@ async function updateCartUI() {
 }
 
 async function updateCartItemQuantity(item, change) {
-    const productId = item.dataset.productId;
-    const variantId = item.dataset.variantId;
+    const cartIndex = parseInt(item.dataset.cartIndex);
+    const unitType = item.dataset.unitType;
+    const minimumOrder = parseFloat(item.dataset.minimumOrder);
+    const orderIncrement = parseFloat(item.dataset.orderIncrement);
     const quantityInput = item.querySelector('.quantity');
     
     if (!quantityInput) {
@@ -175,24 +203,26 @@ async function updateCartItemQuantity(item, change) {
         return;
     }
 
-    const newQuantity = parseInt(quantityInput.value) + change;
+    const currentQty = parseFloat(quantityInput.value);
+    const newQty = currentQty + change;
 
-    const updates = [{
-        product_id: productId,
-        variant_id: variantId,
-        quantity: newQuantity
-    }];
+    if (newQty < minimumOrder) {
+        showToast(`Minimum order is ${minimumOrder} ${unitType === 'piece' ? 'pcs' : unitType}`, 'error');
+        return;
+    }
 
     try {
-        const response = await fetch('./functions/update_cart.php', {
+        const response = await fetch('./functions/update_cart_quantity.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(updates)
+            body: JSON.stringify({
+                cart_index: cartIndex,
+                quantity: newQty
+            })
         });
 
-        // First check if response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -267,18 +297,18 @@ function initCartEventHandlers() {
     // Add new event listener
     document.addEventListener('click', handleCartClick);
 }
-
 // Handle all cart-related clicks
 function handleCartClick(e) {
     // Increase quantity
     if (e.target.classList.contains('increase-quantity')) {
         const item = e.target.closest('.cart-item');
         if (item) {
-            updateCartItemQuantity(item, 1);
+            const orderIncrement = parseFloat(item.dataset.orderIncrement);
+            updateCartItemQuantity(item, orderIncrement);
         }
     }
     
-    // In your handleCartClick function
+    // Decrease quantity
     if (e.target.classList.contains('decrease-quantity')) {
         const item = e.target.closest('.cart-item');
         if (item) {
@@ -287,12 +317,19 @@ function handleCartClick(e) {
                 console.error('Quantity input not found');
                 return;
             }
-            const currentQty = parseInt(quantityInput.value);
-            if (currentQty > 1) {
-                updateCartItemQuantity(item, -1);
-            } else {
-                showToast('Minimum quantity is 1', 'error');
+            const currentQty = parseFloat(quantityInput.value);
+            const minimumOrder = parseFloat(item.dataset.minimumOrder);
+            const orderIncrement = parseFloat(item.dataset.orderIncrement);
+            
+            // Check if decreasing would go below minimum
+            if (currentQty - orderIncrement < minimumOrder) {
+                const unitType = item.dataset.unitType;
+                const unitDisplay = unitType === 'piece' ? 'pcs' : unitType;
+                showToast(`Cannot go below minimum order of ${minimumOrder} ${unitDisplay}`, 'error');
+                return;
             }
+            
+            updateCartItemQuantity(item, -orderIncrement);
         }
     }
     
@@ -307,16 +344,145 @@ function handleCartClick(e) {
     }
 }
 
+// Update quantity buttons state based on minimum order
+function updateQuantityButtonsState() {
+    document.querySelectorAll('.cart-item').forEach(item => {
+        const quantityInput = item.querySelector('.quantity');
+        const decreaseBtn = item.querySelector('.decrease-quantity');
+        
+        if (quantityInput && decreaseBtn) {
+            const currentQty = parseFloat(quantityInput.value);
+            const minimumOrder = parseFloat(item.dataset.minimumOrder);
+            const orderIncrement = parseFloat(item.dataset.orderIncrement);
+            
+            // Disable decrease button if at minimum or would go below minimum
+            if (currentQty - orderIncrement < minimumOrder) {
+                decreaseBtn.disabled = true;
+                decreaseBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                decreaseBtn.classList.remove('hover:bg-orange-600');
+            } else {
+                decreaseBtn.disabled = false;
+                decreaseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                decreaseBtn.classList.add('hover:bg-orange-600');
+            }
+        }
+    });
+}
+
+async function updateCartItemQuantity(item, change) {
+    const cartIndex = parseInt(item.dataset.cartIndex);
+    const unitType = item.dataset.unitType;
+    const minimumOrder = parseFloat(item.dataset.minimumOrder);
+    const orderIncrement = parseFloat(item.dataset.orderIncrement);
+    const quantityInput = item.querySelector('.quantity');
+    
+    if (!quantityInput) {
+        console.error('Quantity input not found');
+        showToast('Error updating quantity', 'error');
+        return;
+    }
+
+    const currentQty = parseFloat(quantityInput.value);
+    const newQty = currentQty + change;
+
+    if (newQty < minimumOrder) {
+        const unitDisplay = unitType === 'piece' ? 'pcs' : unitType;
+        showToast(`Minimum order is ${minimumOrder} ${unitDisplay}`, 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('./functions/update_cart_quantity.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cart_index: cartIndex,
+                quantity: newQty
+            })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Invalid response: ${text}`);
+        }
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            await updateCartUI();
+        } else {
+            showToast(data.message || 'Failed to update quantity', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(error.message || 'An error occurred', 'error');
+    }
+}
+
+async function updateCartUI() {
+    try {
+        const response = await fetch('./functions/fetch_cart_items.php');
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Server returned: ${text}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'error') {
+            throw new Error(data.message);
+        }
+        
+        if (data.cart_items) {
+            document.getElementById('cart-items-list').innerHTML = data.cart_items;
+        }
+        
+        if (data.cart_total !== undefined) {
+            document.getElementById('cart-total-sidebar').textContent = `₱${data.cart_total.toFixed(2)}`;
+        }
+        
+        if (data.cart_count !== undefined) {
+            document.querySelectorAll('.cart-count').forEach(el => {
+                el.textContent = data.cart_count;
+                el.classList.add('animate-bounce');
+                setTimeout(() => el.classList.remove('animate-bounce'), 1000);
+            });
+        }
+        
+        // Update button states after cart refresh
+        updateQuantityButtonsState();
+        
+        initCartEventHandlers();
+    } catch (error) {
+        console.error('Cart update error:', error);
+        showToast(error.message || 'Error updating cart', 'error');
+    }
+}
+
+// Initialize cart event handlers
+function initCartEventHandlers() {
+    document.removeEventListener('click', handleCartClick);
+    document.addEventListener('click', handleCartClick);
+    
+    // Update button states on init
+    updateQuantityButtonsState();
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     initCartEventHandlers();
     
-    // Open cart when clicking cart icon (if exists)
     document.querySelectorAll('[data-cart-toggle]').forEach(btn => {
         btn.addEventListener('click', openOffCanvas);
     });
     
-    // Add animation styles dynamically
+    // Update button states on page load
+    updateQuantityButtonsState();
+    
     const style = document.createElement('style');
     style.textContent = `
         @keyframes fadeIn {

@@ -147,308 +147,430 @@ $result = $conn->query($query);
   <!-- End Content -->
 
   <div id="addProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-3xl xl:max-w-3xl max-h-[50vh] flex flex-col">
-        <div class="overflow-y-auto max-h-[40vh]">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Product</h3>
-            
-            <form action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-                <!-- Product Name -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Product Name</label>
-                    <input type="text" name="product_name" placeholder="Product Name" required class="w-full px-3 py-2 border rounded-lg">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Product Description -->
+      <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-4xl xl:max-w-4xl max-h-[90vh] flex flex-col">
+          <div class="overflow-y-auto flex-1">
+              <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Product</h3>
+              
+              <form action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+                  <!-- Product Name -->
                   <div>
-                      <label class="block text-sm font-medium text-gray-700">Product Description</label>
-                      <input type="text" name="product_description" placeholder="Description" required class="w-full px-3 py-2 border rounded-lg">
+                      <label class="block text-sm font-medium text-gray-700">Product Name</label>
+                      <input type="text" name="product_name" placeholder="Product Name" required class="w-full px-3 py-2 border rounded-lg">
                   </div>
 
-                  <!-- Product Category -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Category</label>
-                      <select name="product_category" required class="w-full px-3 py-2 border rounded-lg">
-                          <option value="" disabled selected>Select a category</option>
-                          <?php
-                          $sql = "SELECT * FROM product_categories";
-                          $result = mysqli_query($conn, $sql);
-                          while ($row = mysqli_fetch_assoc($result)) {
-                              $category_id = $row['category_id'];
-                              $category_name = $row['category_name'];
-                              echo "<option value=\"$category_id\">$category_name</option>";
-                          }
-                          ?>
-                      </select>
-                  </div>
-                </div>
-
-                <!-- 🛑 START VARIANT LIST -->
-                <h4 class="font-semibold text-lg text-gray-800">Variants</h4>
-
-                <!-- Dynamic Variant Container -->
-                <div id="variantContainer">
-                    <!-- Default Variant Row -->
-                    <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                        <!-- Variant Name -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                            <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                        </div>
-
-                        <!-- Stock Quantity -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Stock</label>
-                            <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                        </div>
-
-                        <!-- Price -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Price</label>
-                            <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                        </div>
-
-                        <!-- Discount Price -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                            <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        </div>
-
-                        <!-- Delete Variant Button --> 
-
-                        <div>                            
-                            <label class="block text-sm font-medium text-gray-700">&nbsp;</label>
-                            <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">🗑 Delete</button>
-                        </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <!-- Product Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Product Description</label>
+                        <input type="text" name="product_description" placeholder="Description" required class="w-full px-3 py-2 border rounded-lg">
                     </div>
-                </div>
 
-                <!-- Add Variant Button -->
-                <div class="flex justify-end mt-3">
-                    <button type="button" id="addVariant" style="background-color: #22c55e;" class="py-2 px-3 items-center text-sm font-medium rounded-lg border border-transparent text-white">+ Add Variant</button>
-                </div>
-                <!-- 🛑 END VARIANT LIST -->
+                    <!-- Product Category -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Category</label>
+                        <select name="product_category" required class="w-full px-3 py-2 border rounded-lg">
+                            <option value="" disabled selected>Select a category</option>
+                            <?php
+                            $sql = "SELECT * FROM product_categories";
+                            $result = mysqli_query($conn, $sql);
+                            while ($row = mysqli_fetch_assoc($result)) {
+                                $category_id = $row['category_id'];
+                                $category_name = $row['category_name'];
+                                echo "<option value=\"$category_id\">$category_name</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                  </div>
 
-                <!-- Product Images Upload -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Upload Product Images</label>
-                    <input type="file" id="productImages" name="product_images[]" multiple required class="hidden" accept="image/*">
-                    <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('productImages').click()">📸 Select Images</button>
-                    <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
+                  <!-- Variants Section -->
+                  <h4 class="font-semibold text-lg text-gray-800">Variants</h4>
 
-                    <!-- Image Preview Section -->
-                    <div id="imagePreview" class="grid grid-cols-5 gap-2 mt-3"></div>
-                </div>
+                  <!-- Dynamic Variant Container -->
+                  <div id="variantContainer">
+                      <!-- Default Variant Row -->
+                      <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Size</label>
+                              <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Size" required>
+                          </div>
 
-                <div class="flex justify-end space-x-3 mt-4">
-    
-                  <button type="submit" name="add_product" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Add Product</button>
-                  <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="document.getElementById('addProductModal').classList.add('hidden')">Cancel</button>
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Unit</label>
+                              <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg" required>
+                                  <option value="kg">Kilogram</option>
+                                  <option value="piece">Piece</option>
+                                  <option value="gram">Gram</option>
+                              </select>
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Price</label>
+                              <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Price" required>
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Discount</label>
+                              <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Discount">
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Min Order</label>
+                              <input type="number" name="minimum_order[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="Min Order" required>
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Increment</label>
+                              <input type="number" name="order_increment[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="1" required>
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Stock</label>
+                              <input type="number" min="0" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg" placeholder="0" required>
+                          </div>
+
+                          <div>
+                              <label class="block text-xs font-medium text-gray-700">Action</label>
+
+                              <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
+                              🗑 Delete
+                              </button>
+                          </div>
                           
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                      </div>
+                  </div>
+
+                  <!-- Add Variant Button -->
+                  <div class="flex justify-end mt-3">
+                      <button type="button" id="addVariant" style="background-color: #22c55e;" class="py-2 px-3 items-center text-sm font-medium rounded-lg border border-transparent text-white">+ Add Variant</button>
+                  </div>
+
+                  <!-- Product Images Upload -->
+                  <div>
+                      <label class="block text-sm font-medium text-gray-700">Upload Product Images</label>
+                      <input type="file" id="productImages" name="product_images[]" multiple required class="hidden" accept="image/*">
+                      <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('productImages').click()">📸 Select Images</button>
+                      <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
+
+                      <!-- Image Preview Section -->
+                      <div id="imagePreview" class="grid grid-cols-5 gap-2 mt-3"></div>
+                  </div>
+
+                  <div class="flex justify-end space-x-3 mt-4">
+                    <button type="submit" name="add_product" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700">Add Product</button>
+                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200" onclick="document.getElementById('addProductModal').classList.add('hidden')">Cancel</button>
+                  </div>
+              </form>
+          </div>
+      </div>
+  </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      // 🛠️ Utility Functions
-      function addVariant(container) {
-          const variantHTML = `
-              <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                  <!-- Hidden Variant ID (for existing variants) -->
-                  <input type="hidden" name="variant_id[]" value="">
-                  <!-- Variant Name -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                      <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                  </div>
-                  <!-- Stock Quantity -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Stock</label>
-                      <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                  </div>
-                  <!-- Price -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Price</label>
-                      <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                  </div>
-                  <!-- Discount Price -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                      <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                  </div>
-                  <!-- Delete Variant Button -->
-                  <div class="flex items-end">
-                      <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">
-                            🗑 Delete
-                      </button>
-                  </div>
-              </div>
-          `;
-          container.insertAdjacentHTML("beforeend", variantHTML);
-      }
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+        
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        };
 
-      function removeVariant(event) {
-          if (event.target.classList.contains("removeVariant")) {
-              event.target.closest(".variantRow").remove();
-          }
-      }
+        function showAlert(message, type = 'success') {
+            alert(message); // You can replace this with a better toast notification
+        }
 
-      // 🎯 Add Modal Variant Handling
-      const addVariantContainer = document.getElementById("variantContainer");
-      const addVariantBtn = document.getElementById("addVariant");
+        // ==========================================
+        // ADD PRODUCT MODAL
+        // ==========================================
+        
+        // Open modal
+        document.querySelectorAll("[data-modal-target]").forEach(button => {
+            button.addEventListener("click", function() {
+                const modalId = this.getAttribute("data-modal-target");
+                document.getElementById(modalId).classList.remove("hidden");
+            });
+        });
 
-      if (addVariantBtn && addVariantContainer) {
-          addVariantBtn.addEventListener("click", () => addVariant(addVariantContainer));
-          addVariantContainer.addEventListener("click", removeVariant);
-      }
+        // Add variant functionality
+        const addVariantContainer = document.getElementById("variantContainer");
+        const addVariantBtn = document.getElementById("addVariant");
 
-      // 🎯 Update Modal Variant Handling
-      const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
-
-      updateVariantContainers.forEach(container => {
-          const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
-          if (addVariantBtn) {
-              addVariantBtn.addEventListener("click", () => addVariant(container));
-              container.addEventListener("click", removeVariant);
-          }
-      });
-
-      function handleImageUpload(inputId, previewId) {
-        const imageInput = document.getElementById(inputId);
-        const previewContainer = document.getElementById(previewId);
-        let selectedFiles = [];
-
-        if (imageInput && previewContainer) {
-          imageInput.addEventListener("change", function (event) {
-            const newFiles = Array.from(event.target.files);
-            if (selectedFiles.length + newFiles.length > 5) {
-              alert("You can only upload up to 5 images.");
-              return;
-            }
-            selectedFiles.push(...newFiles);
-            updateImagePreview();
-          });
-
-          function updateImagePreview() {
-            previewContainer.innerHTML = "";
-            selectedFiles.forEach((file, index) => {
-              const reader = new FileReader();
-              reader.onload = function (e) {
-                const div = document.createElement("div");
-                div.classList.add("relative");
-
-                const img = document.createElement("img");
-                img.src = e.target.result;
-                img.classList.add("w-auto", "h-auto", "object-cover", "rounded-lg", "border");
-
-                const removeBtn = document.createElement("button");
-                removeBtn.innerHTML = "X";
-                removeBtn.classList.add(
-                  "absolute", "top-0", "right-0", "bg-red-600", "text-white",
-                  "rounded-full", "text-xs", "w-8", "h-8", "flex", "items-center", "justify-center"
-                );
-
-                removeBtn.addEventListener("click", () => {
-                  selectedFiles.splice(index, 1);
-                  updateImagePreview();
-                });
-
-                div.appendChild(img);
-                div.appendChild(removeBtn);
-                previewContainer.appendChild(div);
-              };
-              reader.readAsDataURL(file);
+        if (addVariantBtn && addVariantContainer) {
+            addVariantBtn.addEventListener("click", function() {
+                const variantHTML = `
+                    <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Size</label>
+                            <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Size" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Unit</label>
+                            <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg" required>
+                                <option value="kg">Kilogram</option>
+                                <option value="piece">Piece</option>
+                                <option value="gram">Gram</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Price</label>
+                            <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Price" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Discount</label>
+                            <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Discount">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Min Order</label>
+                            <input type="number" name="minimum_order[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="Min Order" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Increment</label>
+                            <input type="number" name="order_increment[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="Increment" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Stock</label>
+                            <input type="number" min="0" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg" placeholder="0" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Action</label>
+                            <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                               🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+                addVariantContainer.insertAdjacentHTML("beforeend", variantHTML);
             });
 
-            const dataTransfer = new DataTransfer();
-            selectedFiles.forEach((file) => dataTransfer.items.add(file));
-            imageInput.files = dataTransfer.files;
-          }
+            // Delete variant in add modal
+            addVariantContainer.addEventListener("click", function(e) {
+                if (e.target.classList.contains("removeVariant")) {
+                    e.target.closest(".variantRow").remove();
+                }
+            });
         }
-      }
 
-      // Handle both Add and Update Modals
-      handleImageUpload("productImages", "imagePreview"); // For Add Modal
-      handleImageUpload("newImageInput", "newImagePreview"); // For Update Modal
+        // Image preview for add modal
+        const productImages = document.getElementById("productImages");
+        const imagePreview = document.getElementById("imagePreview");
+        let selectedFiles = [];
 
-      // 🎯 Modal Handling
-      document.querySelectorAll("[data-modal-target]").forEach(button => {
-          button.addEventListener("click", function () {
-              const modalId = this.getAttribute("data-modal-target");
-              document.getElementById(modalId).classList.remove("hidden");
-          });
-      });
+        if (productImages && imagePreview) {
+            productImages.addEventListener("change", function(e) {
+                const newFiles = Array.from(e.target.files);
+                if (selectedFiles.length + newFiles.length > 5) {
+                    alert("You can only upload up to 5 images.");
+                    return;
+                }
+                selectedFiles.push(...newFiles);
+                updateImagePreview();
+            });
 
-      window.closeModal = function (modalId) {
-          document.getElementById(modalId).classList.add("hidden");
-      };
-  });
-  </script>
+            function updateImagePreview() {
+                imagePreview.innerHTML = "";
+                selectedFiles.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const div = document.createElement("div");
+                        div.className = "relative";
+                        div.innerHTML = `
+                            <img src="${e.target.result}" class="w-full h-24 object-cover rounded-lg border">
+                            <button type="button" class="remove-image absolute top-0 right-0 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center" data-index="${index}">
+                                ×
+                            </button>
+                        `;
+                        imagePreview.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
 
-  <script>
-  document.addEventListener("DOMContentLoaded", function () {
-      // Update Modal Variant Handling
-      const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
+                const dataTransfer = new DataTransfer();
+                selectedFiles.forEach(file => dataTransfer.items.add(file));
+                productImages.files = dataTransfer.files;
+            }
 
-      updateVariantContainers.forEach(container => {
-          const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
+            imagePreview.addEventListener("click", function(e) {
+                if (e.target.classList.contains("remove-image")) {
+                    const index = parseInt(e.target.dataset.index);
+                    selectedFiles.splice(index, 1);
+                    updateImagePreview();
+                }
+            });
+        }
 
-          // Function to add a new variant input set in Update Modal
-          addVariantBtn.addEventListener("click", function () {
-              const variantHTML = `
-                  <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                      <!-- Hidden Variant ID (for existing variants) -->
-                      <input type="hidden" name="variant_id[]" value="">
+        // ==========================================
+        // EDIT PRODUCT MODAL
+        // ==========================================
+        
+        window.openEditModal = function(productId) {
+            fetch(`./functions/fetch_products.php?product_id=${productId}`)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('modalContent').innerHTML = data;
+                    document.getElementById('editProductModal').classList.remove('hidden');
+                    initializeUpdateModal();
+                })
+                .catch(error => console.error('Error:', error));
+        };
 
-                      <!-- Variant Name -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                          <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
+        function initializeUpdateModal() {
+            const deletedVariants = new Set();
+            const deletedImages = new Set();
+            let selectedNewFiles = [];
 
-                      <!-- Stock Quantity -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Stock</label>
-                          <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
+            // Handle variant deletion
+            document.querySelectorAll('.variantRow').forEach(row => {
+                const deleteBtn = row.querySelector('.removeVariant');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function() {
+                        const variantId = row.dataset.variantId;
+                        if (variantId) {
+                            deletedVariants.add(variantId);
+                            document.getElementById('deletedVariants').value = Array.from(deletedVariants).join(',');
+                        }
+                        row.remove();
+                    });
+                }
+            });
 
-                      <!-- Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Price</label>
-                          <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                      </div>
+            // Add new variant in update modal
+            const addVariantBtn = document.querySelector('.addVariant');
+            if (addVariantBtn) {
+                addVariantBtn.addEventListener('click', function() {
+                    const container = document.querySelector('.updateVariantContainer');
+                    const variantHTML = `
+                        <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
+                            <input type="hidden" name="variant_id[]" value="">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Size</label>
+                                <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Size" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Unit</label>
+                                <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg text-sm" required>
+                                    <option value="piece">Piece</option>
+                                    <option value="kg">Kilogram</option>
+                                    <option value="gram">Gram</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Price</label>
+                                <input type="number" name="variant_price[]" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Price" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Discount</label>
+                                <input type="number" name="discount_price[]" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Discount">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Min Order</label>
+                                <input type="number" name="minimum_order[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Min Order" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Increment</label>
+                                <input type="number" name="order_increment[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Increment" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Stock</label>
+                                <input type="number" name="stock_quantity[]" value="0" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="0" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Action</label>
+                                <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600">
+                                   🗑 Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', variantHTML);
+                    
+                    const newRow = container.lastElementChild;
+                    newRow.querySelector('.removeVariant').addEventListener('click', () => newRow.remove());
+                });
+            }
 
-                      <!-- Discount Price -->
-                      <div>
-                          <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                          <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                      </div>
+            // Handle image deletion
+            document.querySelectorAll('.delete-image-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const imageDiv = this.closest('.current-image');
+                    const imageId = imageDiv.dataset.imageId;
+                    
+                    if (confirm('Delete this image?')) {
+                        deletedImages.add(imageId);
+                        document.getElementById('deletedImages').value = Array.from(deletedImages).join(',');
+                        imageDiv.remove();
+                        
+                        const container = document.getElementById('currentImagesContainer');
+                        if (container.querySelectorAll('.current-image').length === 0) {
+                            container.innerHTML = '<p class="text-gray-500 text-sm col-span-5">No images</p>';
+                        }
+                    }
+                });
+            });
 
-                      <!-- Delete Variant Button -->
-                      <div class="flex items-end">
-                          <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
-                            🗑 Delete
-                          </button>
-                      </div>
-                  </div>
-              `;
+            // Handle new image selection in update modal
+            const newImageInput = document.getElementById('newImageInput');
+            const newImagePreview = document.getElementById('newImagePreview');
+            
+            if (newImageInput && newImagePreview) {
+                newImageInput.addEventListener('change', function(e) {
+                    const newFiles = Array.from(e.target.files);
+                    const currentImageCount = document.querySelectorAll('.current-image').length;
+                    const totalCount = currentImageCount + selectedNewFiles.length + newFiles.length;
+                    
+                    if (totalCount > 5) {
+                        alert('Maximum 5 images allowed total');
+                        return;
+                    }
+                    
+                    selectedNewFiles.push(...newFiles);
+                    updateNewImagePreview();
+                });
 
-              // Append new variant input fields
-              container.insertAdjacentHTML("beforeend", variantHTML);
-          });
+                function updateNewImagePreview() {
+                    newImagePreview.innerHTML = '';
+                    selectedNewFiles.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const div = document.createElement('div');
+                            div.className = 'relative group';
+                            div.innerHTML = `
+                                <img src="${e.target.result}" class="w-full h-24 object-cover rounded-lg shadow">
+                                <button type="button" class="remove-new-image absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600" data-index="${index}">
+                                    ×
+                                </button>
+                            `;
+                            newImagePreview.appendChild(div);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    const dataTransfer = new DataTransfer();
+                    selectedNewFiles.forEach(file => dataTransfer.items.add(file));
+                    newImageInput.files = dataTransfer.files;
+                }
 
-          // Event delegation to handle dynamically added "Delete" buttons in Update Modal
-          container.addEventListener("click", function (event) {
-              if (event.target.classList.contains("removeVariant")) {
-                  event.target.closest(".variantRow").remove();
-              }
-          });
-      });
-  });
-  </script>
+                newImagePreview.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('remove-new-image')) {
+                        const index = parseInt(e.target.dataset.index);
+                        selectedNewFiles.splice(index, 1);
+                        updateNewImagePreview();
+                    }
+                });
+            }
+        }
+
+        // ==========================================
+        // DELETE PRODUCT MODAL
+        // ==========================================
+        
+        window.openDeleteModal = function(productId, productName) {
+            document.getElementById('deleteProductId').value = productId;
+            document.getElementById('deleteProductName').innerText = `Are you sure you want to delete ${productName}?`;
+            document.getElementById('deleteProductModal').classList.remove('hidden');
+        };
+    });
+    </script>
 
   <?php $conn->close(); ?>
 

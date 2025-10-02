@@ -147,28 +147,39 @@ elseif (isset($_POST['add_product'])) {
         $product_id = $stmt->insert_id;
         $stmt->close();
 
-        // Insert Variants
+        // Insert Variants with new fields
         if (!empty($_POST['variant_name'])) {
             $variant_names = $_POST['variant_name'];
+            $unit_types = $_POST['unit_type'];
+            $minimum_orders = $_POST['minimum_order'];
+            $order_increments = $_POST['order_increment'];
             $stock_quantities = $_POST['stock_quantity'];
             $variant_prices = $_POST['variant_price'];
             $discount_prices = $_POST['discount_price'] ?? [];
 
             for ($i = 0; $i < count($variant_names); $i++) {
                 $variant_name = htmlspecialchars(trim($variant_names[$i]));
+                $unit_type = $unit_types[$i];
+                $minimum_order = floatval($minimum_orders[$i]);
+                $order_increment = floatval($order_increments[$i]);
                 $stock_quantity = intval($stock_quantities[$i]);
                 $variant_price = floatval($variant_prices[$i]);
                 $discount_price = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
+                
+                // Determine stock status
+                $stock_status = $stock_quantity > 0 ? 'In Stock' : 'Out of Stock';
 
-                $insert_variant_query = "INSERT INTO product_variants (product_id, variant_name, stock_quantity, variant_price, discount_price) VALUES (?, ?, ?, ?, ?)";
+                $insert_variant_query = "INSERT INTO product_variants 
+                    (product_id, variant_name, unit_type, minimum_order, order_increment, stock_quantity, variant_price, discount_price, stock_status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($insert_variant_query);
-                $stmt->bind_param("isidd", $product_id, $variant_name, $stock_quantity, $variant_price, $discount_price);
+                $stmt->bind_param("issddidd s", $product_id, $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status);
                 $stmt->execute();
                 $stmt->close();
             }
         }
 
-        // Image Uploads with Primary Flag
+        // Image Uploads (keep your existing image upload code)
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../../uploads/products/";
             $firstImage = true;

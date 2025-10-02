@@ -1,45 +1,43 @@
 <?php
-header('Content-Type: application/json');
 session_start();
+header('Content-Type: application/json');
 
-error_reporting(0);
-ini_set('display_errors', 0);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
+    exit;
+}
 
-try {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        throw new Exception('Invalid request method');
-    }
+$input = json_decode(file_get_contents('php://input'), true);
 
-    $json = file_get_contents('php://input');
-    $data = json_decode($json, true);
-    
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception('Invalid JSON data');
-    }
+if (!isset($input['product_id'], $input['variant_id'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Missing required fields']);
+    exit;
+}
 
-    $productId = filter_var($data['product_id'] ?? 0, FILTER_VALIDATE_INT);
-    $variantId = filter_var($data['variant_id'] ?? 0, FILTER_VALIDATE_INT);
+$product_id = (int)$input['product_id'];
+$variant_id = (int)$input['variant_id'];
 
-    if ($productId === false || $variantId === false) {
-        throw new Exception('Invalid product or variant ID');
-    }
+if (!isset($_SESSION['cart'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Cart is empty']);
+    exit;
+}
 
-    if (isset($_SESSION['cart'])) {
-        $_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($productId, $variantId) {
-            return !($item['product_id'] == $productId && $item['variant_id'] == $variantId);
-        });
-        
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Item removed from cart'
-        ]);
-    } else {
-        throw new Exception('Cart is empty');
-    }
-} catch (Exception $e) {
+$initial_count = count($_SESSION['cart']);
+$_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($product_id, $variant_id) {
+    return !($item['product_id'] == $product_id && $item['variant_id'] == $variant_id);
+});
+
+if (count($_SESSION['cart']) < $initial_count) {
     echo json_encode([
-        'status' => 'error',
-        'message' => $e->getMessage()
+        'status' => 'success',
+        'message' => 'Item removed',
+        'cart_count' => count($_SESSION['cart']),
+        'cart_total' => array_sum(array_map(function($item) {
+            return $item['price'] * $item['quantity'];
+        }, $_SESSION['cart']))
     ]);
+} else {
+    echo json_encode(['status' => 'error', 'message' => 'Item not found in cart']);
 }
 exit;
+?>

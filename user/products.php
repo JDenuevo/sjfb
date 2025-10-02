@@ -11,17 +11,20 @@ if (!isset($_SESSION['loggedinasuser']) || $_SESSION['loggedinasuser'] !== true 
 // Retrieve the logged-in customer's account_id
 $account_id = $_SESSION['account_id'];
 
-// Fetch all products with their primary image and variants
+// Fetch all products with their primary image and variants (including new fields)
 $query = "SELECT p.product_id, p.product_name, p.product_description, 
             pi.image_path, 
-            v.variant_id, v.variant_name, v.variant_price, v.discount_price
+            v.variant_id, v.variant_name, v.variant_price, v.discount_price,
+            v.unit_type, v.minimum_order, v.order_increment
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
     LEFT JOIN product_variants v ON p.product_id = v.product_id
+    WHERE v.stock_status = 'In Stock'
     ORDER BY p.created_at DESC";
 
 $result = $conn->query($query);
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -65,8 +68,6 @@ $result = $conn->query($query);
     </div>
   </div>
   <!-- End Content -->
-
-  <!-- JS Implementing Plugins -->
 
   <!-- JS PLUGINS -->
   <!-- Required plugins -->

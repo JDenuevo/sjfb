@@ -9,371 +9,190 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 
 $product_id = $_GET['product_id'];
 
-$query = "SELECT
-    p.product_id,
-    p.product_name,
-    p.product_description,
-    c.category_name,
-    IFNULL(MAX(v.stock_status), 'Out of Stock') AS stock_status,
-    GROUP_CONCAT(DISTINCT v.variant_name ORDER BY v.created_at DESC SEPARATOR ', ') AS variants,
-    GROUP_CONCAT(DISTINCT v.variant_price ORDER BY v.created_at DESC SEPARATOR ', ') AS prices,
-    GROUP_CONCAT(DISTINCT v.discount_price ORDER BY v.created_at DESC SEPARATOR ', ') AS discount_prices,
-    GROUP_CONCAT(DISTINCT v.stock_quantity ORDER BY v.created_at DESC SEPARATOR ', ') AS stock_quantities,
-    MAX(v.created_at) AS last_updated
-FROM products p
-LEFT JOIN product_categories c ON p.product_category = c.category_id
-LEFT JOIN product_variants v ON p.product_id = v.product_id
-WHERE p.product_id = ?
-GROUP BY p.product_id, p.product_name, p.product_description, c.category_name
-ORDER BY last_updated DESC;";
-
+// Fetch product details
+$query = "SELECT p.*, c.category_id, c.category_name 
+          FROM products p
+          LEFT JOIN product_categories c ON p.product_category = c.category_id
+          WHERE p.product_id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $product_id);
 $stmt->execute();
 $result = $stmt->get_result();
-$row = $result->fetch_assoc();
+$product = $result->fetch_assoc();
+$stmt->close();
+
+// Fetch variants
+$variant_query = "SELECT * FROM product_variants WHERE product_id = ? ORDER BY variant_id";
+$variant_stmt = $conn->prepare($variant_query);
+$variant_stmt->bind_param("i", $product_id);
+$variant_stmt->execute();
+$variants = $variant_stmt->get_result();
+$variant_stmt->close();
+
+// Fetch images
+$image_query = "SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC";
+$image_stmt = $conn->prepare($image_query);
+$image_stmt->bind_param("i", $product_id);
+$image_stmt->execute();
+$images = $image_stmt->get_result();
+$image_stmt->close();
+
+// Fetch categories for dropdown
+$categories = $conn->query("SELECT * FROM product_categories ORDER BY category_name");
 ?>
 
 <h3 class="text-xl font-semibold mb-4 text-gray-800">Update Product</h3>
                   
 <form action="./functions/update.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-    <!-- Hidden Product ID -->
-    <input type="hidden" name="product_id" value="<?php echo $row['product_id']; ?>">
+    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+    <input type="hidden" name="deleted_variants" id="deletedVariants" value="">
+    <input type="hidden" name="deleted_images" id="deletedImages" value="">
 
     <!-- Product Name -->
     <div>
         <label class="block text-sm font-medium text-gray-700">Product Name</label>
-        <input type="text" name="product_name" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['product_name']); ?>" required>
+        <input type="text" name="product_name" class="w-full px-3 py-2 border rounded-lg" 
+               value="<?= htmlspecialchars($product['product_name']) ?>" required>
     </div>
     
     <div class="grid grid-cols-2 gap-4">
         <!-- Product Description -->
         <div>
             <label class="block text-sm font-medium text-gray-700">Product Description</label>
-            <input type="text" name="product_description" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['product_description']); ?>" required>
+            <input type="text" name="product_description" class="w-full px-3 py-2 border rounded-lg" 
+                   value="<?= htmlspecialchars($product['product_description']) ?>" required>
         </div>
 
         <!-- Product Category -->
         <div>
             <label class="block text-sm font-medium text-gray-700">Category</label>
             <select name="product_category" required class="w-full px-3 py-2 border rounded-lg">
-                <option value="" disabled>Select a category</option>
-                <?php
-                $sql = "SELECT * FROM product_categories";
-                $result = mysqli_query($conn, $sql);
-                while ($category = mysqli_fetch_assoc($result)) {
-                    $selected = ($category['category_id'] == $row['product_category']) ? "selected" : "";
-                    echo "<option value='{$category['category_id']}' $selected>{$category['category_name']}</option>";
-                }
-                ?>
+                <?php while ($cat = $categories->fetch_assoc()): ?>
+                    <option value="<?= $cat['category_id'] ?>" 
+                            <?= $cat['category_id'] == $product['product_category'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($cat['category_name']) ?>
+                    </option>
+                <?php endwhile; ?>
             </select>
         </div>
     </div>
-    <!-- 🛑 START VARIANT LIST -->
+
+    <!-- Variants Section -->
     <h4 class="font-semibold text-lg text-gray-800">Variants</h4>
 
-    <!-- Dynamic Variant Container -->
     <div class="updateVariantContainer">
-        <?php
-        $variant_query = "SELECT * FROM product_variants WHERE product_id = ?";
-        $variant_stmt = $conn->prepare($variant_query);
-        $variant_stmt->bind_param("i", $row['product_id']);
-        $variant_stmt->execute();
-        $variant_result = $variant_stmt->get_result();
+        <?php while ($variant = $variants->fetch_assoc()): ?>
+        <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow" data-variant-id="<?= $variant['variant_id'] ?>">
+            <input type="hidden" name="variant_id[]" value="<?= $variant['variant_id'] ?>">
+            
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Size</label>
+                <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= htmlspecialchars($variant['variant_name']) ?>" required>
+            </div>
 
-        while ($variant = $variant_result->fetch_assoc()) {
-            echo '
-            <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                <!-- Hidden Variant ID -->
-                <input type="hidden" name="variant_id[]" value="' . $variant['variant_id'] . '">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Unit</label>
+                <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg text-sm" required>
+                    <option value="piece" <?= $variant['unit_type'] == 'piece' ? 'selected' : '' ?>>Piece</option>
+                    <option value="kg" <?= $variant['unit_type'] == 'kg' ? 'selected' : '' ?>>Kilogram</option>
+                    <option value="gram" <?= $variant['unit_type'] == 'gram' ? 'selected' : '' ?>>Gram</option>
+                </select>
+            </div>
 
-                <!-- Variant Name -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                    <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" value="' . htmlspecialchars($variant['variant_name']) . '" required>
-                </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Price</label>
+                <input type="number" name="variant_price[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= $variant['variant_price'] ?>" step="0.01" min="0" required>
+            </div>
 
-                <!-- Stock Quantity -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Stock</label>
-                    <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" value="' . htmlspecialchars($variant['stock_quantity']) . '" required>
-                </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Discount</label>
+                <input type="number" name="discount_price[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= $variant['discount_price'] ?>" step="0.01" min="0">
+            </div>
 
-                <!-- Price -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Price</label>
-                    <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" value="' . htmlspecialchars($variant['variant_price']) . '" required>
-                </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Min Order</label>
+                <input type="number" name="minimum_order[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= $variant['minimum_order'] ?>" step="0.01" min="0.01" required>
+            </div>
 
-                <!-- Discount Price -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                    <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" value="' . htmlspecialchars($variant['discount_price']) . '">
-                </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Increment</label>
+                <input type="number" name="order_increment[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= $variant['order_increment'] ?>" step="0.01" min="0.01" required>
+            </div>
 
-                <!-- Delete Variant Button -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">&nbsp;</label>
-                      <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">
-                        🗑 Delete
-                    </button>
-                </div>
-            </div>';
-        }
-        $variant_stmt->close();
-        ?>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Stock</label>
+                <input type="number" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg text-sm" 
+                       value="<?= $variant['stock_quantity'] ?>" min="0" required>
+            </div>
+
+            <!-- Delete Variant Button -->
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Action</label>
+                <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white text-sm rounded-lg">
+                🗑 Delete
+                </button>
+            </div>
+
+            
+        </div>
+        <?php endwhile; ?>
     </div>
 
     <!-- Add Variant Button -->
     <div class="flex justify-end mt-3">
-        <button type="button" style="background-color: #22c55e;" class="addVariant py-2 px-3 items-center text-sm font-medium rounded-lg border border-transparent text-white"">+ Add Variant</button>
+        <button type="button" style="background-color: #22c55e;" class="addVariant py-2 px-3 text-sm font-medium rounded-lg bg-orange-500 text-white hover:bg-green-600">
+            + Add Variant
+        </button>
     </div>
-    <!-- 🛑 END VARIANT LIST -->
 
-    <!-- Product Images -->
+    <!-- Current Images -->
     <div class="mt-4">
-        <label class="block text-sm font-medium text-gray-700">Current Product Images</label>
-        <div class="grid grid-cols-5 gap-2 mt-2">
-            <?php
-            $image_query = "SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC";
-            $image_stmt = $conn->prepare($image_query);
-            $image_stmt->bind_param("i", $row['product_id']);
-            $image_stmt->execute();
-            $image_result = $image_stmt->get_result();
-
-            if ($image_result->num_rows > 0) {
-                while ($image = $image_result->fetch_assoc()) {
-                    $image_path = $image['image_path'];
-                    $image_id = $image['image_id'];
-                    echo '
-                    <div class="relative group">
-                        <img src="http://localhost/sjfbi-js/uploads/products/' . htmlspecialchars($image_path) . '" class="w-auto h-auto object-cover rounded-lg shadow">
-                        <button type="button" onclick="deleteImage(' . $image_id . ', ' . $row['product_id'] . ')" class="absolute top-0 right-0 bg-white p-1 rounded-full shadow-md">
-                            <span class="text-red-500 cursor-pointer">🗑</span>
-                        </button>
-                    </div>';
-                }
-            } else {
-                // Show default image when no product images exist
-                echo '
-                <div class="relative group">
-                    <img src="http://localhost/sjfbi-js/uploads/products/default.png" class="w-auto h-auto object-cover rounded-lg shadow">
-                </div>';
-            }
-            $image_stmt->close();
-            ?>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Current Product Images</label>
+        <div id="currentImagesContainer" class="grid grid-cols-5 gap-2">
+            <?php if ($images->num_rows > 0): ?>
+                <?php while ($image = $images->fetch_assoc()): ?>
+                <div class="relative group current-image" data-image-id="<?= $image['image_id'] ?>">
+                    <img src="../uploads/products/<?= htmlspecialchars($image['image_path']) ?>" 
+                         class="w-full h-24 object-cover rounded-lg shadow">
+                    <button type="button" class="delete-image-btn absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
+                        ×
+                    </button>
+                </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <p class="text-gray-500 text-sm col-span-5">No images yet</p>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Upload New Images -->
     <div class="mt-4">
-        <label class="block text-sm font-medium text-gray-700">Update New Images</label>
-        <input type="file" id="newImageInput-<?php echo $row['product_id']; ?>" name="product_images[]" multiple class="hidden" accept="image/*">
-        <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center" onclick="document.getElementById('newImageInput-<?php echo $row['product_id']; ?>').click()">📸 Select Images</button>
-        <p class="text-xs text-gray-500 mt-1">You can select up to 5 images.</p>
+        <label class="block text-sm font-medium text-gray-700">Add New Images</label>
+        <input type="file" id="newImageInput" name="product_images[]" multiple class="hidden" accept="image/*">
+        <button type="button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300" 
+                onclick="document.getElementById('newImageInput').click()">
+            Select Images
+        </button>
+        <p class="text-xs text-gray-500 mt-1">You can select up to 5 images total</p>
     </div>
 
-    <!-- Preview Container -->
-    <div id="newImagePreview-<?php echo $row['product_id']; ?>" class="grid grid-cols-5 gap-2 mt-3"></div>
+    <!-- New Images Preview -->
+    <div id="newImagePreview" class="grid grid-cols-5 gap-2 mt-3"></div>
+
     <!-- Action Buttons -->
     <div class="flex justify-end space-x-3 mt-4">
-    
-      <button type="submit" name="update_product" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Update Product</button>
-      <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('editProductModal')">Cancel</button>
-              
+        <button type="submit" name="update_product" 
+                class="py-2 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+            Update Product
+        </button>
+        <button type="button" onclick="closeModal('editProductModal')" 
+                class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
+            Cancel
+        </button>
     </div>
-
-  </form>
-</div>
-
-<!-- Your existing PHP code remains the same until the JavaScript section -->
-
-<script>
-// This function will be called when the modal content is loaded
-function initializeImagePreview() {
-    // Function to handle image upload preview
-    function handleImageUpload(inputId, previewId) {
-        const imageInput = document.getElementById(inputId);
-        const previewContainer = document.getElementById(previewId);
-        let selectedFiles = [];
-
-        if (imageInput && previewContainer) {
-            imageInput.addEventListener("change", function(event) {
-                const newFiles = Array.from(event.target.files);
-                if (selectedFiles.length + newFiles.length > 5) {
-                    alert("You can only upload up to 5 images.");
-                    return;
-                }
-                selectedFiles.push(...newFiles);
-                updateImagePreview();
-            });
-
-            function updateImagePreview() {
-                previewContainer.innerHTML = "";
-                selectedFiles.forEach((file, index) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const div = document.createElement("div");
-                        div.classList.add("relative", "group");
-
-                        const img = document.createElement("img");
-                        img.src = e.target.result;
-                        img.classList.add("w-full", "h-24", "object-cover", "rounded-lg", "shadow");
-
-                        const removeBtn = document.createElement("button");
-                        removeBtn.innerHTML = "🗑";
-                        removeBtn.classList.add(
-                            "absolute", "top-0", "right-0", "bg-white", "p-1",
-                            "rounded-full", "shadow-md", "text-red-500", "cursor-pointer"
-                        );
-
-                        removeBtn.addEventListener("click", (e) => {
-                            e.preventDefault();
-                            selectedFiles.splice(index, 1);
-                            updateImagePreview();
-                        });
-
-                        div.appendChild(img);
-                        div.appendChild(removeBtn);
-                        previewContainer.appendChild(div);
-                    };
-                    reader.readAsDataURL(file);
-                });
-
-                // Update the actual file input
-                const dataTransfer = new DataTransfer();
-                selectedFiles.forEach((file) => dataTransfer.items.add(file));
-                imageInput.files = dataTransfer.files;
-            }
-        }
-    }
-
-    // Initialize image upload for this specific product
-    const productId = "<?php echo $row['product_id']; ?>";
-    handleImageUpload(`newImageInput-${productId}`, `newImagePreview-${productId}`);
-
-    // Variant handling code
-    const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
-
-    updateVariantContainers.forEach(container => {
-        const addVariantBtn = container.closest("form").querySelector(".addVariant");
-        
-        // Function to add a new variant input set in Update Modal
-        addVariantBtn.addEventListener("click", function() {
-            const variantHTML = `
-                <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-                    <!-- Hidden Variant ID (for existing variants) -->
-                    <input type="hidden" name="variant_id[]" value="">
-
-                    <!-- Variant Name -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-                        <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                    </div>
-
-                    <!-- Stock Quantity -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Stock</label>
-                        <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                    </div>
-
-                    <!-- Price -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Price</label>
-                        <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                    </div>
-
-                    <!-- Discount Price -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-                        <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    </div>
-
-                    <!-- Delete Variant Button -->
-                    <div class="flex items-end">
-                        <button type="button" style="background-color: #ef4444;" class="removeVariant w-full py-2 px-3 items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-white">
-                            🗑 Delete
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            // Append new variant input fields
-            container.insertAdjacentHTML("beforeend", variantHTML);
-        });
-
-        // Event delegation to handle dynamically added "Delete" buttons in Update Modal
-        container.addEventListener("click", function(event) {
-            if (event.target.classList.contains("removeVariant")) {
-                event.target.closest(".variantRow").remove();
-            }
-        });
-    });
-}
-
-// Call the initialization function when the modal content is loaded
-document.addEventListener("DOMContentLoaded", function() {
-    // If the modal content is already loaded (direct page access)
-    if (document.getElementById('editProductModal')) {
-        initializeImagePreview();
-    }
-    
-    // For cases where content is loaded dynamically
-    const modalContent = document.getElementById('modalContent');
-    if (modalContent) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes.length) {
-                    initializeImagePreview();
-                }
-            });
-        });
-        
-        observer.observe(modalContent, {
-            childList: true,
-            subtree: true
-        });
-    }
-});
-</script>
-
-<style>
-/* Image preview styling */
-.image-preview-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.image-preview-item {
-    position: relative;
-    width: 100%;
-    height: 100px;
-}
-
-.image-preview-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 5px;
-    border: 1px solid #e5e7eb;
-}
-
-.image-preview-item button {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background: white;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    cursor: pointer;
-    font-size: 12px;
-    color: #ef4444;
-}
-</style>
+</form>
