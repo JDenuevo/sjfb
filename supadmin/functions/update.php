@@ -200,9 +200,23 @@ elseif (isset($_POST['update_product'])) {
             }
         }
 
-        // Handle deleted images
+        // Handle deleted images - FIXED PRIMARY IMAGE LOGIC
         if (!empty($_POST['deleted_images'])) {
             $deletedImages = explode(',', $_POST['deleted_images']);
+            
+            // Check if any of the deleted images is primary
+            $checkPrimaryQuery = "SELECT image_id FROM product_images WHERE image_id IN (" . implode(',', array_fill(0, count($deletedImages), '?')) . ") AND is_primary = 1";
+            $checkPrimaryStmt = $conn->prepare($checkPrimaryQuery);
+            
+            // Bind parameters
+            $types = str_repeat('i', count($deletedImages));
+            $checkPrimaryStmt->bind_param($types, ...$deletedImages);
+            $checkPrimaryStmt->execute();
+            $primaryResult = $checkPrimaryStmt->get_result();
+            $wasPrimaryDeleted = $primaryResult->num_rows > 0;
+            $checkPrimaryStmt->close();
+
+            // Delete the images
             foreach ($deletedImages as $imageId) {
                 $imageId = intval($imageId);
                 if ($imageId > 0) {
@@ -226,19 +240,42 @@ elseif (isset($_POST['update_product'])) {
                     $stmt->close();
                 }
             }
+
+            // If primary image was deleted, set a new primary image
+            if ($wasPrimaryDeleted) {
+                // Find the first remaining image for this product
+                $findNewPrimaryQuery = "SELECT image_id FROM product_images WHERE product_id = ? ORDER BY image_id ASC LIMIT 1";
+                $findNewPrimaryStmt = $conn->prepare($findNewPrimaryQuery);
+                $findNewPrimaryStmt->bind_param("i", $product_id);
+                $findNewPrimaryStmt->execute();
+                $newPrimaryResult = $findNewPrimaryStmt->get_result();
+                
+                if ($newPrimaryResult->num_rows > 0) {
+                    $newPrimaryId = $newPrimaryResult->fetch_assoc()['image_id'];
+                    
+                    // Set the new primary image
+                    $updatePrimaryQuery = "UPDATE product_images SET is_primary = 1 WHERE image_id = ?";
+                    $updatePrimaryStmt = $conn->prepare($updatePrimaryQuery);
+                    $updatePrimaryStmt->bind_param("i", $newPrimaryId);
+                    $updatePrimaryStmt->execute();
+                    $updatePrimaryStmt->close();
+                }
+                $findNewPrimaryStmt->close();
+            }
         }
 
         // Handle new images
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../../uploads/products/";
             
-            // Check how many images exist
+            // Check how many images exist after deletions
             $stmt = $conn->prepare("SELECT COUNT(*) as count FROM product_images WHERE product_id = ?");
             $stmt->bind_param("i", $product_id);
             $stmt->execute();
             $existingCount = $stmt->get_result()->fetch_assoc()['count'];
             $stmt->close();
             
+            // If no images exist after deletions, the first new image becomes primary
             $isPrimary = ($existingCount == 0) ? 1 : 0;
             
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
@@ -256,6 +293,8 @@ elseif (isset($_POST['update_product'])) {
                             $stmt->bind_param("isi", $product_id, $unique_file_name, $isPrimary);
                             $stmt->execute();
                             $stmt->close();
+                            
+                            // Only the first image should be primary
                             $isPrimary = 0;
                         }
                     }
