@@ -10,7 +10,7 @@ $query = "SELECT p.product_id, p.product_name, p.product_description,
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
     LEFT JOIN product_variants v ON p.product_id = v.product_id
-    WHERE v.stock_status = 'In Stock'
+    WHERE v.stock_status = 'In Stock' AND p.is_deleted = 0
     ORDER BY p.created_at DESC";
 
 $result = $conn->query($query);
@@ -130,18 +130,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   </script>
 
-  
  <script>
-  window.onload = function() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('showModal')) {
-      openModal();
-      // Remove the showModal parameter from the URL after opening the modal
-      params.delete('showModal');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
-</script>
+  // Auto-open modal if redirected with error
+  document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('showModal') === 'true') {
+          openModal();
+          
+          // Remove the parameter from URL without reloading
+          const newUrl = window.location.pathname + window.location.hash;
+          window.history.replaceState({}, document.title, newUrl);
+      }
+  });
+  </script>
 
   <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script>

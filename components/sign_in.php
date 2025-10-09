@@ -26,7 +26,7 @@
       <?php endif; ?>
 
       <!-- Form -->
-      <form action="./functions/checker.php" method="POST">
+      <form action="/sjfbi-js/functions/checker.php" method="POST">
         <div class="grid gap-y-4 mt-5">
           <!-- username Field -->
           <div>
@@ -61,7 +61,7 @@
             </div>
 
             <!-- Forgot Password Link -->
-            <a href="forgot_password.php" class="text-sm text-gray-600 hover:underline transition duration-200">Forgot password?</a>
+            <a href="/sjfbi-js/forgot_password.php" class="text-sm text-gray-600 hover:underline transition duration-200">Forgot password?</a>
           </div>
 
           <!-- Sign In Button -->

@@ -6,7 +6,7 @@
     </p>
   </div>
 
-  <div id="toastContainer"></div>
+  <div id="toastContainer" class="fixed bottom-20 right-4 z-[60] flex flex-col gap-2"></div>
 
   <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
     <?php
@@ -278,14 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    showToast('Product added to cart');
+                    showToast('Product added to cart', 'success'); // GREEN TOAST
                     await updateCartUI();
                     
                     // Reset to minimum order
                     const firstButton = form.querySelector('.variant-button');
                     if (firstButton) firstButton.click();
                 } else {
-                    showToast(data.message || 'Failed to add product', 'error');
+                    showToast(data.message || 'Failed to add product', 'error'); // DARK RED TOAST
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -319,18 +319,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        if (type === 'error') {
-            toast.style.background = '#dc2626';
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            console.error('Toast container not found');
+            return;
         }
-        toast.textContent = message;
-
-        document.getElementById('toastContainer').appendChild(toast);
-
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Add icon based on type
+        let icon = '';
+        if (type === 'success') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+            </svg>`;
+        } else if (type === 'remove') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>`;
+        } else if (type === 'error') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4m0 4h.01"/>
+            </svg>`;
+        }
+        
+        toast.innerHTML = `
+            ${icon}
+            <span class="toast-message">${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Remove toast after animation completes
         setTimeout(() => {
             toast.remove();
-        }, 3500);
+        }, 3000);
     }
 });
 </script>
@@ -342,38 +368,80 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #FFFFFF;
 }
 
+/* Toast Container */
 #toastContainer {
     position: fixed;
-    bottom: 50%;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 50;
+    bottom: 5rem;
+    right: 1rem;
+    z-index: 60;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 0.5rem;
 }
 
+/* Toast Styles */
 .toast {
-    background: #ea580c;
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 9999px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    font-size: 1rem;
-    font-weight: bold;
-    text-align: center;
-    min-width: 250px;
-    animation: fadeIn 0.3s ease-in, fadeOut 0.3s ease-out 3s forwards;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: left;
+    min-width: 280px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
+    color: white;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Green background for added to cart */
+.toast.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* Red background for removed from cart */
+.toast.remove {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Dark red for errors */
+.toast.error {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+}
+
+/* Toast Icons */
+.toast-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 @keyframes fadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(10px); }
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
 }
 
 .animate-bounce {

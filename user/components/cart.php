@@ -14,7 +14,7 @@ function formatUnit($unitType, $quantity = null) {
 ?>
 
 <div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
-    <div id="sidebar-white-bg" class="fixed top-0 right-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-full">
+    <div id="sidebar-white-bg" class="fixed top-0 left-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-full">
         <div class="flex flex-col h-full">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
                 <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span></h2>
@@ -64,7 +64,7 @@ function formatUnit($unitType, $quantity = null) {
                                 </div>
                             </div>
                             <button type="button" class="remove text-red-500 hover:text-red-700 ml-4">
-                                <svg class="w-9 h-9" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M18 6 6 18"></path>
                                     <path d="m6 6 12 12"></path>
                                 </svg>

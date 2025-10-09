@@ -32,47 +32,40 @@ elseif (isset($_POST['delete_product'], $_POST['product_id'])) {
     $conn->begin_transaction();
 
     try {
-        // Step 1: Fetch and delete product images
+        // Step 1: Fetch and delete product images from server
         $imageQuery = "SELECT image_path FROM product_images WHERE product_id = ?";
         $imageStmt = $conn->prepare($imageQuery);
         $imageStmt->bind_param("i", $product_id);
         $imageStmt->execute();
         $imageResult = $imageStmt->get_result();
 
-        // Delete image files from server
         while ($imageRow = $imageResult->fetch_assoc()) {
             $image_path = '../../uploads/products/' . $imageRow['image_path'];
             if (file_exists($image_path)) {
                 unlink($image_path);
             }
         }
+        $imageStmt->close();
 
-        // Delete image records
+        // Step 2: Delete product image records
         $deleteImagesQuery = "DELETE FROM product_images WHERE product_id = ?";
         $deleteImagesStmt = $conn->prepare($deleteImagesQuery);
         $deleteImagesStmt->bind_param("i", $product_id);
         $deleteImagesStmt->execute();
         $deleteImagesStmt->close();
 
-        // Step 2: Delete product variants
-        $deleteVariantsQuery = "DELETE FROM product_variants WHERE product_id = ?";
-        $deleteVariantsStmt = $conn->prepare($deleteVariantsQuery);
-        $deleteVariantsStmt->bind_param("i", $product_id);
-        $deleteVariantsStmt->execute();
-        $deleteVariantsStmt->close();
-
-        // Step 3: Delete the product itself
-        $deleteProductQuery = "DELETE FROM products WHERE product_id = ?";
-        $deleteProductStmt = $conn->prepare($deleteProductQuery);
-        $deleteProductStmt->bind_param("i", $product_id);
-        $deleteProductStmt->execute();
-        $deleteProductStmt->close();
+        // Step 3: SOFT DELETE product (archive it instead of hard delete)
+        $softDeleteQuery = "UPDATE products SET is_deleted = 1, deleted_at = NOW() WHERE product_id = ?";
+        $stmt = $conn->prepare($softDeleteQuery);
+        $stmt->bind_param("i", $product_id);
+        $stmt->execute(); // ✅ This was missing
+        $stmt->close();
 
         $conn->commit();
-        redirectWithMessage("../products.php", "Product and all associated data deleted successfully", "success");
+        redirectWithMessage("../products.php", "Product deleted successfully", "success");
     } catch (Exception $e) {
         $conn->rollback();
-        redirectWithMessage("../products.php", "Failed to delete product: " . $e->getMessage(), "error");
+        redirectWithMessage("../products.php", "Failed to deleted product: " . $e->getMessage(), "error");
     }
     exit();
 }

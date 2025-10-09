@@ -116,7 +116,7 @@
               </td>
 
               <td class="px-6 py-3">
-                <span class="block text-sm font-semibold text-gray-800 ">₱<?= !empty($row['prices']) ? htmlspecialchars($row['prices']) : 'No Prices Available' ?></span>
+                <span class="block text-sm font-semibold text-gray-800 "><?= !empty($row['prices']) ? htmlspecialchars($row['prices']) : 'No Prices Available' ?></span>
               </td>
 
               <td class="px-6 py-3">
@@ -142,7 +142,7 @@
             </div>
           </div>
         </div>
-
+        
         <!-- Footer -->
         <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
           <div>
@@ -230,6 +230,7 @@
   </div>
 </div>
 
+
 <style>
   .product-row {
     transition: all 0.2s ease;
@@ -242,127 +243,3 @@
     border-left-color: #3b82f6;
   }
 </style>
-
-
-<script>
-function openEditModal(productId) {
-  fetch(`./functions/fetch_products.php?product_id=${productId}`)
-    .then(response => response.text())
-    .then(data => {
-      document.getElementById('modalContent').innerHTML = data;
-      document.getElementById('editProductModal').classList.remove('hidden');
-
-      // Reinitialize variant handling
-      reinitializeVariantHandling();
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-function reinitializeVariantHandling() {
-  const updateVariantContainers = document.querySelectorAll(".updateVariantContainer");
-
-  updateVariantContainers.forEach(container => {
-    const addVariantBtn = container.closest(".modal-content").querySelector(".addVariant");
-    if (addVariantBtn) {
-      addVariantBtn.addEventListener("click", () => addVariant(container));
-      container.addEventListener("click", removeVariant);
-    }
-  });
-}
-
-function addVariant(container) {
-  const variantHTML = `
-    <div class="grid grid-cols-5 gap-4 py-2 pb-4 variantRow">
-      <!-- Hidden Variant ID (for existing variants) -->
-      <input type="hidden" name="variant_id[]" value="">
-      <!-- Variant Name -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Variant Name</label>
-        <input type="text" name="variant_name[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-      </div>
-      <!-- Stock Quantity -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Stock</label>
-        <input type="number" min="1" name="stock_quantity[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-      </div>
-      <!-- Price -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Price</label>
-        <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-      </div>
-      <!-- Discount Price -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Discount Price</label>
-        <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-      </div>
-      <!-- Delete Variant Button -->
-      <div class="flex items-end">
-        <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
-          🗑 Delete
-        </button>
-      </div>
-    </div>
-  `;
-  container.insertAdjacentHTML("beforeend", variantHTML);
-}
-
-function removeVariant(event) {
-  if (event.target.classList.contains("removeVariant")) {
-    event.target.closest(".variantRow").remove();
-  }
-}
-function handleImageUpload(inputId, previewId) {
-  const imageInput = document.getElementById(inputId);
-  const previewContainer = document.getElementById(previewId);
-  let selectedFiles = [];
-
-  if (imageInput && previewContainer) {
-    imageInput.addEventListener("change", function (event) {
-      const newFiles = Array.from(event.target.files);
-      if (selectedFiles.length + newFiles.length > 5) {
-        alert("You can only upload up to 5 images.");
-        return;
-      }
-      selectedFiles.push(...newFiles);
-      updateImagePreview();
-    });
-
-    function updateImagePreview() {
-      previewContainer.innerHTML = "";
-      selectedFiles.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const div = document.createElement("div");
-          div.classList.add("relative");
-
-          const img = document.createElement("img");
-          img.src = e.target.result;
-          img.classList.add("w-auto", "h-auto", "object-cover", "rounded-lg", "border");
-
-          const removeBtn = document.createElement("button");
-          removeBtn.innerHTML = "X";
-          removeBtn.classList.add(
-            "absolute", "top-0", "right-0", "bg-red-600", "text-white",
-            "rounded-full", "text-xs", "w-8", "h-8", "flex", "items-center", "justify-center"
-          );
-
-          removeBtn.addEventListener("click", () => {
-            selectedFiles.splice(index, 1);
-            updateImagePreview();
-          });
-
-          div.appendChild(img);
-          div.appendChild(removeBtn);
-          previewContainer.appendChild(div);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      const dataTransfer = new DataTransfer();
-      selectedFiles.forEach((file) => dataTransfer.items.add(file));
-      imageInput.files = dataTransfer.files;
-    }
-  }
-}
-</script>
-

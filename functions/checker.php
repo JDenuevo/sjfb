@@ -2,6 +2,9 @@
 session_start();
 include '../conn.php';
 
+// Get the base URL
+$baseUrl = '/sjfbi-js/';
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $errors = [];
 
@@ -34,19 +37,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Redirect based on role
                 if ($row['role'] === 'customer') {
                     $_SESSION["loggedinasuser"] = true;
-                    header("Location: ../user/products.php");
+                    header("Location: {$baseUrl}user/products.php");
                     exit();
                 } elseif ($row['role'] === 'admin') {
                     $_SESSION["loggedinasadmin"] = true;
-                    header("Location: ../admin/dashboard.php");
+                    header("Location: {$baseUrl}admin/dashboard.php");
                     exit();
                 } elseif ($row['role'] === 'super_admin') {
                     $_SESSION["loggedinassupadmin"] = true;
-                    header("Location: ../supadmin/dashboard.php");
+                    header("Location: {$baseUrl}supadmin/dashboard.php");
                     exit();
                 } elseif ($row['role'] === 'rider') {
                     $_SESSION["loggedinasrider"] = true;
-                    header("Location: ../rider/dashboard.php");
+                    header("Location: {$baseUrl}rider/dashboard.php");
                     exit();
                 } else {
                     $_SESSION['error_message'] = "Unknown user role.";
@@ -63,8 +66,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['error_message'] = implode("<br>", $errors);
     }
 
-    // Redirect to login page with modal open
-    header("Location: ../?showModal=true");
+    // Redirect to homepage with modal open - USING ABSOLUTE PATH
+    header("Location: {$baseUrl}?showModal=true");
     exit();
 }
 ?>

@@ -3,7 +3,7 @@ session_start();
 include '../../conn.php';
 
 // Check if the admin is logged in
-if (!isset($_SESSION['loggedinasadmin']) || $_SESSION['loggedinasadmin'] !== true || !isset($_SESSION['account_id'])) {
+if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !== true || !isset($_SESSION['account_id'])) {
   header("HTTP/1.1 403 Forbidden");
   exit;
 }

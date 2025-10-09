@@ -1,3 +1,5 @@
+<!-- item.php -->
+
 <?php
 include 'conn.php'; // Database connection
 
@@ -13,14 +15,16 @@ if (empty($productName)) {
     die();
 }
 
-// Fetch product by name with its variants and images
+// Fetch product by name with its variants and images - EXCLUDE SOFT-DELETED PRODUCTS
 $query = "SELECT p.*, 
-                 pv.variant_id, pv.variant_name, pv.variant_price, pv.discount_price, pv.stock_quantity,
+                 pv.variant_id, pv.variant_name, pv.variant_price, pv.discount_price, 
+                 pv.unit_type, pv.minimum_order, pv.order_increment,
                  pi.image_path, pi.is_primary
           FROM products p
           LEFT JOIN product_variants pv ON p.product_id = pv.product_id
           LEFT JOIN product_images pi ON p.product_id = pi.product_id
           WHERE LOWER(REPLACE(p.product_name, ' ', '-')) = LOWER(REPLACE(?, ' ', '-'))
+          AND p.is_deleted = 0
           ORDER BY p.product_id, pv.variant_id, pi.is_primary DESC";
 
 $stmt = $conn->prepare($query);
@@ -33,11 +37,12 @@ if ($result->num_rows === 0) {
     include('404.php');
     die();
 }
+
 // Process the result set
 $product = null;
 $variants = [];
 $images = [];
-$primaryImage = null; // Initialize as null instead of 'default-image.jpg'
+$primaryImage = null;
 
 while ($row = $result->fetch_assoc()) {
     if ($product === null) {
@@ -53,8 +58,10 @@ while ($row = $result->fetch_assoc()) {
         $variants[$row['variant_id']] = [
             'variant_name' => $row['variant_name'],
             'variant_price' => $row['variant_price'],
-            'discount_price' => $row['discount_price'] ? $row['discount_price'] : $row['variant_price'],
-            'stock' => $row['stock_quantity']
+            'discount_price' => $row['discount_price'],
+            'unit_type' => $row['unit_type'],
+            'minimum_order' => $row['minimum_order'],
+            'order_increment' => $row['order_increment'],
         ];
     }
     
@@ -75,13 +82,8 @@ if (empty($primaryImage) && !empty($images)) {
 // If no images at all, use default.png
 if (empty($images)) {
     $primaryImage = 'default.png';
-    $images = ['default.png']; // Add default to images array for thumbnails
+    $images = ['default.png'];
 }
-
-// Set default price to first variant if exists
-$defaultVariant = reset($variants);
-$defaultPrice = $defaultVariant ? $defaultVariant['variant_price'] : 0;
-$defaultDiscountPrice = $defaultVariant ? $defaultVariant['discount_price'] : 0;
 
 // Generate canonical URL
 $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['product_name']));
@@ -121,42 +123,84 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
 <style>
 .selected-variant {
     background-color: #f59e0b;
-    border-color: #000000;
+    border-color: #f59e0b;
     color: #FFFFFF;
 }
 
+/* Toast Container */
 #toastContainer {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 50;
+    bottom: 5rem;
+    right: 1rem;
+    z-index: 60;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    gap: 0.5rem;
 }
 
+/* Toast Styles */
 .toast {
-    background: #ea580c;
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    font-size: 1rem;
-    font-weight: bold;
-    text-align: center;
-    min-width: 250px;
-    margin-bottom: 10px;
-    animation: fadeIn 0.3s ease-in, fadeOut 0.3s ease-out 3s forwards;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: left;
+    min-width: 280px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
+    color: white;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Green background for added to cart */
+.toast.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* Red background for removed from cart */
+.toast.remove {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Dark red for errors */
+.toast.error {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+}
+
+/* Toast Icons */
+.toast-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 @keyframes fadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(10px); }
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
 }
 
 .animate-bounce {
@@ -166,32 +210,6 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
 @keyframes bounce {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.5); }
-}
-
-.loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.toast.success {
-    background-color: #10b981;
-}
-
-.toast.error {
-    background-color: #ef4444;
-}
-
-.variant-message {
-    display: none;
 }
 </style>
 
@@ -206,22 +224,19 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
       <span class="text-gray-800"><?= htmlspecialchars($product['product_name']) ?></span>
     </div>
 
+    <!-- TOAST CONTAINER HERE -->
     <div id="toastContainer"></div>
 
     <div class="grid md:grid-cols-3 gap-4">
       <div class="md:col-span-1 shadow-lg p-4 rounded-3xl">
         <!-- Product Image & Thumbnails -->
         <div class="flex flex-col items-center">
-            <!-- Main Image Zoom Area -->
-            <div class="max-w-xl zoom-container rounded-lg" id="zoomContainer">
+            <!-- Main Image -->
+            <div class="max-w-xl rounded-lg relative">
                 <img id="mainImage"
                     src="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>"
-                    class="zoom-image rounded-lg"
+                    class="rounded-lg"
                     alt="<?= htmlspecialchars($product['product_name']) ?>">
-
-                <div id="zoomOverlay" class="zoom-overlay rounded-lg"
-                    style="background-image: url('<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>');">
-                </div>
             </div>
 
             <!-- Thumbnails - Only show if we have more than one image -->
@@ -243,75 +258,79 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
         <h1 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($product['product_name']) ?></h1>
         <p class="mt-2 text-gray-600"><?= htmlspecialchars($product['product_description']) ?></p>
 
-        <!-- Price and Discount -->
-        <div class="flex items-center space-x-3 mt-4">
-          <?php if (!empty($variants) && $defaultDiscountPrice < $defaultPrice): ?>
-            <span class="price-display text-gray-500 line-through text-lg">₱<?= number_format($defaultPrice, 2) ?></span>
-          <?php endif; ?>
-          <span class="discount-display text-red-600 font-bold text-2xl">₱<?= number_format($defaultDiscountPrice, 2) ?></span>
-          <?php if (!empty($variants) && $defaultDiscountPrice < $defaultPrice): ?>
-            <span class="discount-percent bg-red-600 text-white text-xs px-2 py-1 rounded-full">
-              SAVE <?= number_format(100 - ($defaultDiscountPrice / $defaultPrice * 100), 0) ?>%
-            </span>
-          <?php endif; ?>
-        </div>
-
-        <!-- Variant Selection -->
-        <?php if (!empty($variants)): ?>
-          <div class="mt-2">
-              <label class="block text-sm font-medium text-gray-700">Select Size:</label>
-              <div class="flex flex-wrap gap-4 variant-buttons-container">
-                  <?php foreach ($variants as $variant_id => $variant): ?>
-                      <button type="button" 
-                              class="variant-button px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 text-dark <?= $variant === reset($variants) ? 'selected-variant' : '' ?>"
-                              data-variant-id="<?= $variant_id ?>"
-                              data-price="<?= htmlspecialchars($variant['variant_price']) ?>"
-                              data-discount="<?= htmlspecialchars($variant['discount_price']) ?>"
-                              onclick="selectVariant(this)">
-                          <?= htmlspecialchars($variant['variant_name']) ?>
-                      </button>
-                  <?php endforeach; ?>
-              </div>
-          </div>
-        <?php endif; ?>
-
-        <!-- Quantity Selector -->
-        <div class="flex items-center mt-5">
-          <span class="mr-3 text-gray-700">Quantity:</span>
-          
-          <div class="flex items-center justify-start">
-              <div class="flex items-center border border-gray-300 rounded mx-2">
-                  <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600">-</button>
-                  <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="1" readonly>
-                  <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600">+</button>
-              </div>
-              &nbsp;
-          </div>
-        </div>
-
-        <!-- Call-to-Action Buttons -->
-        <div class="flex flex-col space-y-3 mt-6">
-          <!-- Add to Cart Form -->
-          <form class="add-to-cart-form">
+        <!-- Add to Cart Form -->
+        <form class="add-to-cart-form" data-product-id="<?= $product['product_id'] ?>">
             <input type="hidden" name="add_to_cart" value="1">
             <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
-            <input type="hidden" name="variant_id" value="<?= !empty($variants) ? key($variants) : '' ?>">
+            <input type="hidden" name="variant_id" value="">
             <input type="hidden" name="product_name" value="<?= htmlspecialchars($product['product_name']) ?>">
-            <input type="hidden" name="variant_name" value="<?= !empty($variants) ? reset($variants)['variant_name'] : '' ?>">
-            <input type="hidden" name="price" value="<?= $defaultDiscountPrice ?>">
+            <input type="hidden" name="variant_name" value="">
+            <input type="hidden" name="price" value="">
             <input type="hidden" name="image_url" value="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>">
-            <input type="hidden" name="quantity" value="1">
-            
+            <input type="hidden" name="quantity" value="">
+            <input type="hidden" name="unit_type" value="">
+            <input type="hidden" name="minimum_order" value="">
+            <input type="hidden" name="order_increment" value="">
+
+            <!-- Variant Buttons -->
+            <?php if (!empty($variants)): ?>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700">Select Size:</label>
+                <div class="flex flex-wrap gap-2">
+                    <?php 
+                    $first = true;
+                    foreach ($variants as $variant_id => $variant) { ?>
+                        <button type="button"
+                            class="variant-button px-3 py-2 border rounded-lg text-sm font-medium 
+                                hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 text-dark 
+                                <?= $first ? 'selected-variant' : '' ?>"
+                            data-product-id="<?= $product['product_id'] ?>"
+                            data-variant-id="<?= $variant_id ?>"
+                            data-variant-name="<?= htmlspecialchars($variant['variant_name']) ?>"
+                            data-variant-price="<?= $variant['variant_price'] ?>"
+                            data-discount-price="<?= $variant['discount_price'] ?>"
+                            data-unit-type="<?= $variant['unit_type'] ?>"
+                            data-minimum-order="<?= $variant['minimum_order'] ?>"
+                            data-order-increment="<?= $variant['order_increment'] ?>">
+                            <?= htmlspecialchars($variant['variant_name']) ?>
+                        </button>
+                    <?php 
+                        $first = false;
+                    } ?>
+                </div>
+            </div>
+            <?php else: ?>
+                <p class="text-red-500 text-sm mt-2">No variants available for this product.</p>
+            <?php endif; ?>
+
+            <!-- Quantity Selector with Unit Display -->
+            <div class="mt-3">
+                <div class="flex items-center">
+                    <div class="flex items-center border border-gray-300 rounded">
+                        <button type="button" class="decrease-quantity px-3 py-2 rounded-l hover:bg-orange-600 hover:text-white">-</button>
+                        <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="" placeholder="1" readonly>
+                        <button type="button" class="increase-quantity px-3 py-2 rounded-r hover:bg-orange-600 hover:text-white">+</button>
+                    </div>
+                    &nbsp;
+                    <span class="ml-2 text-sm font-medium text-gray-600 unit-display"></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 minimum-order-text"></p>
+            </div>
+
+            <!-- Price and Discount Display -->
+            <div class="price-display mt-3"></div>
+
+            <!-- Add to Cart Button -->
             <button type="submit" name="add_to_cart" 
-                    class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-105 transition-all duration-500 disabled:opacity-50"
-                    <?= empty($variants) ? '' : 'disabled' ?>>
-              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
-              ADD TO CART
+                    class="cursor-pointer mt-4 w-full py-3 rounded-lg justify-center items-center inline-flex bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 focus:outline-none" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
+                    Add to Cart
             </button>
-          </form>
-          
-          <p class="text-red-500 text-sm mt-2 variant-message" style="display: none;">Please select a variant first.</p>
-        </div>
+
+            <!-- Message to select a variant -->
+            <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
+            <p class="text-red-500 text-sm mt-2 minimum-error-message hidden"></p>
+        </form>
       </div>
     </div>
   </div>
@@ -320,407 +339,250 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
 <?php include('./components/footer.php'); ?>
 
 <script>
-
-function changeImage(imageName) {
-  // Skip if trying to change to the same image
-  if (imageName === document.getElementById('mainImage').src.split('/').pop()) {
-      return;
-  }
-  
-  const fullPath = "<?= $baseUrl ?>uploads/products/" + imageName;
-  document.getElementById('mainImage').src = fullPath;
-  document.getElementById('zoomOverlay').style.backgroundImage = `url('${fullPath}')`;
-}
-  
-// Toast notification function
-function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    const container = document.getElementById('toastContainer');
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('animate-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
-// Change main product image
-function changeImage(newImage) {
-    document.getElementById('mainImage').src = '<?= $baseUrl ?>uploads/products/' + newImage;
-}
-
-// Variant selection handler
-function selectVariant(button) {
-    // Update active state for all variant buttons
-    const variantButtons = document.querySelectorAll('.variant-button');
-    variantButtons.forEach(btn => {
-        btn.classList.remove('selected-variant');
-    });
-    button.classList.add('selected-variant');
-    
-    // Update prices
-    const price = parseFloat(button.dataset.price);
-    const discountPrice = parseFloat(button.dataset.discount);
-    
-    // Update displayed prices
-    const priceDisplay = document.querySelector('.price-display');
-    const discountDisplay = document.querySelector('.discount-display');
-    const discountPercent = document.querySelector('.discount-percent');
-    
-    if (discountDisplay) discountDisplay.textContent = `₱${discountPrice.toFixed(2)}`;
-    
-    if (priceDisplay && discountPrice < price) {
-        priceDisplay.textContent = `₱${price.toFixed(2)}`;
-        priceDisplay.style.display = 'inline';
-        if (discountPercent) {
-            discountPercent.textContent = `SAVE ${Math.round(100 - (discountPrice / price * 100))}%`;
-            discountPercent.style.display = 'inline';
-        }
-    } else {
-        if (priceDisplay) priceDisplay.style.display = 'none';
-        if (discountPercent) discountPercent.style.display = 'none';
-    }
-    
-    // Update form fields
-    const form = document.querySelector('.add-to-cart-form');
-    form.querySelector('input[name="variant_id"]').value = button.dataset.variantId;
-    form.querySelector('input[name="variant_name"]').value = button.textContent.trim();
-    form.querySelector('input[name="price"]').value = discountPrice;
-    
-    // Enable add to cart button
-    form.querySelector('button[name="add_to_cart"]').disabled = false;
-    
-    // Hide variant message
-    document.querySelector('.variant-message').style.display = 'none';
-}
 document.addEventListener('DOMContentLoaded', function() {
-    // Quantity increase
-    document.querySelectorAll('.increase-quantity').forEach(button => {
+    // Handle variant selection
+    document.querySelectorAll('.variant-button').forEach(button => {
         button.addEventListener('click', function() {
-            const quantityInput = this.parentElement.querySelector('.quantity');
-            const newValue = parseInt(quantityInput.value) + 1;
-            quantityInput.value = newValue;
-            document.querySelector('input[name="quantity"]').value = newValue;
+            const productId = button.dataset.productId;
+            const variantId = button.dataset.variantId;
+            const variantName = button.dataset.variantName;
+            const variantPrice = parseFloat(button.dataset.variantPrice);
+            const discountPrice = parseFloat(button.dataset.discountPrice);
+            const unitType = button.dataset.unitType;
+            const minimumOrder = parseFloat(button.dataset.minimumOrder);
+            const orderIncrement = parseFloat(button.dataset.orderIncrement);
+
+            const form = document.querySelector('.add-to-cart-form');
+            
+            // Remove selected class from all variant buttons
+            form.querySelectorAll('.variant-button').forEach(btn => {
+                btn.classList.remove('selected-variant');
+            });
+            button.classList.add('selected-variant');
+
+            // Update hidden fields
+            form.querySelector('input[name="variant_id"]').value = variantId;
+            form.querySelector('input[name="variant_name"]').value = variantName;
+            form.querySelector('input[name="price"]').value = discountPrice > 0 ? discountPrice : variantPrice;
+            form.querySelector('input[name="unit_type"]').value = unitType;
+            form.querySelector('input[name="minimum_order"]').value = minimumOrder;
+            form.querySelector('input[name="order_increment"]').value = orderIncrement;
+
+            // Set quantity to minimum order
+            const quantityInput = form.querySelector('.quantity');
+            quantityInput.value = minimumOrder;
+            form.querySelector('input[name="quantity"]').value = minimumOrder;
+
+            // Update unit display
+            const unitDisplay = form.querySelector('.unit-display');
+            unitDisplay.textContent = unitType === 'piece' ? 'pcs' : unitType;
+
+            // Update minimum order text
+            const minOrderText = form.querySelector('.minimum-order-text');
+            minOrderText.textContent = `Minimum: ${minimumOrder} ${unitType === 'piece' ? 'pcs' : unitType}`;
+
+            // Update displayed price
+            updatePriceDisplay(form, variantPrice, discountPrice, minimumOrder);
+
+            // Enable "Add to Cart"
+            form.querySelector('button[name="add_to_cart"]').disabled = false;
+            form.querySelector('.variant-message').classList.add('hidden');
+            form.querySelector('.minimum-error-message').classList.add('hidden');
         });
     });
 
-    // Quantity decrease
-    document.querySelectorAll('.decrease-quantity').forEach(button => {
-        button.addEventListener('click', function() {
-            const quantityInput = this.parentElement.querySelector('.quantity');
-            const newValue = Math.max(1, parseInt(quantityInput.value) - 1);
-            quantityInput.value = newValue;
-            document.querySelector('input[name="quantity"]').value = newValue;
-        });
+    // Handle quantity changes
+    document.querySelector('.decrease-quantity').addEventListener('click', function() {
+        const form = document.querySelector('.add-to-cart-form');
+        const quantityInput = form.querySelector('.quantity');
+        const minimumOrder = parseFloat(form.querySelector('input[name="minimum_order"]').value);
+        const orderIncrement = parseFloat(form.querySelector('input[name="order_increment"]').value);
+        const currentQty = parseFloat(quantityInput.value);
+
+        const newQty = Math.max(minimumOrder, currentQty - orderIncrement);
+        quantityInput.value = newQty.toFixed(2).replace(/\.?0+$/, '');
+        form.querySelector('input[name="quantity"]').value = newQty;
+        
+        updateTotalPrice(form);
     });
-   
-    // Add to cart form submission
+
+    document.querySelector('.increase-quantity').addEventListener('click', function() {
+        const form = document.querySelector('.add-to-cart-form');
+        const quantityInput = form.querySelector('.quantity');
+        const orderIncrement = parseFloat(form.querySelector('input[name="order_increment"]').value);
+        const currentQty = parseFloat(quantityInput.value);
+
+        const newQty = currentQty + orderIncrement;
+        quantityInput.value = newQty.toFixed(2).replace(/\.?0+$/, '');
+        form.querySelector('input[name="quantity"]').value = newQty;
+        
+        updateTotalPrice(form);
+    });
+
+    function updatePriceDisplay(form, variantPrice, discountPrice, quantity) {
+        const priceDisplay = form.querySelector('.price-display');
+        const price = discountPrice > 0 ? discountPrice : variantPrice;
+        const total = price * quantity;
+
+        if (discountPrice > 0) {
+            priceDisplay.innerHTML = `
+                <span class="line-through text-gray-500 text-lg">₱${(variantPrice * quantity).toFixed(2)}</span>
+                <span class="text-red-600 font-bold text-2xl ml-2">₱${total.toFixed(2)}</span>
+            `;
+        } else {
+            priceDisplay.innerHTML = `
+                <span class="text-gray-800 font-bold text-2xl">₱${total.toFixed(2)}</span>
+            `;
+        }
+    }
+
+    function updateTotalPrice(form) {
+        const quantity = parseFloat(form.querySelector('.quantity').value);
+        const price = parseFloat(form.querySelector('input[name="price"]').value);
+        const variantPrice = parseFloat(form.querySelector('.selected-variant').dataset.variantPrice);
+        const discountPrice = parseFloat(form.querySelector('.selected-variant').dataset.discountPrice);
+        
+        updatePriceDisplay(form, variantPrice, discountPrice, quantity);
+    }
+
+    // Auto-select first variant on load
+    const firstButton = document.querySelector('.variant-button');
+    if (firstButton) firstButton.click();
+
+    // Enhanced add to cart handler with validation
     document.querySelector('.add-to-cart-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        const variantId = this.querySelector('input[name="variant_id"]').value;
+
+        const form = this;
+        const variantId = form.querySelector('input[name="variant_id"]').value;
+        const quantity = parseFloat(form.querySelector('input[name="quantity"]').value);
+        const minimumOrder = parseFloat(form.querySelector('input[name="minimum_order"]').value);
+        const unitType = form.querySelector('input[name="unit_type"]').value;
+        const errorMessage = form.querySelector('.minimum-error-message');
+
         if (!variantId) {
-            document.querySelector('.variant-message').style.display = 'block';
+            form.querySelector('.variant-message').classList.remove('hidden');
             return;
         }
-        
-        const submitBtn = this.querySelector('button[name="add_to_cart"]');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="loading-spinner"></span> Adding...';
-        
+
+        if (quantity < minimumOrder) {
+            errorMessage.textContent = `Minimum order is ${minimumOrder} ${unitType === 'piece' ? 'pcs' : unitType}`;
+            errorMessage.classList.remove('hidden');
+            return;
+        }
+
         try {
-            const response = await fetch('<?= $baseUrl ?>functions/add_to_cart.php', {
+            // Use absolute path to ensure it works from any URL
+            const response = await fetch('/sjfbi-js/functions/add_to_cart.php', {
                 method: 'POST',
-                body: new FormData(this),
-                headers: {
-                    'Accept': 'application/json'
-                }
+                body: new FormData(form)
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
             
             const data = await response.json();
             
             if (data.status === 'success') {
-                showToast('Product added to cart', 'success');
-                await updateCartCount();
-                await updateCartItems();
+                showToast('Product added to cart', 'success'); // GREEN TOAST
+                await updateCartUI();
             } else {
-                showToast(data.message || 'Failed to add product', 'error');
+                showToast(data.message || 'Failed to add product', 'error'); // DARK RED TOAST
             }
         } catch (error) {
             console.error('Error:', error);
-            showToast('Failed to add to cart. Please try again.', 'error');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                    <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                    <path d="M17 17h-11v-14h-2" />
-                    <path d="M6 5l14 1l-1 7h-13" />
-                </svg>
-                ADD TO CART
-            `;
+            showToast('An error occurred', 'error');
         }
     });
 
-    // Select first variant by default if available
-    const firstVariantBtn = document.querySelector('.variant-button.selected-variant');
-    if (firstVariantBtn) {
-        selectVariant(firstVariantBtn);
+    async function updateCartUI() {
+        try {
+            // Use absolute path from root
+            const response = await fetch('/sjfbi-js/functions/fetch_cart_items.php');
+            
+            // First check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`Server returned: ${text}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.status === 'error') {
+                throw new Error(data.message);
+            }
+            
+            // Update cart items list
+            if (data.cart_items) {
+                document.getElementById('cart-items-list').innerHTML = data.cart_items;
+            }
+            
+            // Update cart total
+            if (data.cart_total !== undefined) {
+                document.getElementById('cart-total-sidebar').textContent = `₱${data.cart_total.toFixed(2)}`;
+            }
+            
+            // Update all cart count elements
+            if (data.cart_count !== undefined) {
+                document.querySelectorAll('.cart-count').forEach(el => {
+                    el.textContent = data.cart_count;
+                    el.classList.add('animate-bounce');
+                    setTimeout(() => el.classList.remove('animate-bounce'), 1000);
+                });
+            }
+            
+            // Reinitialize event handlers
+            initCartEventHandlers();
+        } catch (error) {
+            console.error('Cart update error:', error);
+            showToast(error.message || 'Error updating cart', 'error');
+        }
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            console.error('Toast container not found');
+            return;
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Add icon based on type
+        let icon = '';
+        if (type === 'success') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+            </svg>`;
+        } else if (type === 'remove') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>`;
+        } else if (type === 'error') {
+            icon = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4m0 4h.01"/>
+            </svg>`;
+        }
+        
+        toast.innerHTML = `
+            ${icon}
+            <span class="toast-message">${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Remove toast after animation completes
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
     }
 });
 
-// Update cart UI (including items and count)
-async function updateCartUI() {
-    try {
-        await updateCartItems();
-        await updateCartCount();
-    } catch (error) {
-        console.error('Cart update error:', error);
-        showToast('Error updating cart', 'error');
-    }
-}
-
-async function updateCartItems() {
-    try {
-        const response = await fetch('/sjfbi-js/functions/fetch_cart_items.php');
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to fetch cart items: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'error') {
-            throw new Error(data.message);
-        }
-        
-        // Update the cart sidebar content
-        const cartSidebar = document.getElementById('hs-cart-sidebar');
-        if (cartSidebar) {
-            const itemsList = cartSidebar.querySelector('#cart-items-list');
-            if (itemsList) {
-                itemsList.innerHTML = data.cart_items || '<p class="text-center text-gray-500">Your cart is empty.</p>';
-            }
-            
-            const totalElement = cartSidebar.querySelector('#cart-total-sidebar');
-            if (totalElement && data.cart_total !== undefined) {
-                totalElement.textContent = `₱${data.cart_total.toFixed(2)}`;
-            }
-        }
-        
-        // Re-initialize event handlers for the new cart items
-        initCartItemEventHandlers();
-        
-        return data;
-    } catch (error) {
-        console.error('Cart items update error:', error);
-        throw error;
-    }
-}
-function initCartItemEventHandlers() {
-    // Handle quantity increases
-    document.querySelectorAll('.increase-quantity').forEach(button => {
-        button.addEventListener('click', async function() {
-            const cartItem = this.closest('.cart-item');
-            if (!cartItem) return;
-            
-            const productId = cartItem.dataset.productId;
-            const variantId = cartItem.dataset.variantId;
-            const quantityInput = cartItem.querySelector('.quantity');
-            
-            if (!productId || !variantId || !quantityInput) {
-                showToast('Error: Missing cart item data', 'error');
-                return;
-            }
-            
-            const currentQuantity = parseInt(quantityInput.value);
-            const newQuantity = currentQuantity + 1;
-            
-            // Update the UI immediately for better responsiveness
-            quantityInput.value = newQuantity;
-            
-            await updateCartItemQuantity(productId, variantId, newQuantity);
-        });
-    });
-
-    // Handle quantity decreases
-    document.querySelectorAll('.decrease-quantity').forEach(button => {
-        button.addEventListener('click', async function() {
-            const cartItem = this.closest('.cart-item');
-            if (!cartItem) return;
-            
-            const productId = cartItem.dataset.productId;
-            const variantId = cartItem.dataset.variantId;
-            const quantityInput = cartItem.querySelector('.quantity');
-            
-            if (!productId || !variantId || !quantityInput) {
-                showToast('Error: Missing cart item data', 'error');
-                return;
-            }
-            
-            const currentQuantity = parseInt(quantityInput.value);
-            
-            if (currentQuantity <= 1) {
-                showToast('Minimum quantity is 1', 'error');
-                return;
-            }
-            
-            const newQuantity = currentQuantity - 1;
-            
-            // Update the UI immediately for better responsiveness
-            quantityInput.value = newQuantity;
-            
-            await updateCartItemQuantity(productId, variantId, newQuantity);
-        });
-    });
-
-    // Handle item removal
-    document.querySelectorAll('.remove').forEach(button => {
-        button.addEventListener('click', async function() {
-            const cartItem = this.closest('.cart-item');
-            if (!cartItem) return;
-            
-            const productId = cartItem.dataset.productId;
-            const variantId = cartItem.dataset.variantId;
-            
-            if (!productId || !variantId) {
-                showToast('Error: Missing cart item data', 'error');
-                return;
-            }
-            
-            if (confirm('Are you sure you want to remove this item from your cart?')) {
-                await removeCartItem(productId, variantId);
-            }
-        });
-    });
-}
-
-async function updateCartItemQuantity(productId, variantId, quantity) {
-    try {
-        const response = await fetch('/sjfbi-js/functions/update_cart_quantity.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_id: parseInt(productId),
-                variant_id: parseInt(variantId),
-                quantity: parseInt(quantity)
-            })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server error: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            // Update the specific quantity input in the UI immediately
-            const cartItem = document.querySelector(`.cart-item[data-product-id="${productId}"][data-variant-id="${variantId}"]`);
-            if (cartItem) {
-                const quantityInput = cartItem.querySelector('.quantity');
-                if (quantityInput) {
-                    quantityInput.value = quantity;
-                }
-                
-                // Update the price display if it exists
-                const priceDisplay = cartItem.querySelector('.price');
-                if (priceDisplay) {
-                    const pricePerUnit = parseFloat(priceDisplay.dataset.pricePerUnit || '0');
-                    priceDisplay.textContent = `₱${(pricePerUnit * quantity).toFixed(2)}`;
-                }
-            }
-            
-            // Update the cart UI
-            await updateCartUI();
-            showToast('Quantity updated', 'success');
-        } else {
-            throw new Error(data.message || 'Failed to update quantity');
-        }
-    } catch (error) {
-        console.error('Error updating quantity:', error);
-        showToast(error.message || 'Failed to update quantity', 'error');
-        
-        // Revert the quantity in the UI if the update failed
-        const cartItem = document.querySelector(`.cart-item[data-product-id="${productId}"][data-variant-id="${variantId}"]`);
-        if (cartItem) {
-            const quantityInput = cartItem.querySelector('.quantity');
-            if (quantityInput) {
-                const currentValue = parseInt(quantityInput.value);
-                quantityInput.value = currentValue; // This will revert any visual change
-            }
-        }
-    }
-}
-
-async function removeCartItem(productId, variantId) {
-    try {
-        const response = await fetch('/sjfbi-js/functions/remove_from_cart.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                variant_id: variantId
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            await updateCartUI();
-            showToast('Item removed from cart', 'success');
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (error) {
-        console.error('Error removing item:', error);
-        showToast('Failed to remove item', 'error');
-    }
-}
-
-// Initialize cart event handlers when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initCartItemEventHandlers();
-});
-// Update cart count
-async function updateCartCount() {
-    try {
-        // Use absolute path from root
-        const response = await fetch('/sjfbi-js/functions/get_cart_count.php');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        document.querySelectorAll('.cart-count').forEach(el => {
-            el.textContent = data.cart_count || '0';
-            el.classList.add('animate-bounce');
-            setTimeout(() => el.classList.remove('animate-bounce'), 1000);
-        });
-    } catch (error) {
-        console.error('Cart count update error:', error);
-        throw error; // Re-throw to be caught by updateCartUI
-    }
+function changeImage(imageName) {
+    const mainImage = document.getElementById('mainImage');
+    const fullPath = "<?= $baseUrl ?>uploads/products/" + imageName;
+    mainImage.src = fullPath;
 }
 </script>
 

@@ -113,7 +113,6 @@ if (isset($_POST['add_account'])) {
     }
 }
 
-// ✅ Add Product
 elseif (isset($_POST['add_product'])) {
     $product_name = htmlspecialchars(trim($_POST['product_name']));
     $product_description = htmlspecialchars(trim($_POST['product_description']));
@@ -123,22 +122,23 @@ elseif (isset($_POST['add_product'])) {
         redirectWithMessage("../products.php", "All fields are required.", "danger");
     }
 
-    // Check for duplicate product name
-    $check_product_query = "SELECT COUNT(*) FROM products WHERE product_name = ?";
-    $stmt = $conn->prepare($check_product_query);
-    $stmt->bind_param("s", $product_name);
-    $stmt->execute();
-    $stmt->bind_result($product_count);
-    $stmt->fetch();
-    $stmt->close();
-
-    if ($product_count > 0) {
-        redirectWithMessage("../products.php", "Error: Product name already exists.", "danger");
-    }
-
     // Start transaction
     $conn->begin_transaction();
     try {
+        // Check for duplicate product name (including soft-deleted products)
+        $check_product_query = "SELECT COUNT(*) FROM products WHERE product_name = ? AND is_deleted = 0";
+        $stmt = $conn->prepare($check_product_query);
+        $stmt->bind_param("s", $product_name);
+        $stmt->execute();
+        $stmt->bind_result($product_count);
+        $stmt->fetch();
+        $stmt->close();
+
+        if ($product_count > 0) {
+            $conn->rollback();
+            redirectWithMessage("../products.php", "Error: Product name '$product_name' already exists.", "danger");
+        }
+
         // Insert Product
         $insert_product_query = "INSERT INTO products (product_name, product_description, product_category) VALUES (?, ?, ?)";
         $stmt = $conn->prepare($insert_product_query);
@@ -147,7 +147,7 @@ elseif (isset($_POST['add_product'])) {
         $product_id = $stmt->insert_id;
         $stmt->close();
 
-        // Insert Variants with new fields
+        // Insert Variants with duplicate checking
         if (!empty($_POST['variant_name'])) {
             $variant_names = $_POST['variant_name'];
             $unit_types = $_POST['unit_type'];
@@ -157,6 +157,8 @@ elseif (isset($_POST['add_product'])) {
             $variant_prices = $_POST['variant_price'];
             $discount_prices = $_POST['discount_price'] ?? [];
 
+            $existing_variants = []; // Track variants to prevent duplicates
+            
             for ($i = 0; $i < count($variant_names); $i++) {
                 $variant_name = htmlspecialchars(trim($variant_names[$i]));
                 $unit_type = $unit_types[$i];
@@ -166,42 +168,79 @@ elseif (isset($_POST['add_product'])) {
                 $variant_price = floatval($variant_prices[$i]);
                 $discount_price = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
                 
+                // Create unique variant identifier
+                $variant_key = $variant_name . '|' . $unit_type;
+                
+                // Check for duplicate variant in the same form submission
+                if (in_array($variant_key, $existing_variants)) {
+                    $conn->rollback();
+                    redirectWithMessage("../products.php", "Error: Duplicate variant '$variant_name ($unit_type)' found in the same product.", "danger");
+                }
+                $existing_variants[] = $variant_key;
+
+                // Check for existing variant with same name+unit in database for this product
+                $check_variant_query = "SELECT COUNT(*) FROM product_variants 
+                                      WHERE product_id = ? AND variant_name = ? AND unit_type = ?";
+                $stmt = $conn->prepare($check_variant_query);
+                $stmt->bind_param("iss", $product_id, $variant_name, $unit_type);
+                $stmt->execute();
+                $stmt->bind_result($variant_count);
+                $stmt->fetch();
+                $stmt->close();
+
+                if ($variant_count > 0) {
+                    $conn->rollback();
+                    redirectWithMessage("../products.php", "Error: Variant '$variant_name ($unit_type)' already exists for this product.", "danger");
+                }
+
                 // Determine stock status
                 $stock_status = $stock_quantity > 0 ? 'In Stock' : 'Out of Stock';
 
+                // Insert variant
                 $insert_variant_query = "INSERT INTO product_variants 
                     (product_id, variant_name, unit_type, minimum_order, order_increment, stock_quantity, variant_price, discount_price, stock_status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($insert_variant_query);
-                $stmt->bind_param("issddidd s", $product_id, $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status);
+                $stmt->bind_param("issddidds", $product_id, $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status);
                 $stmt->execute();
                 $stmt->close();
             }
         }
 
-        // Image Uploads (keep your existing image upload code)
+        // Image Uploads
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../../uploads/products/";
             $firstImage = true;
+            $uploaded_images = 0;
+            $max_images = 5;
 
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
-                $file_name = basename($_FILES['product_images']['name'][$key]);
-                $file_size = $_FILES['product_images']['size'][$key];
-                $file_type = mime_content_type($tmp_name);
+                if ($uploaded_images >= $max_images) {
+                    break; // Stop if maximum images reached
+                }
 
-                if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) {
-                    $unique_file_name = uniqid() . '_' . $file_name;
-                    $target_file = $target_dir . $unique_file_name;
+                if ($_FILES['product_images']['error'][$key] === UPLOAD_ERR_OK) {
+                    $file_name = basename($_FILES['product_images']['name'][$key]);
+                    $file_size = $_FILES['product_images']['size'][$key];
+                    $file_type = mime_content_type($tmp_name);
 
-                    if (move_uploaded_file($tmp_name, $target_file)) {
-                        $is_primary = $firstImage ? 1 : 0;
-                        $firstImage = false;
+                    // Validate image
+                    if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) {
+                        $unique_file_name = uniqid() . '_' . $file_name;
+                        $target_file = $target_dir . $unique_file_name;
 
-                        $insert_image_query = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)";
-                        $stmt = $conn->prepare($insert_image_query);
-                        $stmt->bind_param("isi", $product_id, $unique_file_name, $is_primary);
-                        $stmt->execute();
-                        $stmt->close();
+                        if (move_uploaded_file($tmp_name, $target_file)) {
+                            $is_primary = $firstImage ? 1 : 0;
+                            $firstImage = false;
+
+                            $insert_image_query = "INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)";
+                            $stmt = $conn->prepare($insert_image_query);
+                            $stmt->bind_param("isi", $product_id, $unique_file_name, $is_primary);
+                            $stmt->execute();
+                            $stmt->close();
+                            
+                            $uploaded_images++;
+                        }
                     }
                 }
             }
@@ -209,11 +248,12 @@ elseif (isset($_POST['add_product'])) {
 
         // Commit transaction
         $conn->commit();
-        redirectWithMessage("../products.php", "Product added successfully!", "success");
+        redirectWithMessage("../products.php", "Product '$product_name' added successfully!", "success");
+        
     } catch (Exception $e) {
         $conn->rollback();
         error_log("Error adding product: " . $e->getMessage());
-        redirectWithMessage("../products.php", "Failed to add product.", "danger");
+        redirectWithMessage("../products.php", "Failed to add product: " . $e->getMessage(), "danger");
     }
 }
 
