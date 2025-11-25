@@ -1,14 +1,12 @@
 <?php
-// Start the session
 session_start();
+include '../conn.php';
+require_once '../functions/remember.php';
 
-// Unset all session variables
-session_unset();
+// Logout and clear remember me token
+logoutAndClearRemember($conn);
 
-// Destroy the session
-session_destroy();
-
-// Redirect to the login page
-header('Location: ../index.php');
-exit;
+// Redirect to homepage
+header("Location: ../index.php");
+exit();
 ?>

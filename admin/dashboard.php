@@ -2,6 +2,11 @@
 session_start();
 include '../conn.php';
 
+if (!isset($_SESSION['account_id'])) {
+    require_once '../functions/remember.php';
+    validateRememberToken($conn);
+}
+
 // Check if the supadmin is logged in as supadmin and account_id exists
 if (!isset($_SESSION["loggedinasadmin"]) || $_SESSION["loggedinasadmin"] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");

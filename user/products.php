@@ -2,6 +2,12 @@
 session_start();
 include '../conn.php';
 
+// Auto-login check
+if (!isset($_SESSION['account_id'])) {
+    require_once '../functions/remember.php';
+    validateRememberToken($conn);
+}
+
 // Check if the customer is logged in
 if (!isset($_SESSION['loggedinasuser']) || $_SESSION['loggedinasuser'] !== true || !isset($_SESSION['account_id'])) {
   header("Location: ../index.php");

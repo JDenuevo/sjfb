@@ -2,6 +2,32 @@
 session_start();
 include 'conn.php';
 
+// Auto-login if remember me token exists and user is not logged in
+if (!isset($_SESSION['account_id'])) {
+    require_once 'functions/remember.php';
+    
+    if (validateRememberToken($conn)) {
+        // User was auto-logged in, redirect based on role
+        if (isset($_SESSION['role'])) {
+            $baseUrl = '/sjfbi-js/';
+            switch ($_SESSION['role']) {
+                case 'customer':
+                    header("Location: {$baseUrl}user/products.php");
+                    exit();
+                case 'admin':
+                    header("Location: {$baseUrl}admin/dashboard.php");
+                    exit();
+                case 'super_admin':
+                    header("Location: {$baseUrl}supadmin/dashboard.php");
+                    exit();
+                case 'rider':
+                    header("Location: {$baseUrl}rider/dashboard.php");
+                    exit();
+            }
+        }
+    }
+}
+
 // Fetch all products with their primary image and variants (including new fields)
 $query = "SELECT p.product_id, p.product_name, p.product_description, 
             pi.image_path, 
@@ -131,7 +157,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </script>
 
  <script>
-  // Auto-open modal if redirected with error
   document.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('showModal') === 'true') {

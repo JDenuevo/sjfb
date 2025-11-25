@@ -36,9 +36,13 @@ include 'conn.php';
 <section id="careers-section">
     
     <?php include('./components/navigation.php'); ?>
-   
-    <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
+    
+    <div>
         <?php include('./components/growth_opportunities.php'); ?>
+    </div>
+
+    <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
+        <?php include('./components/message_us.php'); ?>
     </div>
 
 

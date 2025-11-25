@@ -11,18 +11,28 @@
 
       <div class="mt-12">
         <!-- Form -->
-        <form action="https://fishbrokers.net/send_email.php" method="POST" enctype="multipart/form-data" id="contact-form">
-          <div class="grid gap-4 lg:gap-6">
+        <form action="./functions/send_email.php" method="POST" enctype="multipart/form-data" id="contact-form">
+        <!-- CSRF Token (required) -->
+        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+        
+        <!-- Honeypot Field (hidden from users - NOT required for real users) -->
+        <div style="display: none; opacity: 0; position: absolute; left: -9999px;">
+            <label for="website">Website</label>
+            <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+        </div>
+        
+        <!-- Your existing form fields (no company field needed) -->
+        <div class="grid gap-4 lg:gap-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-              <div>
-                <label for="firstName" class="block mb-2 text-sm text-gray-700 font-medium">First Name</label>
-                <input type="text" name="firstName" placeholder="First Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
-              </div>
-
-              <div>
-                <label for="lastName" class="block mb-2 text-sm text-gray-700 font-medium">Last Name</label>
-                <input type="text" name="lastName" placeholder="Last Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
-              </div>
+                <div>
+                    <label for="firstName" class="block mb-2 text-sm text-gray-700 font-medium">First Name</label>
+                    <input type="text" name="firstName" placeholder="First Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+                </div>
+    
+                <div>
+                    <label for="lastName" class="block mb-2 text-sm text-gray-700 font-medium">Last Name</label>
+                    <input type="text" name="lastName" placeholder="Last Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
@@ -104,20 +114,30 @@
 
     const formData = new FormData(form);
 
-    fetch('https://fishbrokers.net/send_email.php', {
-      method: 'POST',
-      body: formData,
+    // In your message_us.php JavaScript, update the fetch error handling:
+    fetch('./functions/send_email.php', {
+        method: 'POST',
+        body: formData,
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
-      // Handle success
-      loadingIndicator.classList.add('hidden');
-      successMessage.classList.remove('hidden');
+        loadingIndicator.classList.add('hidden');
+        if (data.status === 'success') {
+            successMessage.classList.remove('hidden');
+            form.reset(); // Clear form on success
+            fileList.innerHTML = ''; // Clear file list
+        } else {
+            alert('Error: ' + data.message);
+        }
     })
     .catch(error => {
-      // Handle error
-      loadingIndicator.classList.add('hidden');
-      alert('There was an error sending your message.');
+        loadingIndicator.classList.add('hidden');
+        alert('There was an error sending your message: ' + error.message);
     });
   });
 

@@ -25,20 +25,32 @@
         <?php unset($_SESSION['error_message']); ?>
       <?php endif; ?>
 
-      <!-- Form -->
-      <form action="/sjfbi-js/functions/checker.php" method="POST">
+      <!-- Form with proper autocomplete -->
+      <form action="/sjfbi-js/functions/checker.php" method="POST" autocomplete="on" id="signin-form" name="login">
         <div class="grid gap-y-4 mt-5">
-          <!-- username Field -->
+          <!-- Username Field -->
           <div>
             <label for="username" class="block mb-2 text-sm text-gray-700 font-medium">Username</label>
-            <input type="username" name="username" id="username" placeholder="Username" autocomplete="username" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+            <input type="text" 
+                   name="username" 
+                   id="username" 
+                   placeholder="Username" 
+                   autocomplete="username" 
+                   class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" 
+                   required>
           </div>
 
           <!-- Password Field -->
           <div>
             <label for="password" class="block text-sm mb-2">Password</label>
             <div class="password-input-container">
-              <input type="password" id="password" name="password" placeholder="Password" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 password-input" required>
+              <input type="password" 
+                     id="password" 
+                     name="password" 
+                     placeholder="Password" 
+                     autocomplete="current-password"
+                     class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 password-input" 
+                     required>
 
               <button type="button" class="password-toggle-button" onclick="togglePasswordVisibility()" title="Show Password">
                 <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 hover:text-gray-700">
@@ -53,7 +65,10 @@
             <!-- Remember Me Checkbox -->
             <div class="flex items-center">
               <div class="flex">
-                <input id="remember-me" name="remember-me" type="checkbox" class="shrink-0 mt-0.5 border-gray-200 rounded-sm text-orange-600 focus:ring-orange-500">
+                <input id="remember-me" 
+                       name="remember-me" 
+                       type="checkbox" 
+                       class="shrink-0 mt-0.5 border-gray-200 rounded-sm text-orange-600 focus:ring-orange-500">
               </div>
               <div class="ms-3">
                 <label for="remember-me" class="text-sm text-gray-600">Remember me</label>
@@ -70,7 +85,7 @@
       </form>
     </div>
     <div class="mt-5 text-center">
-      Don't have an account? <a href="register.php" class="text-orange-600 hover:underline transition duration-200">Sign up here</a>
+      Don't have an account? <a href="/sjfbi-js/register.php" class="text-orange-600 hover:underline transition duration-200">Sign up here</a>
     </div>
   </div>
 </div>
@@ -87,8 +102,8 @@
 
   .password-toggle-button {
     position: absolute;
-    top: 0; /* Replace inset-y: 0; */
-    bottom: 0; /* Replace inset-y: 0; */
+    top: 0;
+    bottom: 0;
     right: 3px;
     display: flex;
     align-items: center;
@@ -96,16 +111,23 @@
     border: none;
     padding: 0;
     cursor: pointer;
+    z-index: 10;
   }
 
   .password-input {
-    padding-right: 2.5rem; /* Adjust to make space for the icon */
+    padding-right: 2.5rem;
   }
 </style>
 
 <script>
   function openModal() {
     document.getElementById('hs-modal-signin').classList.remove('hidden');
+    
+    // Restore remember-me checkbox state from localStorage
+    const rememberMe = localStorage.getItem('rememberMeChecked');
+    if (rememberMe === 'true') {
+      document.getElementById('remember-me').checked = true;
+    }
   }
 
   function closeModal() {
@@ -124,5 +146,24 @@
       eyeIcon.innerHTML = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828" /><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87" /><path d="M3 3l18 18" />`;
     }
   }
+
+  // Save remember-me checkbox state when form is submitted
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('signin-form');
+    const rememberCheckbox = document.getElementById('remember-me');
+    
+    if (form) {
+      form.addEventListener('submit', function() {
+        // Save checkbox state to localStorage
+        localStorage.setItem('rememberMeChecked', rememberCheckbox.checked);
+      });
+    }
+    
+    // Restore checkbox state on page load
+    const rememberMe = localStorage.getItem('rememberMeChecked');
+    if (rememberMe === 'true' && rememberCheckbox) {
+      rememberCheckbox.checked = true;
+    }
+  });
 
 </script>
