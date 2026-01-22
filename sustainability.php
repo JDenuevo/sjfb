@@ -2,6 +2,8 @@
 session_start();
 include 'conn.php';
 
+$pageTitle = 'Sustainability';
+
 ?>
 
 <!DOCTYPE html>
@@ -9,7 +11,7 @@ include 'conn.php';
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sustainability | St. Joseph Fish Brokerage Inc.</title>
+  <title><?= $pageTitle ?> | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -37,6 +39,8 @@ include 'conn.php';
 <section id="sustainability-section">
     
     <?php include('./components/navigation.php'); ?>
+
+    <?php include('./components/nav_crumb.php'); ?>
     
     <div class="relative" data-aos="zoom-in" data-aos-duration="1000" data-aos-anchor-placement="center-bottom">
       <img class="h-80 w-full object-cover rounded-md" src="./assets/images/sustainability.jpg" loading="lazy" alt="St. Joseph Fish Brokerage Inc. Navotas Market">

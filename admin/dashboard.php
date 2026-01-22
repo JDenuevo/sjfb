@@ -113,7 +113,7 @@ $totalPages = ceil($totalItems / $perPage);
           <path d="M15 3v18" />
           <path d="m8 9 3 3-3 3" />
         </svg>
-      </button>
+      </button> 
       <!-- End Navigation Toggle -->
 
       <!-- Breadcrumb -->

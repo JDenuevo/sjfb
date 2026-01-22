@@ -220,7 +220,8 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
   <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-10">
     <!-- Breadcrumbs -->
     <div class="mb-4 text-sm text-gray-600">
-      <a href="<?= $baseUrl ?>" class="hover:text-orange-500">Home</a> &gt;
+      <a href="<?= $baseUrl ?>" class="hover:text-orange-500">Home</a>
+        <svg xmlns="shrink-0 mx-3 text-gray-400" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-right"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 6l6 6l-6 6" /></svg>
       <span class="text-gray-800"><?= htmlspecialchars($product['product_name']) ?></span>
     </div>
 

@@ -2,6 +2,8 @@
 session_start();
 include 'conn.php';
 
+$pageTitle = 'About Us';
+
 ?>
 
 <!DOCTYPE html>
@@ -9,7 +11,8 @@ include 'conn.php';
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Our Story | St. Joseph Fish Brokerage Inc.</title>
+  
+  <title><?= $pageTitle ?> | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -37,6 +40,8 @@ include 'conn.php';
 <section id="ourstory-section">
     
     <?php include('./components/navigation.php'); ?>
+    
+    <?php include('./components/nav_crumb.php'); ?>
 
     <div class="py-10 px-4 sm:px-6 lg:px-8">
         <?php include('./components/history.php'); ?>

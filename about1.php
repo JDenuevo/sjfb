@@ -2,20 +2,22 @@
 session_start();
 include 'conn.php';
 
-$pageTitle = 'Careers';
+$pageTitle = 'About';
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <title><?= $pageTitle ?> | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="icon" href="./assets/icons/logo.svg" type="image/svg+xml">
-    
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,25 +36,32 @@ $pageTitle = 'Careers';
 </head>
 <body>
 <?php include('./components/preloader.php'); ?>
-<!-- Hero Section -->
-<section id="careers-section">
+<!-- Our Story Section -->
+<section id="ourstory-section">
     
     <?php include('./components/navigation.php'); ?>
-
-    <?php include('./components/nav_crumb.php'); ?>
     
+    <?php include('./components/nav_crumb.php'); ?>
+
+    <div class="py-10 px-4 sm:px-6 lg:px-8">
+        <?php include('./components/history.php'); ?>
+    </div>
+
     <div>
-        <?php include('./components/growth_opportunities.php'); ?>
+        <?php include('./components/core_values.php'); ?>
+    </div>
+
+    <div>
+        <?php include('./components/note.php'); ?>
     </div>
 
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
-        <?php include('./components/message_us.php'); ?>
+        <?php include('./components/company_events.php'); ?>
     </div>
 
-
+    <?php include('./components/footer.php'); ?>
+    
 </section>
-
-<?php include('./components/footer.php'); ?>
 
   <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script>
@@ -63,7 +72,7 @@ $pageTitle = 'Careers';
   <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
   
   <?php include('live_chat.php'); ?>
-
-
+  
 </body>
 </html>
+

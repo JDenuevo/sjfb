@@ -2,6 +2,8 @@
 session_start();
 include 'conn.php';
 
+$pageTitle = 'Services';
+
 ?>
 
 <!DOCTYPE html>
@@ -9,7 +11,7 @@ include 'conn.php';
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Services | St. Joseph Fish Brokerage Inc.</title>
+  <title><?= $pageTitle ?> | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
@@ -38,7 +40,9 @@ include 'conn.php';
 <section id="services-section">
     
     <?php include('./components/navigation.php'); ?>
-   
+    
+    <?php include('./components/nav_crumb.php'); ?>
+
     <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
         <?php include('./components/service_markets.php'); ?>
     </div>
