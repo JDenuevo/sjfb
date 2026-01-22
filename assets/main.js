@@ -34,4 +34,6 @@ function dispContent(page) {
             $('#content').html('<p style="color: red;">Error loading content.</p>');
         }
     });
+
+
 }

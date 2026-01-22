@@ -2,32 +2,6 @@
 session_start();
 include 'conn.php';
 
-// Auto-login if remember me token exists and user is not logged in
-if (!isset($_SESSION['account_id'])) {
-    require_once 'functions/remember.php';
-    
-    if (validateRememberToken($conn)) {
-        // User was auto-logged in, redirect based on role
-        if (isset($_SESSION['role'])) {
-            $baseUrl = '/sjfbi-js/';
-            switch ($_SESSION['role']) {
-                case 'customer':
-                    header("Location: {$baseUrl}user/products.php");
-                    exit();
-                case 'admin':
-                    header("Location: {$baseUrl}admin/dashboard.php");
-                    exit();
-                case 'super_admin':
-                    header("Location: {$baseUrl}supadmin/dashboard.php");
-                    exit();
-                case 'rider':
-                    header("Location: {$baseUrl}rider/dashboard.php");
-                    exit();
-            }
-        }
-    }
-}
-
 // Fetch all products with their primary image and variants (including new fields)
 $query = "SELECT p.product_id, p.product_name, p.product_description, 
             pi.image_path, 
@@ -43,146 +17,179 @@ $result = $conn->query($query);
 ?>
 
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
-
-<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
-<!-- End Google Tag Manager -->
+<html lang="en" dir="ltr" class="scroll-smooth"> 
 
 <head>
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>St. Joseph Fish Brokerage Inc.</title>
-
-  <!-- Favicons -->
-  <link rel="icon" href="./assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
-  <link rel="icon" href="./assets/icons/logo.svg" type="image/svg+xml">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   
-  <!-- Fonts -->
+  <title>St. Joseph Fish Brokerage Inc.</title>
+  <meta name="description" content="St. Joseph Fish Brokerage Inc. - Providing professional fish brokerage services with excellence and integrity.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fishbrokers.net/">
+  <meta property="og:title" content="St. Joseph Fish Brokerage Inc.">
+  <meta property="og:description" content="Professional fish brokerage services with excellence and integrity.">
+  <meta property="og:image" content="https://fishbrokers.net/assets/icons/logo.svg"> 
+  <meta name="google-site-verification" content="SEvyztm_VEss7pZNU7eN79PfVCh0D6MskG7f9mKpJow" />
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="St. Joseph Fish Brokerage Inc.">
+  <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
+  <meta name="twitter:image" content="https://fishbrokers.net/assets/icons/logo.svg">
+
+  <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
+    
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
-  <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
-  <!-- CSS Files -->
   <link href="style.css" rel="stylesheet">
   <link href="output.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
-  <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
+
 </head>
-<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
+
 <body>
 
-<style>
-  /* Fade Out Animation */
-.fade-out {
-  opacity: 0;
-  transition: opacity 1s ease-in-out;
-}
+  <?php include './components/navigation.php'; ?>
 
-/* Fade In Animation */
-.fade-in {
-  opacity: 1;
-  transition: opacity 1s ease-in-out;
-}
-
-</style>
-<?php include('./components/preloader.php'); ?>
-
-<!-- Hero Section -->
-  <section id="home-section">
-    
-    <?php include('./components/navigation.php'); ?>
-
-    <div class="h-screen">
-      <img src="./assets/images/banyera.png" loading="lazy" alt="St. Joseph Fish Brokerage Navotas Fish Port Complex" class="absolute top-0 left-0 w-full h-full object-cover z-0" data-aos="fade-bottom" data-aos-duration="1000" data-aos-anchor-placement="top-bottom">
-      <div class="absolute inset-0 bg-black opacity-70"></div>
-
-      <div class="relative z-10 text-center flex flex-col justify-center items-center h-full">
-        <h1 id="phrase" class="text-5xl font-bold text-white mb-44 opacity-100">Your Fresh Seafood Connection</h1>
-      </div>
-    </div>
+  <?php include './components/nav_crumb.php'; ?>
   
-    <div class="overflow-hidden shadow-lg pb-5" id="bottom-page">
-      <?php include('./components/products.php'); ?>
-    </div>
-
-  </section>
-  
-  <?php include('./components/footer.php'); ?>
-
-  <script>
-      // Phrases Array
-      const phrases = [
-          'Your Fresh Seafood Connection',
-          'Connecting Fishers to Markets',
-          'Your reliable seafood partner.',
-          'Quality seafood, exceptional value.',
-          'Your seafood partner, from start to finish.'
-      ];
-
-      let index = 0;
-
-      function changePhrase() {
-          const phraseElement = $('#phrase');
-
-          setInterval(() => {
-              phraseElement.removeClass('fade-in').addClass('fade-out');
-
-              setTimeout(() => {
-                  index = (index + 1) % phrases.length;
-                  phraseElement.text(phrases[index]);
-
-                  phraseElement.removeClass('fade-out').addClass('fade-in');
-              }, 1000); // match this to the CSS transition
-          }, 5000); // phrase changes every 5 seconds
-      }
-
-      $(document).ready(() => {
-          $('#phrase').addClass('fade-in'); // initial fade-in
-          changePhrase();
-      });
-
-  </script>
-
- <script>
-  document.addEventListener('DOMContentLoaded', function() {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('showModal') === 'true') {
-          openModal();
+  <!-- Hero -->
+  <div class="px-4 sm:px-6 lg:px-8 py-2">
+    <div class="relative overflow-hidden rounded-2xl min-h-[420px] sm:min-h-[520px] md:h-[80dvh]">
+      
+      <!-- Image - ADD z-index: 0 -->
+      <img src="./assets/images/herobanner.png" 
+        alt="St. Joseph Fish Brokerage Navotas Fish Port Complex" 
+        loading="eager" 
+        class="absolute bottom-0 left-0 w-full h-auto min-h-full object-cover z-0">
+      
+      <!-- Overlay - STRONGER with z-index: 1 -->
+      <div class="overlay absolute inset-0 z-10"></div>
+      
+      <!-- Content - HIGHER z-index -->
+      <div class="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">
+        <div class="max-w-4xl mx-auto">
+          <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6">
+            Fresh Catch <span class="text-orange-400">Daily</span>
+          </h1>
+          <p class="text-lg sm:text-xl md:text-2xl text-white/90 mb-8 sm:mb-12 max-w-2xl mx-auto">
+            Premium seafood straight from Navotas Fish Port Complex
+          </p>
           
-          // Remove the parameter from URL without reloading
-          const newUrl = window.location.pathname + window.location.hash;
-          window.history.replaceState({}, document.title, newUrl);
-      }
-  });
-  </script>
+          <!-- Optional CTA Button -->
+          <a href="#shop-products" 
+            class="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold mt-2 py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105">
+            <span>Shop Now</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"></path>
+              <path d="m12 5 7 7-7 7"></path>
+            </svg>
+          </a>
+        </div>
 
-  <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
+        <!-- This is your mouse/scroll indicator -->
+        <a href="#shop-products" class="absolute bottom-4 md:bottom-6 lg:bottom-8 flex flex-col items-center gap-1 cursor-pointer animate-bounce" title="Scroll to shop?">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+            viewBox="0 0 24 24" fill="none" stroke="white"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M6 7a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v10a4 4 0 0 1 -4 4h-4a4 4 0 0 1 -4 -4z" />
+            <path d="M12 7v4" />
+          </svg>
+          <span class="text-white text-sm">Scroll to explore</span>
+        </a>
+      
+      </div>
+      
+    </div>
+  </div>
+  <!-- End Hero -->
+
+  <!-- Products -->
+  <div class="max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto" id="shop-products">
+    <?php include('./components/products.php'); ?>
+  </div>
+
+  
+
+  <!-- JS PLUGINS -->
+  <!-- Required plugins -->
+
+   <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
+    <script>
+      AOS.init();
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
+    <script src="node_modules/preline/dist/preline.js"></script>
+    <script src="./assets/main.js"></script>
+
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
+
   <script>
-    AOS.init();
+    window.dataLayer = window.dataLayer || [];
+  
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+  
+    gtag('js', new Date());
+    gtag('config', 'G-B73TDMXKF5');
   </script>
-  
-  <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
-  <script src="node_modules/preline/dist/preline.js"></script>
 
-  <!-- jQuery -->
-  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
-
-<?php include('live_chat.php'); ?>
   
+<style>
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,           /* Darker at bottom */
+    rgba(0, 0, 0, 0.5) 40%,          /* Medium darkness */
+    rgba(0, 0, 0, 0.2) 70%,          /* Lighter */
+    transparent 100%                  /* Transparent at top */
+  );
+  z-index: 10; /* Higher than image */
+}
+
+/* Alternative darker overlay */
+.overlay-dark {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85),
+    rgba(0, 0, 0, 0.5),
+    rgba(0, 0, 0, 0.2)
+  );
+}
+
+/* Simple overlay if gradient isn't working */
+.overlay-simple {
+  background: rgba(0, 0, 0, 0.4); /* Semi-transparent black */
+}
+</style>
 </body>
 </html>

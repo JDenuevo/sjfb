@@ -121,5 +121,26 @@
     }
   }
 
+/* TEXT TITLES ONLY */
+.title {
+  font-family: 'Inter', 'Poppins', sans-serif;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #1f2937; /* Neutral dark gray */
+}
+
+.icon-title {
+  stroke: currentColor;
+  color: #ffffff; /* white on hero */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.icon-title:hover {
+  transform: translateY(4px);
+  opacity: 0.8;
+}
+
+
 
   

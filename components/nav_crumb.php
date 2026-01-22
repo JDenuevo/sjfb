@@ -1,7 +1,7 @@
 <?php
 $pageMap = [
-  'Home' => '/sjfbi-js/indexclone.php',
-  'About' => '/about1.php',
+  'Home' => '/index.php',
+  'About' => '/about.php',
   'Sustainability' => '/sustainability.php',
   'Services' => '/services.php',
   'Careers' => '/careers.php',
