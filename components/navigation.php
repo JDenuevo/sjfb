@@ -7,7 +7,7 @@ $cart = $_SESSION['cart'] ?? [];
 ?>
 
 <!-- ========== HEADER ========== -->
-<header class="top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full py-1 bg-white shadow-xs">
+<header id="main-header" class="fixed top-0 left-0 right-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full py-1 bg-white shadow-xs transition-transform duration-300 ease-in-out">
   <nav class="main-nav relative max-w-7xl w-full grid px-4 md:px-6 mx-auto">
     <div class="flex items-center">
       <!-- Logo -->
@@ -17,12 +17,13 @@ $cart = $_SESSION['cart'] ?? [];
       <!-- End Logo -->
     </div>
 
-    <div class="top-nav flex flex-row items-center justify-center gap-x-8">
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>/" aria-current="page">Home</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>aboutus">About</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>sustainability">Sustainability</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>services">Services</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>careers">Careers</a>
+    <div class="top-nav flex items-center justify-center gap-x-8 w-fit mx-auto bg-gray-100 border border- rounded-full px-8 py-2">
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>" aria-current="page" title="St. Joseph Fish Brokerage Inc. – Largest Fish Brokerage in the Philippines">Home</a>
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>shop.php" title="Seafood Shop – Fresh Fish and Seafood in the Philippines">Seafood Shop</a>
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>about.php" title="About St. Joseph Fish Brokerage Inc. – The Largest Fish Brokerage in the Philippines">About</a>
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>sustainability.php" title="Sustainable Seafood Practices – St. Joseph Fish Brokerage Inc.">Sustainability</a>
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>services.php" title="Fish Brokerage Services in the Philippines – Seafood Trading & Wholesale">Services</a>
+      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>careers.php" title="Careers at St. Joseph Fish Brokerage Inc. – Join Our Team">Careers</a>
     </div>
 
     <div class="flex items-center justify-center gap-x-1 ms-auto">
@@ -62,7 +63,7 @@ $cart = $_SESSION['cart'] ?? [];
         <!-- Mobile Navigation Dropdown Menu -->
         <div id="mobile-nav-menu" class="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg hidden z-50 transition-all duration-300">
           <div class="p-2 space-y-1">
-            <a href="<?= $baseUrl ?>/" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100">
+            <a href="<?= $baseUrl ?>" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="St. Joseph Fish Brokerage Inc. – Largest Fish Brokerage in the Philippines">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-home">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
@@ -71,14 +72,22 @@ $cart = $_SESSION['cart'] ?? [];
               </svg>
               Home
             </a>
-            <a href="<?= $baseUrl ?>aboutus" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100">
+            <a href="<?= $baseUrl ?>shop.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Seafood Shop – Fresh Fish and Seafood in the Philippines">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-bag">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304" />
+                <path d="M9 11v-5a3 3 0 0 1 6 0v5" />
+              </svg>
+              Seafood Shop
+            </a>
+            <a href="<?= $baseUrl ?>about.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="About St. Joseph Fish Brokerage Inc. – The Largest Fish Brokerage in the Philippines">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-paperclip">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5" />
               </svg>
               About us
             </a>
-            <a href="<?= $baseUrl ?>sustainability" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100">
+            <a href="<?= $baseUrl ?>sustainability.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Sustainable Seafood Practices – St. Joseph Fish Brokerage Inc.">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-bulb">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7" />
@@ -87,7 +96,7 @@ $cart = $_SESSION['cart'] ?? [];
               </svg>
               Sustainability
             </a>
-            <a href="<?= $baseUrl ?>services" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100 ">
+            <a href="<?= $baseUrl ?>services.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Fish Brokerage Services in the Philippines – Seafood Trading & Wholesale">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-fish-hook">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M16 9v6a5 5 0 0 1 -10 0v-4l3 3" />
@@ -96,7 +105,7 @@ $cart = $_SESSION['cart'] ?? [];
               </svg>
               Services
             </a>
-            <a href="<?= $baseUrl ?>careers" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100 ">
+            <a href="<?= $baseUrl ?>careers.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Careers at St. Joseph Fish Brokerage Inc. – Join Our Team">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-briefcase">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9" />
@@ -115,6 +124,9 @@ $cart = $_SESSION['cart'] ?? [];
   </nav>
 </header>
 <!-- ========== END HEADER ========== -->
+
+<!-- Add padding to the body content to account for fixed header -->
+<div class="pt-24"></div>
 
 <?php include('./components/sign_in.php'); ?>
 
@@ -151,6 +163,16 @@ $cart = $_SESSION['cart'] ?? [];
     top: -4px; /* Adjust to move it upwards */
     right: -4px; /* Adjust to move it to the left */
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  /* Hide header when scrolling down */
+  .header-hidden {
+    transform: translateY(-100%);
+  }
+  
+  /* Show header when at top or scrolling up */
+  .header-visible {
+    transform: translateY(0);
   }
 
   /* Mobile menu animation */
@@ -191,6 +213,60 @@ $cart = $_SESSION['cart'] ?? [];
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    const header = document.getElementById('main-header');
+    let lastScrollTop = 0;
+    const scrollThreshold = 100; // Minimum scroll before hiding starts
+    
+    // Variables for scroll handling
+    let ticking = false;
+    let isHeaderVisible = true;
+
+    function handleScroll() {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      if (!ticking) {
+        window.requestAnimationFrame(function() {
+          // Only hide/show if scrolled past threshold
+          if (scrollTop > scrollThreshold) {
+            if (scrollTop > lastScrollTop) {
+              // Scrolling DOWN - hide header
+              if (isHeaderVisible) {
+                header.classList.add('header-hidden');
+                header.classList.remove('header-visible');
+                isHeaderVisible = false;
+              }
+            } else {
+              // Scrolling UP - show header
+              if (!isHeaderVisible) {
+                header.classList.remove('header-hidden');
+                header.classList.add('header-visible');
+                isHeaderVisible = true;
+              }
+            }
+          } else {
+            // At top of page - always show header
+            if (!isHeaderVisible) {
+              header.classList.remove('header-hidden');
+              header.classList.add('header-visible');
+              isHeaderVisible = true;
+            }
+          }
+          
+          lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+          ticking = false;
+        });
+        
+        ticking = true;
+      }
+    }
+
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Initialize header as visible
+    header.classList.add('header-visible');
+
+    // Mobile menu handling
     const mobileNavButton = document.getElementById('mobile-nav-button');
     const mobileNavMenu = document.getElementById('mobile-nav-menu');
     const menuIconOpen = mobileNavButton.querySelector('.menu-icon-open');

@@ -84,13 +84,25 @@
                 <div class="flex items-center gap-x-3">
                   <div class="grow">
                     <span class="block text-sm font-semibold text-gray-800 "><?= htmlspecialchars($row['product_name']) ?></span>
-                    <span class="block text-sm text-gray-500 "><?= $row['product_description'] ?></span>
+                    <span class="block text-sm text-gray-500 "><?= $row['product_unit'] ?></span>
                   </div>
                 </div>
               </td>
               
               <td class="px-6 py-3">
-                <span class="block text-sm font-semibold text-gray-800 "><?= $row['category_name'] ?></span>
+                  <div class="flex flex-wrap gap-1">
+                      <?php 
+                      $categories = explode(', ', $row['category_names'] ?? '');
+                      foreach ($categories as $category): 
+                      ?>
+                          <span class="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
+                              <?= htmlspecialchars($category) ?>
+                          </span>
+                      <?php endforeach; ?>
+                      <?php if (empty($categories)): ?>
+                          <span class="text-sm text-gray-400">No Category</span>
+                      <?php endif; ?>
+                  </div>
               </td>
              
               <td class="px-6 py-3">
@@ -138,8 +150,8 @@
         <!-- End Table -->
 
         <!-- Update Product Modal -->
-        <div id="editProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto p-10" style="margin: 0;">
-          <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-3xl flex flex-col modal-content">
+        <div id="editProductModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+          <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
             <div class="p-6 lg:max-h-[40vh] overflow-y-auto" id="modalContent">
                   
             </div>
@@ -147,8 +159,8 @@
         </div>
 
         <!-- Delete Product Modal -->
-        <div id="deleteProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto p-10" style="margin: 0;">
-          <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+        <div id="deleteProductModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+          <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
             <h3 class="text-lg font-semibold mb-4">Delete Product</h3>
             <form action="./functions/delete.php" method="POST" id="deleteForm">
               <input type="hidden" name="product_id" id="deleteProductId">

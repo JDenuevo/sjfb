@@ -28,11 +28,11 @@ $totalPages = ceil($totalItems / $perPage);
 // Main query with pagination
 $offset = ($page - 1) * $perPage;
 
+// Updated query with proper category linking
 $query = "SELECT
-    p.product_id,
-    p.product_name,
-    p.product_description,
-    c.category_name,
+    p.*,
+    GROUP_CONCAT(DISTINCT pc.category_name SEPARATOR ', ') AS category_names,
+    GROUP_CONCAT(DISTINCT pc.category_id SEPARATOR ',') AS category_ids,
     IFNULL(MAX(v.stock_status), 'Out of Stock') AS stock_status,
     GROUP_CONCAT(DISTINCT v.variant_name ORDER BY v.created_at DESC SEPARATOR ', ') AS variants,
     GROUP_CONCAT(DISTINCT v.variant_price ORDER BY v.created_at DESC SEPARATOR ', ') AS prices,
@@ -40,10 +40,11 @@ $query = "SELECT
     GROUP_CONCAT(DISTINCT v.stock_quantity ORDER BY v.created_at DESC SEPARATOR ', ') AS stock_quantities,
     MAX(v.created_at) AS last_updated
 FROM products p
-LEFT JOIN product_categories c ON p.product_category = c.category_id
+LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
+LEFT JOIN product_categories pc ON pcl.category_id = pc.category_id
 LEFT JOIN product_variants v ON p.product_id = v.product_id
 WHERE p.is_deleted = 0
-GROUP BY p.product_id, p.product_name, p.product_description, c.category_name
+GROUP BY p.product_id, p.product_name, p.product_description
 ORDER BY last_updated DESC
 LIMIT $perPage OFFSET $offset";
 
@@ -74,7 +75,15 @@ $result = $conn->query($query);
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
 </head>
 
+<style>
+  select[multiple] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: none;
+}
 
+</style>
 <body class="bg-gray-50">
   
   <!-- Header -->
@@ -150,41 +159,36 @@ $result = $conn->query($query);
   </div>
   <!-- End Content -->
 
-  <div id="addProductModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
-      <div class="bg-white p-6 rounded-2xl shadow-2xl w-11/12 sm:w-4/5 md:w-3/4 lg:max-w-4xl xl:max-w-4xl max-h-[90vh] flex flex-col">
+  <div id="addProductModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+      <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
           <div class="overflow-y-auto flex-1">
               <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Product</h3>
               
               <form action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-                  <!-- Product Name -->
-                  <div>
-                      <label class="block text-sm font-medium text-gray-700">Product Name</label>
-                      <input type="text" name="product_name" placeholder="Product Name" required class="w-full px-3 py-2 border rounded-lg">
+                  <div class="grid grid-cols-2 gap-4">
+                      <!-- Product Name -->
+                      <div>
+                          <label class="block text-sm font-medium text-gray-700">Product Name</label>
+                          <input type="text" name="product_name" placeholder="Product Name" required class="w-full px-3 py-2 border rounded-lg">
+                      </div>
+
+                      <!-- Product Unit -->
+                      <div>
+                          <label class="block text-sm font-medium text-gray-700">Product Unit</label>
+                          <input type="text" name="product_unit" placeholder="Unit" required class="w-full px-3 py-2 border rounded-lg">
+                      </div>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-4">
-                    <!-- Product Description -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Product Description</label>
-                        <input type="text" name="product_description" placeholder="Description" required class="w-full px-3 py-2 border rounded-lg">
-                    </div>
+                  <!-- Product Description -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Product Description</label>
+                    <textarea name="product_description" rows="3" class="py-2 px-3 sm:py-3 sm:px-4 block w-full border rounded-lg" rows="3" placeholder="Product Description"></textarea>
+                  </div>
 
-                    <!-- Product Category -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Category</label>
-                        <select name="product_category" required class="w-full px-3 py-2 border rounded-lg">
-                            <option value="" disabled selected>Select a category</option>
-                            <?php
-                            $sql = "SELECT * FROM product_categories";
-                            $result = mysqli_query($conn, $sql);
-                            while ($row = mysqli_fetch_assoc($result)) {
-                                $category_id = $row['category_id'];
-                                $category_name = $row['category_name'];
-                                echo "<option value=\"$category_id\">$category_name</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
+                  <!-- Product Nickname -->
+                  <div>
+                      <label class="block text-sm font-medium text-gray-700">Product Nickname/Tags</label>
+                      <input type="text" name="product_nickname" placeholder="Nickname/Tags" required class="w-full px-3 py-2 border rounded-lg">
                   </div>
 
                   <!-- Variants Section -->
@@ -193,7 +197,7 @@ $result = $conn->query($query);
                   <!-- Dynamic Variant Container -->
                   <div id="variantContainer">
                       <!-- Default Variant Row -->
-                      <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
+                      <div class="grid grid-cols-5 gap-2 py-2 pb-4 border-b variantRow">
                           <div>
                               <label class="block text-xs font-medium text-gray-700">Size</label>
                               <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Size" required>
@@ -233,20 +237,73 @@ $result = $conn->query($query);
                               <input type="number" min="0" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg" placeholder="0" required>
                           </div>
 
+                          <!-- Variant Categories -->
+                          <div class="col-span-2">
+                              <label class="block text-xs font-medium text-gray-700">Categories</label>
+                              <select name="variant_categories[][]" multiple class="w-full px-3 py-2 border rounded-lg text-sm" size="2">
+                                  <option value="">Inherit from product</option>
+                                  <?php
+                                  $cat_sql = "SELECT * FROM product_categories WHERE is_active = 1 ORDER BY category_name";
+                                  $cat_result = mysqli_query($conn, $cat_sql);
+                                  while ($cat_row = mysqli_fetch_assoc($cat_result)) {
+                                      echo "<option value=\"{$cat_row['category_id']}\">" . htmlspecialchars($cat_row['category_name']) . "</option>";
+                                  }
+                                  ?>
+                              </select>
+                              <p class="text-xs text-gray-500">Leave empty to use product categories</p>
+                          </div>
+
                           <div>
                               <label class="block text-xs font-medium text-gray-700">Action</label>
-
                               <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 text-white rounded-lg">
-                              🗑 Delete
+                                  🗑 Delete
                               </button>
                           </div>
-                          
                       </div>
                   </div>
 
                   <!-- Add Variant Button -->
                   <div class="flex justify-end mt-3">
                       <button type="button" id="addVariant" style="background-color: #22c55e;" class="py-2 px-3 items-center text-sm font-medium rounded-lg border border-transparent text-white">+ Add Variant</button>
+                  </div>
+
+                  <!-- Primary Category Selection -->
+                  <div class="col-span-2">
+                      <label class="block text-sm font-medium text-gray-700">Primary Category</label>
+                      <select name="primary_category" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                          <option value="0">— Select Primary Category —</option>
+                          <?php
+                          $sql = "SELECT * FROM product_categories WHERE is_active = 1 ORDER BY category_name";
+                          $result = mysqli_query($conn, $sql);
+                          while ($row = mysqli_fetch_assoc($result)) {
+                              echo "<option value=\"{$row['category_id']}\">" . htmlspecialchars($row['category_name']) . "</option>";
+                          }
+                          ?>
+                      </select>
+                      <p class="text-xs text-gray-500 mt-1">This category will be shown as the main category</p>
+                  </div>
+
+                  <!-- Product Categories - Multi-select -->
+                  <div class="col-span-2">
+                      <label class="block text-sm font-medium text-gray-700">Categories *</label>
+                      <div class="space-y-2 border rounded-lg p-3">
+                          <div class="flex items-center justify-between mb-2">
+                              <span class="text-sm font-medium">Select categories for this product</span>
+                              <span class="text-xs text-gray-500">Hold Ctrl to select multiple</span>
+                          </div>
+                          <select name="product_categories[]" multiple required size="5" 
+                                  class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                              <?php
+                              $sql = "SELECT * FROM product_categories WHERE is_active = 1 ORDER BY category_level, category_name";
+                              $result = mysqli_query($conn, $sql);
+                              while ($row = mysqli_fetch_assoc($result)) {
+                                  $indent = str_repeat('&nbsp;&nbsp;', $row['category_level'] - 1);
+                                  echo "<option value=\"{$row['category_id']}\">{$indent} " . htmlspecialchars($row['category_name']) . "</option>";
+                              }
+                              ?>
+                          </select>
+                          <p class="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple categories</p>
+                      </div>
                   </div>
 
                   <!-- Product Images Upload -->
@@ -298,11 +355,20 @@ $result = $conn->query($query);
         // Add variant functionality
         const addVariantContainer = document.getElementById("variantContainer");
         const addVariantBtn = document.getElementById("addVariant");
+        const categoryOptions = `<?php
+                    $cat_sql = "SELECT * FROM product_categories WHERE is_active = 1 ORDER BY category_name";
+                    $cat_result = mysqli_query($conn, $cat_sql);
+                    $options = '';
+                    while ($cat_row = mysqli_fetch_assoc($cat_result)) {
+                        $options .= '<option value="' . $cat_row['category_id'] . '">' . htmlspecialchars($cat_row['category_name']) . '</option>';
+                    }
+                    echo $options;
+                ?>`;
 
         if (addVariantBtn && addVariantContainer) {
             addVariantBtn.addEventListener("click", function() {
                 const variantHTML = `
-                    <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
+                    <div class="grid grid-cols-5 gap-2 py-2 pb-4 border-b variantRow">
                         <div>
                             <label class="block text-xs font-medium text-gray-700">Size</label>
                             <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Size" required>
@@ -334,6 +400,14 @@ $result = $conn->query($query);
                         <div>
                             <label class="block text-xs font-medium text-gray-700">Stock</label>
                             <input type="number" min="0" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg" placeholder="0" required>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-700">Categories</label>
+                            <select name="variant_categories[][]" multiple class="w-full px-3 py-2 border rounded-lg text-sm" size="2">
+                                <option value="">Inherit from product</option>
+                                ${categoryOptions}
+                            </select>
+                            <p class="text-xs text-gray-500">Leave empty to use product categories</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700">Action</label>
@@ -440,56 +514,69 @@ $result = $conn->query($query);
             // Add new variant in update modal
             const addVariantBtn = document.querySelector('.addVariant');
             if (addVariantBtn) {
-                addVariantBtn.addEventListener('click', function() {
-                    const container = document.querySelector('.updateVariantContainer');
-                    const variantHTML = `
-                        <div class="grid grid-cols-4 gap-2 py-2 pb-4 border-b variantRow">
-                            <input type="hidden" name="variant_id[]" value="">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Size</label>
-                                <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Size" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Unit</label>
-                                <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg text-sm" required>
-                                    <option value="piece">Piece</option>
-                                    <option value="kg">Kilogram</option>
-                                    <option value="gram">Gram</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Price</label>
-                                <input type="number" name="variant_price[]" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Price" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Discount</label>
-                                <input type="number" name="discount_price[]" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Discount">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Min Order</label>
-                                <input type="number" name="minimum_order[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Min Order" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Increment</label>
-                                <input type="number" name="order_increment[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Increment" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Stock</label>
-                                <input type="number" name="stock_quantity[]" value="0" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="0" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700">Action</label>
-                                <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600">
-                                   🗑 Delete
-                                </button>
-                            </div>
+                addVariantBtn.addEventListener("click", function() {
+                const categoryOptions = `<?php
+                    $cat_sql = "SELECT * FROM product_categories WHERE is_active = 1 ORDER BY category_name";
+                    $cat_result = mysqli_query($conn, $cat_sql);
+                    $options = '';
+                    while ($cat_row = mysqli_fetch_assoc($cat_result)) {
+                        $options .= '<option value="' . $cat_row['category_id'] . '">' . htmlspecialchars($cat_row['category_name']) . '</option>';
+                    }
+                    echo $options;
+                ?>`;
+                
+                const variantHTML = `
+                    <div class="grid grid-cols-5 gap-2 py-2 pb-4 border-b variantRow">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Size</label>
+                            <input type="text" name="variant_name[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Size" required>
                         </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', variantHTML);
-                    
-                    const newRow = container.lastElementChild;
-                    newRow.querySelector('.removeVariant').addEventListener('click', () => newRow.remove());
-                });
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Unit</label>
+                            <select name="unit_type[]" class="w-full px-3 py-2 border rounded-lg" required>
+                                <option value="kg">Kilogram</option>
+                                <option value="piece">Piece</option>
+                                <option value="gram">Gram</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Price</label>
+                            <input type="number" min="0" step="0.01" name="variant_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Price" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Discount</label>
+                            <input type="number" min="0" step="0.01" name="discount_price[]" class="w-full px-3 py-2 border rounded-lg" placeholder="Discount">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Min Order</label>
+                            <input type="number" name="minimum_order[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="Min Order" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Increment</label>
+                            <input type="number" name="order_increment[]" value="1" step="0.01" min="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="Increment" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Stock</label>
+                            <input type="number" min="0" name="stock_quantity[]" class="w-full px-3 py-2 border rounded-lg" placeholder="0" required>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-700">Categories</label>
+                            <select name="variant_categories[][]" multiple class="w-full px-3 py-2 border rounded-lg text-sm" size="2">
+                                <option value="">Inherit from product</option>
+                                ${categoryOptions}
+                            </select>
+                            <p class="text-xs text-gray-500">Leave empty to use product categories</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">Action</label>
+                            <button type="button" style="background-color: #ef4444;" class="removeVariant w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                              🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+                addVariantContainer.insertAdjacentHTML("beforeend", variantHTML);
+              });
             }
 
             // Handle image deletion

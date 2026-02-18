@@ -4,7 +4,8 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 ?>
 
 <!-- ========== FOOTER ========== -->
-<footer class="mt-5">
+<footer class="">
+  <hr>
   <div class="mt-auto w-full max-w-[85rem] py-10 px-4 sm:px-6 lg:px-8 mx-auto">
     <!-- Grid -->
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
@@ -48,10 +49,12 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
         <h4 class="font-semibold text-dark text-xl">Company</h4>
 
         <div class="mt-3 grid space-y-3">
-          <a href="aboutus" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">About us</a>
-          <a href="sustainability"class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Sustainability</a>
-          <a href="services" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Services</a>
-          <a href="careers" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Careers <!--  <span class="inline text-blue-600 dark:text-blue-500">— We're hiring</span> --> </a>
+          <a href="<?= $baseUrl ?>index.php" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Home</a>
+          <a href="<?= $baseUrl ?>shop.php" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Shop</a>
+          <a href="<?= $baseUrl ?>about.php" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">About</a>
+          <a href="<?= $baseUrl ?>sustainability.php"class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Sustainability</a>
+          <a href="<?= $baseUrl ?>services.php" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Services</a>
+          <a href="<?= $baseUrl ?>careers.php" class="cursor-pointer inline-flex gap-x-2 text-gray-700 hover:text-black focus:outline-none">Careers <!--  <span class="inline text-blue-600 dark:text-blue-500">— We're hiring</span> --> </a>
         </div>
       </div>
       <!-- End Col -->

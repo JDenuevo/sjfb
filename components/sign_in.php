@@ -1,6 +1,6 @@
 <!-- Modal -->
-<div id="hs-modal-signin" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-  <div id="signin-white-bg" class="bg-white rounded-lg shadow-lg p-10 relative">
+<div id="hs-modal-signin" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+  <div id="signin-white-bg" class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
     <!-- Close Button -->
     <div class="text-end">
       <button type="button" class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 focus:outline-none focus:bg-gray-200" onclick="closeModal()">

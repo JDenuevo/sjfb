@@ -215,10 +215,9 @@
   }
 </style>
 
-
 <!-- Add Rider Modal - FIXED VERSION -->
-<div id="addRiderModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg">
+<div id="addRiderModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10 z-100">
+    <div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl flex flex-col relative">
         <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Rider</h3>
         <form action="./functions/rider_process.php" method="POST">
             <div class="mb-4">

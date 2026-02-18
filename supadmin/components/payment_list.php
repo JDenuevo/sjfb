@@ -307,176 +307,174 @@
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
   <?php while ($row = mysqli_fetch_assoc($result)): ?>
-    <div id="viewPaymentModal<?php echo $row['payment_id']; ?>" class="hidden fixed inset-0 z-100 overflow-y-auto bg-black bg-opacity-50" style="margin: 0">
-      <div class="flex items-center justify-center min-h-screen px-4" style="margin: 20px;">
-        <div class="bg-white rounded-xl shadow-lg w-full sm:w-11/12 lg:w-3/4 mx-auto relative">
-          <!-- Card -->
-          <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="paymentReceipt">
-            <!-- Grid -->
-            <div class="flex justify-between">
-              <!-- Col -->
-              <div class="">
-                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Payment Details</h2>
-                <span class="mt-1 block text-gray-500">Payment ID: <?php echo htmlspecialchars($row['payment_id']); ?></span>
-              </div>
-              <!-- Col -->
-
-              <div>
-                <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewPaymentModal<?php echo $row['payment_id']; ?>')">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 6L6 18" />
-                    <path d="M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+    <div id="viewPaymentModal<?php echo $row['payment_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+      <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col relative">
+        <!-- Card -->
+        <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="paymentReceipt">
+          <!-- Grid -->
+          <div class="flex justify-between">
+            <!-- Col -->
+            <div class="">
+              <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Payment Details</h2>
+              <span class="mt-1 block text-gray-500">Payment ID: <?php echo htmlspecialchars($row['payment_id']); ?></span>
             </div>
-            <!-- End Grid -->
+            <!-- Col -->
 
-            <!-- Grid -->
-            <div class="my-8 grid sm:grid-cols-2 gap-3">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-800 ">Order Information:</h3>
-                <h3 class="text-lg font-semibold text-gray-500 ">Order Code: <?php echo htmlspecialchars($row['order_code']); ?></h3>
-                <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Customer:</h3>
-                <address class="not-italic text-gray-500 ">
-                  <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?><br>
-                  <?php echo htmlspecialchars($row['billing_email']); ?>
-                </address>
-              </div>
-              <!-- Col -->
-              
-              <div class="sm:text-end space-y-2">
-                <!-- Grid -->
-                <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
-                  <dl class="grid sm:grid-cols-5 gap-x-3">
-                    <dt class="col-span-3 font-semibold text-gray-800 ">Payment Status:</dt>
-                    <dd class="col-span-2 text-gray-500 ">
-                      <?php 
-                        $status = $row['payment_status'];
-                        $statusClass = '';
-                        switch ($status) {
-                          case 'Pending':
-                            $statusClass = 'bg-yellow-100 text-yellow-800';
-                            break;
-                          case 'Paid':
-                            $statusClass = 'bg-green-100 text-green-800';
-                            break;
-                          case 'Failed':
-                            $statusClass = 'bg-red-100 text-red-800';
-                            break;
-                          case 'Refunded':
-                            $statusClass = 'bg-purple-100 text-purple-800';
-                            break;
-                          default:
-                            $statusClass = 'bg-gray-100 text-gray-800';
-                        }
-                      ?>
-                      <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
-                        <?php echo ucfirst($status); ?>
-                      </span>
-                    </dd>
-                  </dl>
-                  <dl class="grid sm:grid-cols-5 gap-x-3">
-                    <dt class="col-span-3 font-semibold text-gray-800 ">Payment Date:</dt>
-                    <dd class="col-span-2 text-gray-500">
-                      <?php 
-                        if ($row['paid_at']) {
-                          echo date("F j, Y, g:i a", strtotime($row['paid_at']));
-                        } else {
-                          echo date("F j, Y, g:i a", strtotime($row['created_at']));
-                        }
-                      ?>
-                    </dd>
-                  </dl>
-                </div>
-                <!-- End Grid -->
-              </div>
-              <!-- Col -->
-            </div>
-            <!-- End Grid -->
-
-            <!-- Payment Details Table -->
-            <div class="mt-6">
-              <div class="border border-gray-200 p-4 rounded-lg space-y-4">
-                <div class="grid grid-cols-2 gap-2 items-center">
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase">Payment Information</h5>
-                  </div>
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase">Amount Details</h5>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Payment Information -->
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Provider ID:</span>
-                      <span class="font-medium"><?php echo $row['provider_id'] ? htmlspecialchars($row['provider_id']) : 'N/A'; ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Payment Mode:</span>
-                      <span class="font-medium"><?php echo $row['mode'] ? htmlspecialchars($row['mode']) : 'N/A'; ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Currency:</span>
-                      <span class="font-medium"><?php echo $row['currency'] ? htmlspecialchars($row['currency']) : 'PHP'; ?></span>
-                    </div>
-                  </div>
-                  
-                  <!-- Amount Information -->
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Gross Amount:</span>
-                      <span class="font-medium">₱<?php echo number_format($row['gross_amount'], 2); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Net Amount:</span>
-                      <span class="font-medium">₱<?php echo number_format($row['net_amount'], 2); ?></span>
-                    </div>
-                    <?php if ($row['refunded_amount'] > 0): ?>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Refunded Amount:</span>
-                      <span class="font-medium text-red-600">₱<?php echo number_format($row['refunded_amount'], 2); ?></span>
-                    </div>
-                    <?php endif; ?>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- End Payment Details Table -->
-
-            <?php if ($row['failed_code']): ?>
-            <!-- Error Information -->
-            <div class="mt-6 p-4 bg-red-50 rounded-lg">
-              <h3 class="text-lg font-semibold text-red-800 mb-2">Payment Error</h3>
-              <p class="text-red-600">Error Code: <?php echo htmlspecialchars($row['failed_code']); ?></p>
-            </div>
-            <?php endif; ?>
-
-            <div class="mt-6 flex justify-end gap-x-3">
-              <?php if ($row['payment_status'] === 'paid' && $row['refunded_amount'] == 0): ?>
-              <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700">
-                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 12H4"/>
-                  <path d="M10 18l-6-6 6-6"/>
+            <div>
+              <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewPaymentModal<?php echo $row['payment_id']; ?>')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
                 </svg>
-                Process Refund
-              </button>
-              <?php endif; ?>
-              
-              <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700">
-                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" x2="12" y1="15" y2="3"/>
-                </svg>
-                Export Receipt
               </button>
             </div>
           </div>
-          <!-- End Card -->
+          <!-- End Grid -->
+
+          <!-- Grid -->
+          <div class="my-8 grid sm:grid-cols-2 gap-3">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800 ">Order Information:</h3>
+              <h3 class="text-lg font-semibold text-gray-500 ">Order Code: <?php echo htmlspecialchars($row['order_code']); ?></h3>
+              <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Customer:</h3>
+              <address class="not-italic text-gray-500 ">
+                <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?><br>
+                <?php echo htmlspecialchars($row['billing_email']); ?>
+              </address>
+            </div>
+            <!-- Col -->
+            
+            <div class="sm:text-end space-y-2">
+              <!-- Grid -->
+              <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                  <dt class="col-span-3 font-semibold text-gray-800 ">Payment Status:</dt>
+                  <dd class="col-span-2 text-gray-500 ">
+                    <?php 
+                      $status = $row['payment_status'];
+                      $statusClass = '';
+                      switch ($status) {
+                        case 'Pending':
+                          $statusClass = 'bg-yellow-100 text-yellow-800';
+                          break;
+                        case 'Paid':
+                          $statusClass = 'bg-green-100 text-green-800';
+                          break;
+                        case 'Failed':
+                          $statusClass = 'bg-red-100 text-red-800';
+                          break;
+                        case 'Refunded':
+                          $statusClass = 'bg-purple-100 text-purple-800';
+                          break;
+                        default:
+                          $statusClass = 'bg-gray-100 text-gray-800';
+                      }
+                    ?>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
+                      <?php echo ucfirst($status); ?>
+                    </span>
+                  </dd>
+                </dl>
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                  <dt class="col-span-3 font-semibold text-gray-800 ">Payment Date:</dt>
+                  <dd class="col-span-2 text-gray-500">
+                    <?php 
+                      if ($row['paid_at']) {
+                        echo date("F j, Y, g:i a", strtotime($row['paid_at']));
+                      } else {
+                        echo date("F j, Y, g:i a", strtotime($row['created_at']));
+                      }
+                    ?>
+                  </dd>
+                </dl>
+              </div>
+              <!-- End Grid -->
+            </div>
+            <!-- Col -->
+          </div>
+          <!-- End Grid -->
+
+          <!-- Payment Details Table -->
+          <div class="mt-6">
+            <div class="border border-gray-200 p-4 rounded-lg space-y-4">
+              <div class="grid grid-cols-2 gap-2 items-center">
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase">Payment Information</h5>
+                </div>
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase">Amount Details</h5>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Payment Information -->
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Provider ID:</span>
+                    <span class="font-medium"><?php echo $row['provider_id'] ? htmlspecialchars($row['provider_id']) : 'N/A'; ?></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Payment Mode:</span>
+                    <span class="font-medium"><?php echo $row['mode'] ? htmlspecialchars($row['mode']) : 'N/A'; ?></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Currency:</span>
+                    <span class="font-medium"><?php echo $row['currency'] ? htmlspecialchars($row['currency']) : 'PHP'; ?></span>
+                  </div>
+                </div>
+                
+                <!-- Amount Information -->
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Gross Amount:</span>
+                    <span class="font-medium">₱<?php echo number_format($row['gross_amount'], 2); ?></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Net Amount:</span>
+                    <span class="font-medium">₱<?php echo number_format($row['net_amount'], 2); ?></span>
+                  </div>
+                  <?php if ($row['refunded_amount'] > 0): ?>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Refunded Amount:</span>
+                    <span class="font-medium text-red-600">₱<?php echo number_format($row['refunded_amount'], 2); ?></span>
+                  </div>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- End Payment Details Table -->
+
+          <?php if ($row['failed_code']): ?>
+          <!-- Error Information -->
+          <div class="mt-6 p-4 bg-red-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-red-800 mb-2">Payment Error</h3>
+            <p class="text-red-600">Error Code: <?php echo htmlspecialchars($row['failed_code']); ?></p>
+          </div>
+          <?php endif; ?>
+
+          <div class="mt-6 flex justify-end gap-x-3">
+            <?php if ($row['payment_status'] === 'paid' && $row['refunded_amount'] == 0): ?>
+            <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700">
+              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 12H4"/>
+                <path d="M10 18l-6-6 6-6"/>
+              </svg>
+              Process Refund
+            </button>
+            <?php endif; ?>
+            
+            <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700">
+              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="15" y2="3"/>
+              </svg>
+              Export Receipt
+            </button>
+          </div>
         </div>
+        <!-- End Card -->
       </div>
     </div>
   <?php endwhile; ?>

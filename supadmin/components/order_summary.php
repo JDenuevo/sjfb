@@ -332,8 +332,8 @@
 
 
 <!-- Assign Rider Modal -->
-<div id="riderModal" class="hidden fixed inset-0 z-100 overflow-y-auto bg-black bg-opacity-50" style="margin: 0">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+<div id="riderModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+      <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col relative">
         <div class="mt-3">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Assign Rider</h3>
             <form method="POST" action="./functions/order_process.php">

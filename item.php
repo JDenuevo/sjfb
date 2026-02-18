@@ -1,5 +1,3 @@
-<!-- item.php -->
-
 <?php
 include 'conn.php'; // Database connection
 
@@ -15,14 +13,21 @@ if (empty($productName)) {
     die();
 }
 
-// Fetch product by name with its variants and images - EXCLUDE SOFT-DELETED PRODUCTS
+// Fetch product by name with its variants, images, AND CATEGORIES
 $query = "SELECT p.*, 
                  pv.variant_id, pv.variant_name, pv.variant_price, pv.discount_price, 
                  pv.unit_type, pv.minimum_order, pv.order_increment,
-                 pi.image_path, pi.is_primary
+                 pi.image_path, pi.is_primary,
+                 pc.category_id, pc.category_name, pc.category_slug,
+                 pc2.category_id as parent_category_id, 
+                 pc2.category_name as parent_category_name,
+                 pc2.category_slug as parent_category_slug
           FROM products p
           LEFT JOIN product_variants pv ON p.product_id = pv.product_id
           LEFT JOIN product_images pi ON p.product_id = pi.product_id
+          LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
+          LEFT JOIN product_categories pc ON pcl.category_id = pc.category_id
+          LEFT JOIN product_categories pc2 ON pc.parent_id = pc2.category_id
           WHERE LOWER(REPLACE(p.product_name, ' ', '-')) = LOWER(REPLACE(?, ' ', '-'))
           AND p.is_deleted = 0
           ORDER BY p.product_id, pv.variant_id, pi.is_primary DESC";
@@ -43,13 +48,17 @@ $product = null;
 $variants = [];
 $images = [];
 $primaryImage = null;
+$categories = [];
+$primaryCategory = null;
 
 while ($row = $result->fetch_assoc()) {
     if ($product === null) {
         $product = [
             'product_id' => $row['product_id'],
             'product_name' => $row['product_name'],
-            'product_description' => $row['product_description']
+            'product_unit' => $row['product_unit'],
+            'product_description' => $row['product_description'],
+            'product_nickname' => $row['product_nickname']
         ];
     }
     
@@ -67,65 +76,145 @@ while ($row = $result->fetch_assoc()) {
     
     // Handle images
     if ($row['image_path']) {
-        $images[] = $row['image_path'];
+        $images[$row['image_path']] = $row['image_path']; // Use array key to prevent duplicates
         if ($row['is_primary']) {
             $primaryImage = $row['image_path'];
+        }
+    }
+    
+    // Handle categories
+    if ($row['category_id'] && !isset($categories[$row['category_id']])) {
+        $categories[$row['category_id']] = [
+            'category_id' => $row['category_id'],
+            'category_name' => $row['category_name'],
+            'category_slug' => $row['category_slug'],
+            'parent_id' => $row['parent_category_id'],
+            'parent_name' => $row['parent_category_name'],
+            'parent_slug' => $row['parent_category_slug']
+        ];
+        
+        // Set primary category (first one)
+        if ($primaryCategory === null) {
+            $primaryCategory = $categories[$row['category_id']];
         }
     }
 }
 
 // If no primary image but other images exist, use the first one
 if (empty($primaryImage) && !empty($images)) {
-    $primaryImage = $images[0];
+    $primaryImage = reset($images);
 }
 
 // If no images at all, use default.png
 if (empty($images)) {
     $primaryImage = 'default.png';
     $images = ['default.png'];
+} else {
+    $images = array_values($images); // Reset array keys
 }
 
-// Generate canonical URL
+// After your existing code, define the share URLs properly
 $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['product_name']));
+
+$shareUrlNew = $canonicalUrl; // Clean URL format for sharing
+$shareTitle = $product['product_name'];
+$shareText = "Check out this fresh seafood: " . $product['product_name'] . " from St. Joseph Fish Brokerage Inc.";
 ?>
 
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= htmlspecialchars($product['product_name']) ?> | St. Joseph Fish Brokerage Inc.</title>
 
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="<?= htmlspecialchars($product['product_description']) ?>">
-  <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>" />
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="scroll-smooth"> 
+
+<head>
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   
-  <!-- Favicons -->
+  <title><?= htmlspecialchars($product['product_name']) ?> | St. Joseph Fish Brokerage Inc.</title>
+  <meta name="description" content="St. Joseph Fish Brokerage Inc. - Providing professional fish brokerage services with excellence and integrity.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fishbrokers.net/">
+  <meta property="og:title" content="St. Joseph Fish Brokerage Inc.">
+  <meta property="og:description" content="Professional fish brokerage services with excellence and integrity.">
+  <meta property="og:image" content="https://fishbrokers.net/assets/icons/logo.svg"> 
+  <meta name="google-site-verification" content="SEvyztm_VEss7pZNU7eN79PfVCh0D6MskG7f9mKpJow" />
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="St. Joseph Fish Brokerage Inc.">
+  <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
+  <meta name="twitter:image" content="https://fishbrokers.net/assets/icons/logo.svg">
+
+  <link rel="shortcut icon" href="<?= $baseUrl ?>/assets/icons/logo.ico">
   <link rel="icon" href="<?= $baseUrl ?>assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="icon" href="<?= $baseUrl ?>assets/icons/logo.svg" type="image/svg+xml">
-  
-  <!-- Fonts -->
+  <link rel="apple-touch-icon" href="<?= $baseUrl ?>/assets/icons/logo.svg">
+    
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
-  <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
-  <link rel="stylesheet" href="<?= $baseUrl ?>style.css">
-  <link rel="stylesheet" href="<?= $baseUrl ?>output.css">
+
+  <link href="<?= $baseUrl ?>style.css" rel="stylesheet">
+  <link href="<?= $baseUrl ?>output.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
-  <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
+
 </head>
+
 <body>
 
 <style>
-.selected-variant {
+.variant-button {
+    background-color: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.variant-button.selected-variant {
     background-color: #f59e0b;
     border-color: #f59e0b;
     color: #FFFFFF;
 }
+
+/* Add to cart button disabled state */
+button[name="add_to_cart"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button[name="add_to_cart"]:not(:disabled) {
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* Quantity buttons */
+.decrease-quantity, .increase-quantity {
+    background-color: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.decrease-quantity:hover, .increase-quantity:hover {
+    background-color: #f59e0b;
+    color: white;
+    border-color: #f97316;
+}
+
 
 /* Toast Container */
 #toastContainer {
@@ -217,9 +306,9 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
 <section id="home-section">
   <?php include('./components/navigation.php'); ?>
 
-  <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto mt-10">
+  <div class="max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto mt-10">
     <!-- Breadcrumbs -->
-    <div class="mb-4 text-sm text-gray-600">
+    <div class="mb-4 text-gray-600 flex">
       <a href="<?= $baseUrl ?>" class="hover:text-orange-500">Home</a>
         <svg xmlns="shrink-0 mx-3 text-gray-400" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-right"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 6l6 6l-6 6" /></svg>
       <span class="text-gray-800"><?= htmlspecialchars($product['product_name']) ?></span>
@@ -228,15 +317,16 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
     <!-- TOAST CONTAINER HERE -->
     <div id="toastContainer"></div>
 
-    <div class="grid md:grid-cols-3 gap-4">
-      <div class="md:col-span-1 shadow-lg p-4 rounded-3xl">
+    <div class="grid md:grid-cols-3 gap-4 shadow-lg">
+      <div class="md:col-span-1 p-4 rounded-3xl">
         <!-- Product Image & Thumbnails -->
         <div class="flex flex-col items-center">
             <!-- Main Image -->
             <div class="max-w-xl rounded-lg relative">
                 <img id="mainImage"
                     src="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($primaryImage) ?>"
-                    class="rounded-lg"
+                    class="rounded-lg shadow-md"
+                    width="250px"
                     alt="<?= htmlspecialchars($product['product_name']) ?>">
             </div>
 
@@ -245,7 +335,7 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
                 <div class="flex justify-center space-x-3 mt-4 overflow-x-auto">
                     <?php foreach ($images as $image): ?>
                         <img src="<?= $baseUrl ?>uploads/products/<?= htmlspecialchars($image) ?>"
-                            class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-gray-500"
+                            class="w-20 h-20 object-cover rounded-lg cursor-pointer hover:border-gray-500"
                             onclick="changeImage('<?= htmlspecialchars($image) ?>')"
                             alt="<?= htmlspecialchars($product['product_name']) ?> - Thumbnail">
                     <?php endforeach; ?>
@@ -255,9 +345,9 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
       </div>
 
       <!-- Right Side: Product Details -->
-      <div class="md:col-span-2 shadow-lg p-4 rounded-3xl">
+      <div class="md:col-span-1 p-4 rounded-3xl">
         <h1 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($product['product_name']) ?></h1>
-        <p class="mt-2 text-gray-600"><?= htmlspecialchars($product['product_description']) ?></p>
+        <p class="mt-2 text-gray-600"><?= htmlspecialchars($product['product_unit']) ?></p>
 
         <!-- Add to Cart Form -->
         <form class="add-to-cart-form" data-product-id="<?= $product['product_id'] ?>">
@@ -308,9 +398,9 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
             <div class="mt-3">
                 <div class="flex items-center">
                     <div class="flex items-center border border-gray-300 rounded">
-                        <button type="button" class="decrease-quantity px-3 py-2 rounded-l hover:bg-orange-600 hover:text-white">-</button>
+                        <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">-</button>
                         <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="" placeholder="1" readonly>
-                        <button type="button" class="increase-quantity px-3 py-2 rounded-r hover:bg-orange-600 hover:text-white">+</button>
+                        <button type="button" class="increase-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">+</button>
                     </div>
                     &nbsp;
                     <span class="ml-2 text-sm font-medium text-gray-600 unit-display"></span>
@@ -321,23 +411,118 @@ $canonicalUrl = $baseUrl . "item/" . strtolower(str_replace(' ', '-', $product['
             <!-- Price and Discount Display -->
             <div class="price-display mt-3"></div>
 
-            <!-- Add to Cart Button -->
-            <button type="submit" name="add_to_cart" 
-                    class="cursor-pointer mt-4 w-full py-3 rounded-lg justify-center items-center inline-flex bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 focus:outline-none" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
-                    Add to Cart
-            </button>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="flex gap-2">
+                <!-- Add to Cart Button -->
+                <button type="submit" name="add_to_cart" 
+                        class="cursor-pointer w-full py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" title="Add to Cart" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
+                        Add to Cart
+                </button>
+                <!-- Facebook Share Button -->
+                <button type="button" onclick="shareToFacebook('<?= $shareUrlNew ?>')"
+                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-white font-medium transition-all duration-300 flex items-center justify-center" title="Share on Facebook">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="url(#paint0_linear_87_7208)"/><path d="M21.2137 20.2816L21.8356 16.3301H17.9452V13.767C17.9452 12.6857 18.4877 11.6311 20.2302 11.6311H22V8.26699C22 8.26699 20.3945 8 18.8603 8C15.6548 8 13.5617 9.89294 13.5617 13.3184V16.3301H10V20.2816H13.5617V29.8345C14.2767 29.944 15.0082 29.994 15.7534 30C16.4986 30 17.2302 29.944 17.9452 29.8345V20.2816H21.2137Z" fill="white"/><defs><linearGradient id="paint0_linear_87_7208" x1="16" y1="2" x2="16" y2="29.917" gradientUnits="userSpaceOnUse"><stop stop-color="#18ACFE"/><stop offset="1" stop-color="#0163E0"/></linearGradient></defs></svg>
+                </button>
+                
+                <!-- General Share Button -->
+                <button type="button" onclick="shareProduct('<?= $shareTitle ?>', '<?= addslashes($shareText) ?>', '<?= $shareUrlNew ?>')"
+                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-dark font-medium transition-all duration-300 flex items-center justify-center" title="Share on other platforms">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-share-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 9h-1a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-8a2 2 0 0 0 -2 -2h-1" /><path d="M12 14v-11" /><path d="M9 6l3 -3l3 3" /></svg>                      
+                </button>
+              </div>
+            </div>
 
             <!-- Message to select a variant -->
             <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
             <p class="text-red-500 text-sm mt-2 minimum-error-message hidden"></p>
         </form>
       </div>
+      <div class="md:col-span-1 p-4 rounded-3xl"> <!-- set a fixed height -->
+        <!-- Product Image & Thumbnails -->
+        <div class="flex flex-col h-full items-start"> <!-- full height for flex-grow -->
+          <h2 class="text-xl font-bold text-gray-800">
+            What is <?= htmlspecialchars($product['product_name']) ?></span>?
+          </h2>
+          <p class="text-gray-800 font-semibold mt-2">
+            <?= htmlspecialchars($product['product_description']) ?>
+          </p>
+
+          <!-- Tags at the bottom -->
+          <?php if (!empty($product['product_nickname'])): ?>
+          <p class="mt-5 text-gray-600">
+              <strong>Tags:</strong> 
+              <?php 
+              // Check if nickname is JSON
+              $nickname = $product['product_nickname'];
+              if (json_decode($nickname) !== null) {
+                  // It's JSON, decode and implode
+                  $tags = json_decode($nickname, true);
+                  if (is_array($tags)) {
+                      echo '"' . implode('", "', array_map('htmlspecialchars', $tags)) . '"';
+                  } else {
+                      echo htmlspecialchars($nickname);
+                  }
+              } else {
+                  // It's plain text, just display as is
+                  echo htmlspecialchars($nickname);
+              }
+              ?>
+          </p>
+          <?php endif; ?>
+        </div>
+      </div>
+
+
     </div>
   </div>
 </section>
 
 <?php include('./components/footer.php'); ?>
+
+<script>
+// Facebook Share function
+function shareToFacebook(url) {
+    const facebookUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
+    window.open(facebookUrl, 'facebook-share', 'width=600,height=400,scrollbars=yes');
+    return false;
+}
+
+// Web Share API function
+function shareProduct() {
+    const shareData = {
+        title: <?= json_encode($shareTitle) ?>,
+        text: <?= json_encode($shareText) ?>,
+        url: <?= json_encode($shareUrlNew) ?>
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData)
+            .catch(err => console.log('Share cancelled:', err));
+    } else {
+        // Fallback for unsupported browsers
+        copyShareLink();
+    }
+}
+
+function copyShareLink() {
+    const url = <?= json_encode($shareUrlNew) ?>;
+    navigator.clipboard.writeText(url)
+        .then(() => {
+            showToast('Link copied to clipboard!', 'success');
+        })
+        .catch(() => {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = url;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Link copied to clipboard!', 'success');
+        });
+}
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

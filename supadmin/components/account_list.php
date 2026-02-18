@@ -101,8 +101,8 @@
                               </td>
                             </tr>
 
-                            <div id="updateAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                              <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-95 hover:scale-100">
+                            <div id="updateAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+                              <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
                                 <h3 class="text-xl font-semibold mb-4 text-gray-800">Update Account</h3>
                                 
                                 <form action="./functions/update.php" method="POST">
@@ -193,8 +193,8 @@
                               </div>
                             </div>
 
-                            <div id="deleteAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                                <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+                            <div id="deleteAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+                                <div class="bg-white w-96 p-6 rounded-2xl shadow-2xl flex flex-col">
                                     <form action="./functions/delete.php" method="POST" enctype="multipart/form-data" class="space-y-4">
                                         <input type="hidden" name="account_id" value="<?php echo $row['account_id']; ?>">
                                         

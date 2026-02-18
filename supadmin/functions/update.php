@@ -135,33 +135,47 @@ elseif (isset($_POST['update_product'])) {
     $product_id = intval($_POST['product_id']);
     $product_name = htmlspecialchars(trim($_POST['product_name']));
     $product_description = htmlspecialchars(trim($_POST['product_description']));
-    $product_category = intval($_POST['product_category']);
-
-    if (empty($product_name) || empty($product_description) || empty($product_category)) {
-        redirectWithMessage("../products.php", "All fields are required.", "error");
+    $product_unit = htmlspecialchars(trim($_POST['product_unit'] ?? ''));
+    
+    // Get categories
+    $selected_categories = isset($_POST['product_categories']) ? $_POST['product_categories'] : [];
+    $primary_category = isset($_POST['primary_category']) ? intval($_POST['primary_category']) : 0;
+    
+    if (empty($product_name) || empty($selected_categories)) {
+        redirectWithMessage("../products.php", "Product name and at least one category are required.", "error");
     }
 
     $conn->begin_transaction();
 
     try {
         // Update product
-        $stmt = $conn->prepare("UPDATE products SET product_name = ?, product_description = ?, product_category = ? WHERE product_id = ?");
-        $stmt->bind_param("ssii", $product_name, $product_description, $product_category, $product_id);
+        $stmt = $conn->prepare("UPDATE products SET product_name = ?, product_description = ?, product_unit = ? WHERE product_id = ?");
+        $stmt->bind_param("sssi", $product_name, $product_description, $product_unit, $product_id);
         $stmt->execute();
         $stmt->close();
 
-        // Handle deleted variants
-        if (!empty($_POST['deleted_variants'])) {
-            $deletedVariants = explode(',', $_POST['deleted_variants']);
-            foreach ($deletedVariants as $variantId) {
-                $variantId = intval($variantId);
-                if ($variantId > 0) {
-                    $stmt = $conn->prepare("DELETE FROM product_variants WHERE variant_id = ? AND product_id = ?");
-                    $stmt->bind_param("ii", $variantId, $product_id);
-                    $stmt->execute();
-                    $stmt->close();
-                }
-            }
+        // Update categories - delete all and reinsert
+        $delete_stmt = $conn->prepare("DELETE FROM product_category_links WHERE product_id = ?");
+        $delete_stmt->bind_param("i", $product_id);
+        $delete_stmt->execute();
+        $delete_stmt->close();
+
+        foreach ($selected_categories as $category_id) {
+            $is_primary = ($category_id == $primary_category) ? 1 : 0;
+            $link_stmt = $conn->prepare("INSERT INTO product_category_links (product_id, category_id, is_primary) VALUES (?, ?, ?)");
+            $link_stmt->bind_param("iii", $product_id, $category_id, $is_primary);
+            $link_stmt->execute();
+            $link_stmt->close();
+        }
+
+        // If no primary category set, set the first one as primary
+        if ($primary_category == 0 && !empty($selected_categories)) {
+            $first_category = $selected_categories[0];
+            $update_primary = "UPDATE product_category_links SET is_primary = 1 WHERE product_id = ? AND category_id = ?";
+            $stmt = $conn->prepare($update_primary);
+            $stmt->bind_param("ii", $product_id, $first_category);
+            $stmt->execute();
+            $stmt->close();
         }
 
         // Handle variants (update existing and insert new)
@@ -312,16 +326,27 @@ elseif (isset($_POST['update_product'])) {
     }
 }
 
+
 elseif (isset($_POST['update_category'])) {
     $category_id = intval($_POST['category_id']);
     $category_name = trim($_POST['category_name']);
+    $category_slug = isset($_POST['category_slug']) ? trim($_POST['category_slug']) : '';
+    $category_description = isset($_POST['category_description']) ? trim($_POST['category_description']) : '';
+    $parent_id = isset($_POST['parent_id']) && !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null;
+    $sort_order = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
+    $is_active = isset($_POST['is_active']) ? intval($_POST['is_active']) : 1;
 
     if (empty($category_name)) {
         redirectWithMessage("../category.php", "Category name is required", "error");
     }
 
+    // Auto-generate slug if empty
+    if (empty($category_slug)) {
+        $category_slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $category_name)));
+    }
+
     // Check for duplicate category name (excluding the current category)
-    $check_sql = "SELECT COUNT(*) FROM product_categories WHERE category_name = ? AND category_id != ?";
+    $check_sql = "SELECT COUNT(*) FROM product_categories WHERE category_name = ? AND category_id != ? AND is_active = 1";
     $check_stmt = $conn->prepare($check_sql);
     $check_stmt->bind_param("si", $category_name, $category_id);
     $check_stmt->execute();
@@ -333,16 +358,138 @@ elseif (isset($_POST['update_category'])) {
         redirectWithMessage("../category.php", "Category name already exists", "error");
     }
 
-    // Update category
-    $sql = "UPDATE product_categories SET category_name = ? WHERE category_id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("si", $category_name, $category_id);
+    // Check for duplicate slug (excluding the current category)
+    if (!empty($category_slug)) {
+        $check_slug_sql = "SELECT COUNT(*) FROM product_categories WHERE category_slug = ? AND category_id != ? AND is_active = 1";
+        $check_slug_stmt = $conn->prepare($check_slug_sql);
+        $check_slug_stmt->bind_param("si", $category_slug, $category_id);
+        $check_slug_stmt->execute();
+        $check_slug_stmt->bind_result($slug_count);
+        $check_slug_stmt->fetch();
+        $check_slug_stmt->close();
+        
+        if ($slug_count > 0) {
+            redirectWithMessage("../category.php", "Category slug already exists", "error");
+        }
+    }
+
+    // Calculate category level based on parent
+    $category_level = 1;
+    if ($parent_id) {
+        $level_query = "SELECT category_level FROM product_categories WHERE category_id = ?";
+        $level_stmt = $conn->prepare($level_query);
+        $level_stmt->bind_param("i", $parent_id);
+        $level_stmt->execute();
+        $level_result = $level_stmt->get_result();
+        if ($parent = $level_result->fetch_assoc()) {
+            $category_level = $parent['category_level'] + 1;
+        }
+        $level_stmt->close();
+    }
+
+    // Handle image upload
+    $category_image = null;
+    $upload_new_image = false;
+    
+    if (isset($_FILES['category_image']) && $_FILES['category_image']['error'] === UPLOAD_ERR_OK) {
+        $target_dir = "../../uploads/categories/";
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($target_dir)) {
+            mkdir($target_dir, 0777, true);
+        }
+        
+        $file_name = basename($_FILES['category_image']['name']);
+        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        if (in_array($file_ext, $allowed_ext)) {
+            // Get old image to delete later
+            $old_image_query = "SELECT category_image FROM product_categories WHERE category_id = ?";
+            $old_image_stmt = $conn->prepare($old_image_query);
+            $old_image_stmt->bind_param("i", $category_id);
+            $old_image_stmt->execute();
+            $old_image_result = $old_image_stmt->get_result();
+            $old_image = $old_image_result->fetch_assoc();
+            $old_image_stmt->close();
+            
+            // Upload new image
+            $unique_file_name = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9.]/', '', $file_name);
+            $target_file = $target_dir . $unique_file_name;
+            
+            if (move_uploaded_file($_FILES['category_image']['tmp_name'], $target_file)) {
+                $category_image = $unique_file_name;
+                $upload_new_image = true;
+                
+                // Delete old image if exists
+                if (!empty($old_image['category_image'])) {
+                    $old_image_path = $target_dir . $old_image['category_image'];
+                    if (file_exists($old_image_path)) {
+                        unlink($old_image_path);
+                    }
+                }
+            }
+        }
+    }
+
+    // Build the UPDATE query based on whether there's a new image
+    if ($upload_new_image) {
+        // With new image
+        $sql = "UPDATE product_categories SET 
+                category_name = ?, 
+                category_slug = ?, 
+                category_description = ?, 
+                category_image = ?, 
+                parent_id = ?, 
+                category_level = ?, 
+                sort_order = ?, 
+                is_active = ? 
+                WHERE category_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssssiiiii", 
+            $category_name, 
+            $category_slug, 
+            $category_description, 
+            $category_image, 
+            $parent_id, 
+            $category_level, 
+            $sort_order, 
+            $is_active, 
+            $category_id
+        );
+    } else {
+        // Without new image (keep existing image)
+        $sql = "UPDATE product_categories SET 
+                category_name = ?, 
+                category_slug = ?, 
+                category_description = ?, 
+                parent_id = ?, 
+                category_level = ?, 
+                sort_order = ?, 
+                is_active = ? 
+                WHERE category_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssiiiii", 
+            $category_name, 
+            $category_slug, 
+            $category_description, 
+            $parent_id, 
+            $category_level, 
+            $sort_order, 
+            $is_active, 
+            $category_id
+        );
+    }
 
     if ($stmt->execute()) {
         redirectWithMessage("../category.php", "Category updated successfully", "success");
     } else {
-        redirectWithMessage("../category.php", "Failed to update category", "error");
+        redirectWithMessage("../category.php", "Failed to update category: " . $stmt->error, "error");
     }
+    
+    $stmt->close();
 }
 
 ?>

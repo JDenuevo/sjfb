@@ -31,6 +31,8 @@ define('DB_NAME', 'your_database_name');
 
 // Other global settings
 define('SITE_NAME', 'St. Joseph Fish Brokerage Inc.');
+define('SITE_URL', 'https://fishbrokers.net');
+define('SITE_LOGO', 'https://fishbrokers.net/assets/icons/logo.svg');
 define('SITE_EMAIL', 'stjosephbrokerage23@gmail.com');
 
 // Cart initialization if not set

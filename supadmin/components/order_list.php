@@ -365,190 +365,188 @@
 <?php if (mysqli_num_rows($result) > 0): ?>
   <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
   <?php while ($row = mysqli_fetch_assoc($result)): ?>
-    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="hidden fixed inset-0 z-100 overflow-y-auto bg-black bg-opacity-50" style="margin: 0">
-      <div class="flex items-center justify-center min-h-screen px-4" style="margin: 20px;">
-        <div class="bg-white rounded-xl shadow-lg w-full sm:w-11/12 lg:w-3/4 mx-auto relative">
-          <!-- Card -->
-          <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
-            <!-- Grid -->
-            <div class="flex justify-between">
-              <!-- Col -->
-              <div class="">
-                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order Code</h2>
-                <span class="mt-1 block text-gray-500"><?php echo htmlspecialchars ($row['order_code']); ?></span>
-              </div>
-              <!-- Col -->
-
-              <div>
-                <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 6L6 18" />
-                    <path d="M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+    <div id="viewOrderModal<?php echo $row['order_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+      <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col relative">
+        <!-- Card -->
+        <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt">
+          <!-- Grid -->
+          <div class="flex justify-between">
+            <!-- Col -->
+            <div class="">
+              <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Order Code</h2>
+              <span class="mt-1 block text-gray-500"><?php echo htmlspecialchars ($row['order_code']); ?></span>
             </div>
-            <!-- End Grid -->
+            <!-- Col -->
 
-            <!-- Grid -->
-            <div class="my-8 grid sm:grid-cols-2 gap-3">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-800 ">Shipping Information:</h3>
-                <h3 class="text-lg font-semibold text-gray-500 "><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></h3>
-                <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Address:</h3>
-                <address class="not-italic text-gray-500 ">
-                  <?php echo htmlspecialchars ($row['address']); ?><br>
-                  <?php echo htmlspecialchars ($row['city']); ?>, <?php echo htmlspecialchars ($row['postal_code']); ?>
-                </address>
-              </div>
-              <!-- Col -->
-              
-              <div class="sm:text-end space-y-2">
-                <!-- Grid -->
-                <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
-                  <dl class="grid sm:grid-cols-5 gap-x-3">
-                    <dt class="col-span-3 font-semibold text-gray-800 ">Payment Method:</dt>
-                    <dd class="col-span-2 text-gray-500 ">
-                       <!-- Payment Method -->
-                      <div>
-                        <?php
-                          $method = strtolower($row['payment_method']);
-                          switch ($method) {
-                            case 'gcash':
-                              $methodLabel = 'Gcash';
-                              $methodClass = 'bg-blue-100 text-blue-800';
-                              break;
-                            case 'paymaya':
-                              $methodLabel = 'Maya';
-                              $methodClass = 'bg-green-100 text-green-800';
-                              break;
-                            case 'grab_pay':
-                              $methodLabel = 'Grab Pay';
-                              $methodClass = 'bg-green-100 text-green-800';
-                              break;
-                            case 'qrph':
-                              $methodLabel = 'QR Ph';
-                              $methodClass = 'bg-red-100 text-red-800';
-                              break;
-                            case 'cod':
-                              $methodLabel = 'Cash on Delivery';
-                              $methodClass = 'bg-orange-100 text-orange-800';
-                              break;
-                            case 'card':
-                              $methodLabel = 'Visa/Mastercard';
-                              $methodClass = 'bg-purple-100 text-purple-800';
-                              break;
-                            default:
-                              $methodLabel = ucfirst($method);
-                              $methodClass = 'bg-gray-100 text-gray-800';
-                          }
-                        ?>
-                        <p class="text-sm mt-2 inline-block px-2 py-1 rounded-full font-medium <?php echo $methodClass; ?>">
-                          <?php echo $methodLabel; ?>
-                        </p>
-                      </div>
-                    </dd>
-                  </dl>
-                  <dl class="grid sm:grid-cols-5 gap-x-3">
-                  <dt class="col-span-3 font-semibold text-gray-800 ">Order date:</dt>
-                  <dd class="col-span-2 text-gray-500"><?= date("F j, Y, g:i a", strtotime($row['order_date'])); ?></dd>
-                  </dl>
-                </div>
-                <!-- End Grid -->
-              </div>
-              <!-- Col -->
-            </div>
-            <!-- End Grid -->
-
-            <!-- Table -->
-            <div class="mt-6">
-              <div class="border border-gray-200 p-4 rounded-lg space-y-4">
-                <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 items-center">
-                  <div class="col-span-full sm:col-span-2">
-                    <h5 class="text-start text-xs font-medium text-black uppercase">Item Name</h5>
-                  </div>
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase ">Variant</h5>
-                  </div>
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase ">Price</h5>
-                  </div>
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase ">Qty</h5>
-                  </div>
-                  <div>
-                    <h5 class="text-start text-xs font-medium text-black uppercase ">Amount</h5>
-                  </div>
-                </div>
-
-                <!-- Now properly use a real table -->
-                <div class="overflow-x-auto">
-                  <table class="min-w-full text-sm text-left text-gray-500">
-                    <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
-                      <!-- Order items will be dynamically loaded here -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <!-- End Table -->
-
-            <!-- Subtotal Section -->
-            <div class="mt-8 p-4">
-              <div class="grid grid-cols-4 gap-2">
-                <!-- Empty columns to push subtotal to the right -->
-              
-                <dt class="text-lg font-semibold text-gray-800">Subtotal:</dt>
-          
-                <div></div>
-                <div></div>
-                
-                <dd class="text-lg font-semibold text-gray-800">₱<?php echo number_format($row['total_price'], 2); ?></dd>
-              
-              </div>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-x-3">
-              <form action="./functions/export_waybill.php" method="POST">
-                <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
-                <button type="submit" name="" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" x2="12" y1="15" y2="3"/>
-                  </svg>
-                  Generate Waybill
-                </button>
-              </form>
-              <a href="./order_manage.php?order_id=<?php echo $row['order_id']; ?>" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 focus:outline-hidden focus:bg-green-700">
-                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/>
-                    <circle cx="12" cy="12" r="3"/>
+            <div>
+              <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewOrderModal<?php echo $row['order_id']; ?>')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
                 </svg>
-                Manage Order
-              </a>
-              <?php if ($row['order_status'] === 'Pending'): ?>
-              <form action="./functions/order_process.php" method="POST">
-                  <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
-                  <input type="hidden" name="redirect_to" value="order_manage">
-                  <button type="submit" name="approve_order" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">
-                      <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart-check">
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                          <path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/>
-                          <path d="M11.5 17h-5.5v-14h-2"/>
-                          <path d="M6 5l14 1l-1 7h-13"/>
-                          <path d="M15 19l2 2l4 -4"/>
-                      </svg>
-                      Approve Order
-                  </button>
-              </form>
-              <?php endif; ?>
-              
+              </button>
             </div>
           </div>
-          <!-- End Card -->
+          <!-- End Grid -->
+
+          <!-- Grid -->
+          <div class="my-8 grid sm:grid-cols-2 gap-3">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800 ">Shipping Information:</h3>
+              <h3 class="text-lg font-semibold text-gray-500 "><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></h3>
+              <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Address:</h3>
+              <address class="not-italic text-gray-500 ">
+                <?php echo htmlspecialchars ($row['address']); ?><br>
+                <?php echo htmlspecialchars ($row['city']); ?>, <?php echo htmlspecialchars ($row['postal_code']); ?>
+              </address>
+            </div>
+            <!-- Col -->
+            
+            <div class="sm:text-end space-y-2">
+              <!-- Grid -->
+              <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                  <dt class="col-span-3 font-semibold text-gray-800 ">Payment Method:</dt>
+                  <dd class="col-span-2 text-gray-500 ">
+                      <!-- Payment Method -->
+                    <div>
+                      <?php
+                        $method = strtolower($row['payment_method']);
+                        switch ($method) {
+                          case 'gcash':
+                            $methodLabel = 'Gcash';
+                            $methodClass = 'bg-blue-100 text-blue-800';
+                            break;
+                          case 'paymaya':
+                            $methodLabel = 'Maya';
+                            $methodClass = 'bg-green-100 text-green-800';
+                            break;
+                          case 'grab_pay':
+                            $methodLabel = 'Grab Pay';
+                            $methodClass = 'bg-green-100 text-green-800';
+                            break;
+                          case 'qrph':
+                            $methodLabel = 'QR Ph';
+                            $methodClass = 'bg-red-100 text-red-800';
+                            break;
+                          case 'cod':
+                            $methodLabel = 'Cash on Delivery';
+                            $methodClass = 'bg-orange-100 text-orange-800';
+                            break;
+                          case 'card':
+                            $methodLabel = 'Visa/Mastercard';
+                            $methodClass = 'bg-purple-100 text-purple-800';
+                            break;
+                          default:
+                            $methodLabel = ucfirst($method);
+                            $methodClass = 'bg-gray-100 text-gray-800';
+                        }
+                      ?>
+                      <p class="text-sm mt-2 inline-block px-2 py-1 rounded-full font-medium <?php echo $methodClass; ?>">
+                        <?php echo $methodLabel; ?>
+                      </p>
+                    </div>
+                  </dd>
+                </dl>
+                <dl class="grid sm:grid-cols-5 gap-x-3">
+                <dt class="col-span-3 font-semibold text-gray-800 ">Order date:</dt>
+                <dd class="col-span-2 text-gray-500"><?= date("F j, Y, g:i a", strtotime($row['order_date'])); ?></dd>
+                </dl>
+              </div>
+              <!-- End Grid -->
+            </div>
+            <!-- Col -->
+          </div>
+          <!-- End Grid -->
+
+          <!-- Table -->
+          <div class="mt-6">
+            <div class="border border-gray-200 p-4 rounded-lg space-y-4">
+              <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 items-center">
+                <div class="col-span-full sm:col-span-2">
+                  <h5 class="text-start text-xs font-medium text-black uppercase">Item Name</h5>
+                </div>
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase ">Variant</h5>
+                </div>
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase ">Price</h5>
+                </div>
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase ">Qty</h5>
+                </div>
+                <div>
+                  <h5 class="text-start text-xs font-medium text-black uppercase ">Amount</h5>
+                </div>
+              </div>
+
+              <!-- Now properly use a real table -->
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left text-gray-500">
+                  <tbody class="divide-y divide-gray-200" id="orderItems<?php echo $row['order_id']; ?>">
+                    <!-- Order items will be dynamically loaded here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- End Table -->
+
+          <!-- Subtotal Section -->
+          <div class="mt-8 p-4">
+            <div class="grid grid-cols-4 gap-2">
+              <!-- Empty columns to push subtotal to the right -->
+            
+              <dt class="text-lg font-semibold text-gray-800">Subtotal:</dt>
+        
+              <div></div>
+              <div></div>
+              
+              <dd class="text-lg font-semibold text-gray-800">₱<?php echo number_format($row['total_price'], 2); ?></dd>
+            
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-x-3">
+            <form action="./functions/export_waybill.php" method="POST">
+              <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
+              <button type="submit" name="" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
+                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" x2="12" y1="15" y2="3"/>
+                </svg>
+                Generate Waybill
+              </button>
+            </form>
+            <a href="./order_manage.php?order_id=<?php echo $row['order_id']; ?>" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 focus:outline-hidden focus:bg-green-700">
+              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/>
+                  <circle cx="12" cy="12" r="3"/>
+              </svg>
+              Manage Order
+            </a>
+            <?php if ($row['order_status'] === 'Pending'): ?>
+            <form action="./functions/order_process.php" method="POST">
+                <input type="hidden" name="order_id" value="<?php echo $row['order_id']; ?>">
+                <input type="hidden" name="redirect_to" value="order_manage">
+                <button type="submit" name="approve_order" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">
+                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-shopping-cart-check">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/>
+                        <path d="M11.5 17h-5.5v-14h-2"/>
+                        <path d="M6 5l14 1l-1 7h-13"/>
+                        <path d="M15 19l2 2l4 -4"/>
+                    </svg>
+                    Approve Order
+                </button>
+            </form>
+            <?php endif; ?>
+            
+          </div>
         </div>
+        <!-- End Card -->
       </div>
     </div>
   <?php endwhile; ?>

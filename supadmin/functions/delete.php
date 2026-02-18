@@ -71,36 +71,48 @@ elseif (isset($_POST['delete_product'], $_POST['product_id'])) {
 }
 
 // DELETE CATEGORY
-elseif (isset($_POST['delete_category'], $_POST['category_id'])) {
-    $category_id = intval($_POST['category_id']); // Ensure category_id is an integer
-
-    // Validate category_id
-    if ($category_id <= 0) {
-        redirectWithMessage("../category.php", "Invalid category ID", "error");
-    }
-
-    // Check if category exists before deletion
-    $query = "SELECT * FROM product_categories WHERE category_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $category_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        // Delete category
-        $delete_category = "DELETE FROM product_categories WHERE category_id = ?";
-        $stmt = $conn->prepare($delete_category);
+elseif (isset($_POST['delete_category'])) {
+    $category_id = intval($_POST['category_id']);
+    
+    $conn->begin_transaction();
+    
+    try {
+        // Check if category has subcategories
+        $check_sub = $conn->prepare("SELECT COUNT(*) FROM product_categories WHERE parent_id = ? AND is_active = 1");
+        $check_sub->bind_param("i", $category_id);
+        $check_sub->execute();
+        $check_sub->bind_result($sub_count);
+        $check_sub->fetch();
+        $check_sub->close();
+        
+        if ($sub_count > 0) {
+            throw new Exception("Cannot delete category with subcategories. Please reassign or delete subcategories first.");
+        }
+        
+        // Soft delete the category
+        $stmt = $conn->prepare("UPDATE product_categories SET is_active = 0 WHERE category_id = ?");
         $stmt->bind_param("i", $category_id);
         $stmt->execute();
         $stmt->close();
-
-        redirectWithMessage("../category.php", "Category deleted successfully", "success");
-    } else {
-        redirectWithMessage("../category.php", "Category not found", "error");
+        
+        // Remove category links from products
+        $link_stmt = $conn->prepare("DELETE FROM product_category_links WHERE category_id = ?");
+        $link_stmt->bind_param("i", $category_id);
+        $link_stmt->execute();
+        $link_stmt->close();
+        
+        // Remove variant category links
+        $var_link_stmt = $conn->prepare("DELETE FROM product_variants_categories WHERE category_id = ?");
+        $var_link_stmt->bind_param("i", $category_id);
+        $var_link_stmt->execute();
+        $var_link_stmt->close();
+        
+        $conn->commit();
+        redirectWithMessage("../category.php", "Category deleted successfully.", "success");
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        redirectWithMessage("../category.php", "Error: " . $e->getMessage(), "error");
     }
-    exit();
 }
-
-// Default redirect if no valid action is found
-redirectWithMessage("../products.php", "Invalid request", "error");
 ?>

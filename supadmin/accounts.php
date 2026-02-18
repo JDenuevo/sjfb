@@ -124,8 +124,8 @@ $result = $conn->query($query);
   <!-- End Content -->
 
   <!-- Add Account Modal -->
-  <div id="addAccountModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-95 hover:scale-100">
+  <div id="addAccountModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+    <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
       <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Account</h3>
       <form action="./functions/add.php" method="POST">
         <div class="grid grid-cols-2 gap-x-2">
