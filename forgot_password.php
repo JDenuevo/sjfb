@@ -57,7 +57,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 </head>
 <body>
 
-<?php include('./components/preloader.php'); ?>
+<style>
+  body { font-family: 'Lexend', sans-serif; }
+  .font-display { font-family: 'Playfair Display', serif; }
+
+</style>
+
+<?php include('./components/preloaders.php'); ?>
 <!-- Hero Section -->
 <section id="home-section">
     <?php include('./components/navigation.php'); ?>

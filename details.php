@@ -59,6 +59,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   </noscript>
 </head>
 <style>
+   body { font-family: 'Lexend', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+
   .error-border {
     border-color: #ef4444 !important;
   }
@@ -96,8 +99,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
 </style>
 <body>
-<?php include('./components/preloader.php'); ?>
-
+<?php include('./components/preloaders.php'); ?>
+<?php include('./components/nav_crumb.php'); ?>
 <!-- Hero Section -->
 <section id="details-section">
     

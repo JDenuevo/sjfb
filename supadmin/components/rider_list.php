@@ -1,368 +1,260 @@
+<?php
+// rider_list.php — improved
 
-<div class="flex flex-col">
-  <div class="-m-1.5 overflow-x-auto">
-    <div class="p-1.5 min-w-full inline-block align-middle">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <!-- Header -->
-        <div class="px-6 py-4 grid gap-3 md:flex md:items-center border-b border-gray-200">
-          <div class="flex justify-between items-center">
-            <div>
-              <h2 class="text-xl font-semibold text-gray-800">
-                Rider
-              </h2>
-              <p class="text-sm text-gray-600">
-                Manage delivery rider
-              </p>
+// Rider stats
+$rStats = [];
+$r = $conn->query("SELECT COUNT(*) as v FROM riders"); $rStats['total'] = (int)$r->fetch_assoc()['v'];
+$r = $conn->query("SELECT COUNT(*) as v FROM riders WHERE is_available=1"); $rStats['available'] = (int)$r->fetch_assoc()['v'];
+$r = $conn->query("SELECT COUNT(DISTINCT assigned_rider_id) as v FROM orders WHERE order_status='OutForDelivery' AND assigned_rider_id IS NOT NULL"); $rStats['delivering'] = (int)$r->fetch_assoc()['v'];
+$r = $conn->query("SELECT COUNT(*) as v FROM orders WHERE order_status='Delivered' AND assigned_rider_id IS NOT NULL"); $rStats['delivered'] = (int)$r->fetch_assoc()['v'];
+?>
+
+<!-- Stats strip -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+  <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-purple-700"><?= $rStats['total'] ?></div>
+    <div class="text-xs text-purple-600">Total Riders</div>
+  </div>
+  <div class="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-green-700"><?= $rStats['available'] ?></div>
+    <div class="text-xs text-green-600">Available</div>
+  </div>
+  <div class="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-orange-700"><?= $rStats['delivering'] ?></div>
+    <div class="text-xs text-orange-600">Out Delivering</div>
+  </div>
+  <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-blue-700"><?= $rStats['delivered'] ?></div>
+    <div class="text-xs text-blue-600">Total Delivered</div>
+  </div>
+</div>
+
+<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+  <!-- Header -->
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+    <div class="flex-1">
+      <h2 class="text-lg font-semibold text-gray-800">Riders</h2>
+      <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> registered riders</p>
+    </div>
+    <button type="button" data-modal-target="addRiderModal"
+      class="flex items-center gap-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+      <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      Add Rider
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-100">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Rider</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Vehicle</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Active</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Done</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        <?php foreach ($riders as $rider):
+          $initials = strtoupper(substr($rider['first_name'],0,1).substr($rider['last_name'],0,1));
+          
+          // Get active delivery count + total delivered
+          $adRes = $conn->prepare("SELECT COUNT(*) as cnt FROM orders WHERE assigned_rider_id=? AND order_status='OutForDelivery'");
+          $adRes->bind_param("i", $rider['rider_id']);
+          $adRes->execute();
+          $activeDeliveries = (int)$adRes->get_result()->fetch_assoc()['cnt'];
+
+          $tdRes = $conn->prepare("SELECT COUNT(*) as cnt FROM orders WHERE assigned_rider_id=? AND order_status='Delivered'");
+          $tdRes->bind_param("i", $rider['rider_id']);
+          $tdRes->execute();
+          $totalDone = (int)$tdRes->get_result()->fetch_assoc()['cnt'];
+        ?>
+        <tr class="rider-row hover:bg-purple-50/20 transition-colors">
+          <!-- Rider -->
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-3">
+              <div class="size-10 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-600 shrink-0">
+                <?= $initials ?>
+              </div>
+              <div>
+                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($rider['first_name'].' '.$rider['last_name']) ?></div>
+                <div class="text-xs text-gray-400"><?= htmlspecialchars($rider['email']) ?></div>
+              </div>
             </div>
-            <div class="inline-flex gap-x-2">
-                <button type="button" onclick="openAddRiderModal()" 
-                        class="py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700">
-                    Add New Rider
+          </td>
+          <!-- Vehicle -->
+          <td class="px-4 py-3">
+            <div class="text-sm font-medium text-gray-800"><?= ucfirst(htmlspecialchars($rider['vehicle_type'])) ?></div>
+            <div class="text-xs text-gray-400 font-mono"><?= htmlspecialchars($rider['vehicle_plate_number'] ?? '—') ?></div>
+          </td>
+          <!-- Contact -->
+          <td class="px-4 py-3">
+            <div class="text-xs text-gray-600"><?= htmlspecialchars($rider['phone_number'] ?? '—') ?></div>
+            <div class="text-xs text-gray-400 font-mono text-xs"><?= htmlspecialchars(substr($rider['license_number'],0,16)) ?></div>
+          </td>
+          <!-- Active deliveries -->
+          <td class="px-4 py-3 text-center">
+            <?php if ($activeDeliveries > 0): ?>
+            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700"><?= $activeDeliveries ?></span>
+            <?php else: ?>
+            <span class="text-xs text-gray-400">0</span>
+            <?php endif; ?>
+          </td>
+          <!-- Total done -->
+          <td class="px-4 py-3 text-center">
+            <span class="text-sm font-bold text-gray-800"><?= $totalDone ?></span>
+          </td>
+          <!-- Status -->
+          <td class="px-4 py-3 text-center">
+            <?php if ($activeDeliveries > 0): ?>
+              <span class="flex items-center justify-center gap-1 text-xs text-orange-600">
+                <span class="size-2 rounded-full bg-orange-400 animate-pulse"></span>Delivering
+              </span>
+            <?php elseif ($rider['is_available']): ?>
+              <span class="flex items-center justify-center gap-1 text-xs text-green-600">
+                <span class="size-2 rounded-full bg-green-500 animate-pulse"></span>Available
+              </span>
+            <?php else: ?>
+              <span class="flex items-center justify-center gap-1 text-xs text-gray-400">
+                <span class="size-2 rounded-full bg-gray-300"></span>Offline
+              </span>
+            <?php endif; ?>
+          </td>
+          <!-- Actions -->
+          <td class="px-4 py-3 text-right">
+            <div class="inline-flex gap-1">
+              <button onclick="openEditRider(<?= $rider['rider_id'] ?>)"
+                class="size-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <!-- Toggle availability
+              <form action="./functions/toggle_rider.php" method="POST">
+                <input type="hidden" name="rider_id" value="<?= $rider['rider_id'] ?>">
+                <input type="hidden" name="is_available" value="<?= $rider['is_available'] ? 0 : 1 ?>">
+                <button type="submit" title="<?= $rider['is_available'] ? 'Set Offline' : 'Set Available' ?>"
+                  class="size-8 flex items-center justify-center rounded-lg <?= $rider['is_available'] ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100' ?> transition-colors">
+                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </button>
+              </form> -->
             </div>
+          </td>
+        </tr>
+
+        <!-- Edit Rider Modal -->
+        <div id="editRiderModal<?= $rider['rider_id'] ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+          <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-800">Edit Rider</h3>
+              <button onclick="closeModal('editRiderModal<?= $rider['rider_id'] ?>')" class="text-gray-400 hover:text-gray-600">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <form action="./functions/rider_process.php" method="POST" class="space-y-3">
+              <input type="hidden" name="rider_id" value="<?= $rider['rider_id'] ?>">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Vehicle Type</label>
+                <input type="text" name="vehicle_type" value="<?= htmlspecialchars($rider['vehicle_type']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Plate Number</label>
+                <input type="text" name="vehicle_plate_number" value="<?= htmlspecialchars($rider['vehicle_plate_number'] ?? '') ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">License Number</label>
+                <input type="text" name="license_number" value="<?= htmlspecialchars($rider['license_number']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Availability</label>
+                <select name="is_available" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                  <option value="1" <?= $rider['is_available'] ? 'selected' : '' ?>>Available</option>
+                  <option value="0" <?= !$rider['is_available'] ? 'selected' : '' ?>>Offline</option>
+                </select>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeModal('editRiderModal<?= $rider['rider_id'] ?>')" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" name="update_rider" class="flex-1 px-4 py-2 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-lg">Save</button>
+              </div>
+            </form>
           </div>
         </div>
-        <!-- End Header -->
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 
-        <!-- Table -->
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Rider</span>
-                </div>
-              </th>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Vehicle</span>
-                </div>
-              </th>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Status</span>
-                </div>
-              </th>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Actions</span>
-                </div>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody class="bg-white divide-y divide-gray-200">
-              <?php if (empty($riders)): ?>
-                  <tr>
-                      <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                          No riders found. 
-                      </td>
-                  </tr>
-              <?php else: ?>
-                  <?php foreach ($riders as $rider): ?>
-                      <tr class="rider-row bg-white">
-                          <td class="px-6 py-4 whitespace-nowrap">
-                              <div class="flex items-center">
-                                  <div class="ml-4">
-                                      <div class="text-sm font-medium text-gray-900">
-                                          <?php echo htmlspecialchars($rider['first_name'] . ' ' . $rider['last_name']); ?>
-                                      </div>
-                                      <div class="text-sm text-gray-500">
-                                          <?php echo htmlspecialchars($rider['email']); ?>
-                                      </div>
-                                  </div>
-                              </div>
-                          </td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <div class="font-medium"><?php echo htmlspecialchars(ucfirst($rider['vehicle_type'])); ?></div>
-                              <div class="text-gray-500"><?php echo htmlspecialchars($rider['vehicle_plate_number']); ?></div>
-                          </td>
-                          <td class="px-6 py-4 whitespace-nowrap">
-                            <?php 
-                              $isAvailable = $rider['is_available'];
-                              $statusClass = $isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                              $statusText = $isAvailable ? 'Available' : 'Busy';
-                              $statusIcon = $isAvailable 
-                                ? '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M5 13l4 4L19 7"/>
-                                  </svg>'
-                                : '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M6 18L18 6M6 6l12 12"/>
-                                  </svg>';
-                            ?>
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?>">
-                              <?php echo $statusIcon; ?>
-                              <?php echo $statusText; ?>
-                            </span>
-                          </td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div class="flex space-x-2">
-                                  <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="openEditRiderModal(<?php echo $rider['rider_id']; ?>)">
-                                      <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
-                                  </button>
-                                  <button style="background-color: #ef4444;" class="px-3 py-2 text-white rounded-xl" onclick="confirmDeleteRider(<?php echo $rider['rider_id']; ?>)">
-                                      <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
-                                  </button>
-                              </div>
-                          </td>
-                      </tr>
-                  <?php endforeach; ?>
-              <?php endif; ?>
-          </tbody>
-        </table>
-        <!-- End Table -->
-
-        
-        <!-- Footer -->
-        <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-          <div>
-            <p class="text-sm text-gray-600">
-              <span class="font-semibold text-gray-800">
-                <?php echo $totalItems; ?>
-              </span> results
-            </p>
-          </div>
-
-          <div>
-            <div class="inline-flex gap-x-2">
-              <?php
-              // Previous button
-              if ($page > 1): ?>
-                <a href="?page=<?php echo $page - 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                  Prev
-                </a>
-              <?php else: ?>
-                <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                  Prev
-                </span>
-              <?php endif; ?>
-
-              <!-- Page numbers -->
-              <?php 
-              $start = max(1, $page - 2);
-              $end = min($totalPages, $page + 2);
-              
-              // Show first page if not in range
-              if ($start > 1): ?>
-                <a href="?page=1" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  1
-                </a>
-                <?php if ($start > 2): ?>
-                  <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
-                <?php endif;
-              endif;
-              
-              for ($i = $start; $i <= $end; $i++): ?>
-                <a href="?page=<?php echo $i; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  <?php echo $i; ?>
-                </a>
-              <?php endfor; 
-              
-              // Show last page if not in range
-              if ($end < $totalPages): ?>
-                <?php if ($end < $totalPages - 1): ?>
-                  <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
-                <?php endif; ?>
-                <a href="?page=<?php echo $totalPages; ?>" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  <?php echo $totalPages; ?>
-                </a>
-              <?php endif; ?>
-
-              <!-- Next button -->
-              <?php if ($page < $totalPages): ?>
-                <a href="?page=<?php echo $page + 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                  Next
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </a>
-              <?php else: ?>
-                <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                  Next
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </span>
-              <?php endif; ?>
-            </div>
-          </div>
-        </div>
-        <!-- End Footer -->
-         
-      </div>
+  <!-- Pagination -->
+  <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+    <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> riders</p>
+    <div class="flex gap-1">
+      <?php if ($page > 1): ?>
+        <a href="?page=<?= $page-1 ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+      <?php endif; ?>
+      <?php for ($i=max(1,$page-2); $i<=min($totalPages,$page+2); $i++): ?>
+        <a href="?page=<?= $i ?>" class="px-3 py-1.5 text-xs border rounded-lg <?= $i==$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>"><?= $i ?></a>
+      <?php endfor; ?>
+      <?php if ($page < $totalPages): ?>
+        <a href="?page=<?= $page+1 ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
+      <?php endif; ?>
     </div>
   </div>
 </div>
 
-<style>
-  .rider-row {
-    transition: all 0.2s ease;
-    border-left: 4px solid transparent;
-  }
-
-  .rider-row:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    border-left-color: #3b82f6;
-  }
-</style>
-
-<!-- Add Rider Modal - FIXED VERSION -->
-<div id="addRiderModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10 z-100">
-    <div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl flex flex-col relative">
-        <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Rider</h3>
-        <form action="./functions/rider_process.php" method="POST">
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Select Account</label>
-                <select name="account_id" required class="w-full px-3 py-2 border rounded-lg">
-                    <option value="">Select an account...</option>
-                    <?php foreach ($availableAccounts as $account): ?>
-                        <option value="<?php echo $account['account_id']; ?>">
-                            <?php echo htmlspecialchars($account['first_name'] . ' ' . $account['last_name']); ?> 
-                            (<?php echo htmlspecialchars($account['email']); ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
-                <select name="vehicle_type" required class="w-full px-3 py-2 border rounded-lg">
-                    <option value="">Select vehicle type...</option>
-                    <option value="motorcycle">Motorcycle</option>
-                    <option value="bicycle">Bicycle</option>
-                    <option value="car">Car</option>
-                    <option value="truck">Truck</option>
-                </select>
-            </div>
-            
-            <!-- ADD THIS MISSING FIELD -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Plate Number</label>
-                <input type="text" name="vehicle_plate_number" class="w-full px-3 py-2 border rounded-lg" placeholder="ABC-123 (Optional)">
-                <p class="text-xs text-gray-500 mt-1">Optional field</p>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">License Number</label>
-                <input type="text" name="license_number" required class="w-full px-3 py-2 border rounded-lg" placeholder="License number">
-            </div>
-            
-            <div class="flex justify-end space-x-3 mt-4">
-                <button type="submit" name="add_rider" class="py-2 px-4 bg-orange-600 text-white rounded-lg">
-                    Add Rider
-                </button>
-                <button type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg" onclick="closeModal('addRiderModal')">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- Add Rider Modal -->
+<div id="addRiderModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+  <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-gray-800">Add New Rider</h3>
+      <button onclick="closeModal('addRiderModal')" class="text-gray-400 hover:text-gray-600">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-</div>
-
-<!-- Edit Rider Modal -->
-<div id="editRiderModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden overflow-y-auto">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h3 class="text-xl font-semibold mb-4 text-gray-800">Edit Rider</h3>
-        <form action="./functions/rider_process.php" method="POST" id="editRiderForm">
-            <input type="hidden" name="rider_id" id="edit_rider_id">
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
-                <select name="vehicle_type" id="edit_vehicle_type" required class="w-full px-3 py-2 border rounded-lg">
-                    <option value="">Select vehicle type...</option>
-                    <option value="motorcycle">Motorcycle</option>
-                    <option value="bicycle">Bicycle</option>
-                    <option value="car">Car</option>
-                    <option value="truck">Truck</option>
-                </select>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Plate Number</label>
-                <input type="text" name="vehicle_plate_number" id="edit_vehicle_plate" class="w-full px-3 py-2 border rounded-lg" placeholder="ABC-123">
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">License Number</label>
-                <input type="text" name="license_number" id="edit_license_number" required class="w-full px-3 py-2 border rounded-lg" placeholder="License number">
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Availability Status</label>
-                <select name="is_available" id="edit_is_available" required class="w-full px-3 py-2 border rounded-lg">
-                    <option value="1">Available</option>
-                    <option value="0">Busy</option>
-                </select>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="flex justify-end space-x-3 mt-4">
-                <button type="submit" name="edit_rider" class="py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700">
-                    Update Rider
-                </button>
-                <button type="button" class="py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200" onclick="closeModal('editRiderModal')">
-                    Cancel
-                </button>
-            </div>
-        </form>
-    </div>
+    <form action="./functions/rider_process.php" method="POST" class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Assign Account</label>
+        <select name="account_id" required class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+          <option value="">Select account to assign as rider</option>
+          <?php foreach ($availableAccounts as $acc): ?>
+          <option value="<?= $acc['account_id'] ?>"><?= htmlspecialchars($acc['first_name'].' '.$acc['last_name'].' ('.$acc['email'].')') ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Vehicle Type</label>
+          <input type="text" name="vehicle_type" placeholder="e.g. Motorcycle" required class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Plate Number</label>
+          <input type="text" name="vehicle_plate_number" placeholder="ABC-1234" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">License Number</label>
+        <input type="text" name="license_number" required class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="closeModal('addRiderModal')" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+        <button type="submit" name="add_rider" class="flex-1 px-4 py-2 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-lg">Add Rider</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
-    function openAddRiderModal() {
-        document.getElementById('addRiderModal').classList.remove('hidden');
-    }
-    
-    function openEditRiderModal(riderId) {
-        // Fetch rider data via AJAX
-        fetch(`./functions/fetch_riders.php?rider_id=${riderId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Populate edit form
-                    document.getElementById('edit_rider_id').value = data.rider.rider_id;
-                    document.getElementById('edit_vehicle_type').value = data.rider.vehicle_type;
-                    document.getElementById('edit_vehicle_plate').value = data.rider.vehicle_plate_number || '';
-                    document.getElementById('edit_license_number').value = data.rider.license_number;
-                    document.getElementById('edit_is_available').value = data.rider.is_available ? '1' : '0';
-                    document.getElementById('editRiderModal').classList.remove('hidden');
-                } else {
-                    alert('Error loading rider data');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error loading rider data');
-            });
-    }
-    
-    function confirmDeleteRider(riderId) {
-        if (confirm('Are you sure you want to remove this rider? They will no longer be able to accept deliveries.')) {
-            window.location.href = `./functions/rider_process.php?delete_rider=${riderId}`;
-        }
-    }
-    
-    function closeModal(modalId) {
-        document.getElementById(modalId).classList.add('hidden');
-    }
-    
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        const modals = ['addRiderModal', 'editRiderModal'];
-        modals.forEach(modalId => {
-            const modal = document.getElementById(modalId);
-            if (event.target === modal) {
-                modal.classList.add('hidden');
-            }
-        });
-    }
+function openEditRider(riderId) {
+  document.getElementById('editRiderModal' + riderId).classList.remove('hidden');
+}
+document.querySelectorAll('[data-modal-target]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.getElementById(this.getAttribute('data-modal-target'))?.classList.remove('hidden');
+  });
+});
+function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
+// Close on backdrop click
+document.querySelectorAll('[id^="editRiderModal"], #addRiderModal').forEach(modal => {
+  modal.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
 </script>

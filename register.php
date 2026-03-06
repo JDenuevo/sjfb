@@ -59,6 +59,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   </noscript>
 </head>
 <style>
+   body { font-family: 'Lexend', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+
   .password-input-container {
     position: relative;
   }

@@ -1,565 +1,260 @@
-<div class="flex flex-col">
-  <div class="-m-1.5 overflow-x-auto">
-    <div class="p-1.5 min-w-full inline-block align-middle">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+<?php
+// payment_list.php — improved
 
-        <!-- Filters and Search -->
-        <div class="px-6 py-4 gap-3 md:flex border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-800">All Payments</h2>
-            <p class="text-sm text-gray-600">
-              <span class="font-semibold text-gray-800"><?php echo $totalItems; ?></span> total payments
-            </p>
-          </div>
+// Payment stats
+$pStats = [];
+$pStatRes = $conn->query("SELECT payment_status, COUNT(*) as cnt, COALESCE(SUM(gross_amount),0) as total FROM payments GROUP BY payment_status");
+while ($ps = $pStatRes->fetch_assoc()) {
+  $pStats[$ps['payment_status']] = ['count' => (int)$ps['cnt'], 'total' => (float)$ps['total']];
+}
+$totalRevenue = $pStats['Paid']['total'] ?? 0;
+$totalRefunded = $pStats['Refunded']['total'] ?? 0;
+$pendingAmt = $pStats['Pending']['total'] ?? 0;
 
-          <form method="GET" action="" class="flex flex-col sm:flex-row sm:items-center gap-3">
-            <!-- Preserve existing parameters -->
-            <?php 
-            $preservedParams = ['search', 'page'];
-            foreach ($preservedParams as $param) {
-                if (isset($_GET[$param]) && !empty($_GET[$param])) {
-                    echo '<input type="hidden" name="' . $param . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-                }
-            }
-            ?>
-            
-            <select name="payment_status" class="py-3 px-4 pe-9 block w-full border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none" onchange="this.form.submit()">   
-              <option value="">All Statuses</option>
-              <option value="Pending" <?php echo (isset($_GET['payment_status']) && $_GET['payment_status'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
-              <option value="Paid" <?php echo (isset($_GET['payment_status']) && $_GET['payment_status'] === 'Paid') ? 'selected' : ''; ?>>Paid</option>
-              <option value="Failed" <?php echo (isset($_GET['payment_status']) && $_GET['payment_status'] === 'Failed') ? 'selected' : ''; ?>>Failed</option>
-              <option value="Refunded" <?php echo (isset($_GET['payment_status']) && $_GET['payment_status'] === 'Refunded') ? 'selected' : ''; ?>>Refunded</option>
-            </select>
-            
-            <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-              <input 
-                type="text" 
-                name="search" 
-                value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" 
-                class="py-3 px-4 block w-full text-sm focus:border-blue-500 focus:ring-blue-500 border-none" 
-                placeholder="Search..."
-              >
-              <button type="submit" class="px-3 flex items-center justify-center text-blue-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                    class="icon icon-tabler icons-tabler-outline icon-tabler-search">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/>
-                  <path d="M21 21l-6 -6"/>
-                </svg>
-              </button>
-            </div>
-          </form>
-        </div>
+$paymentConf = [
+  'Paid'     => ['bg-green-100 text-green-700','bg-green-50 border-green-200'],
+  'Pending'  => ['bg-yellow-100 text-yellow-700','bg-yellow-50 border-yellow-200'],
+  'Failed'   => ['bg-red-100 text-red-700','bg-red-50 border-red-200'],
+  'Refunded' => ['bg-blue-100 text-blue-700','bg-blue-50 border-blue-200'],
+];
+$methodIcons = ['gcash'=>'📱','paymaya'=>'💳','grab_pay'=>'🟢','qrph'=>'📷','cod'=>'💵','card'=>'💳'];
+?>
 
-        <!-- Payments Table -->
-        <div class="flex flex-col">
-          <div class="-m-1.5 overflow-x-auto">
-            <div class="p-1.5 min-w-full inline-block align-middle">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col" class="ps-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Order Code</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Customer</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Provider ID</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Amount</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Payment Status</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-start">
-                      <div class="flex items-center gap-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Date</span>
-                      </div>
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-end">
-                      <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                        
-                <tbody class="divide-y divide-gray-200">
-                  <?php if (mysqli_num_rows($result) > 0): ?>
-                    <?php while ($row = mysqli_fetch_assoc($result)): ?>    
-                      <tr class="payment-row bg-white">
-                        <td class="size-px whitespace-nowrap">
-                          <div class="ps-6 py-3">
-                            <span class="block text-sm font-semibold text-gray-800"><?php echo $row['order_code']; ?></span>
-                          </div>
-                        </td>
-                        
-                        <td class="size-px whitespace-nowrap">
-                          <div class="px-6 py-3">
-                            <span class="block text-sm font-semibold text-gray-800"><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></span>
-                            <span class="block text-xs text-gray-500"><?php echo htmlspecialchars($row['billing_email']); ?></span>
-                          </div>
-                        </td>
+<!-- Revenue Stats Strip -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+  <div class="bg-green-50 border border-green-100 rounded-xl p-4">
+    <div class="text-xs text-green-600 font-medium mb-1">Total Collected</div>
+    <div class="text-xl font-bold text-green-700">₱<?= number_format($totalRevenue, 0) ?></div>
+    <div class="text-xs text-green-500"><?= $pStats['Paid']['count'] ?? 0 ?> paid</div>
+  </div>
+  <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+    <div class="text-xs text-yellow-600 font-medium mb-1">Pending Amount</div>
+    <div class="text-xl font-bold text-yellow-700">₱<?= number_format($pendingAmt, 0) ?></div>
+    <div class="text-xs text-yellow-500"><?= $pStats['Pending']['count'] ?? 0 ?> pending</div>
+  </div>
+  <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+    <div class="text-xs text-red-600 font-medium mb-1">Failed</div>
+    <div class="text-xl font-bold text-red-700"><?= $pStats['Failed']['count'] ?? 0 ?></div>
+    <div class="text-xs text-red-500">transactions failed</div>
+  </div>
+  <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+    <div class="text-xs text-blue-600 font-medium mb-1">Total Refunded</div>
+    <div class="text-xl font-bold text-blue-700">₱<?= number_format($totalRefunded, 0) ?></div>
+    <div class="text-xs text-blue-500"><?= $pStats['Refunded']['count'] ?? 0 ?> refunded</div>
+  </div>
+</div>
 
-                        <td class="h-px w-72 whitespace-nowrap">
-                          <div class="px-6 py-3">
-                            <span class="block text-sm font-semibold text-gray-800"><?php echo $row['provider_id'] ? htmlspecialchars($row['provider_id']) : 'N/A'; ?></span>
-                          </div>
-                        </td>
+<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+  <!-- Header -->
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+    <div class="flex-1">
+      <h2 class="text-lg font-semibold text-gray-800">Payments</h2>
+      <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> total records</p>
+    </div>
+    <form method="GET" class="flex flex-wrap gap-2">
+      <select name="payment_status" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400">
+        <option value="">All Statuses</option>
+        <?php foreach (['Paid','Pending','Failed','Refunded'] as $s): ?>
+        <option value="<?= $s ?>" <?= ($_GET['payment_status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+        <?php endforeach; ?>
+      </select>
+      <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order, name, provider ID…" class="text-sm px-3 py-2 focus:outline-none w-48">
+        <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
+          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
 
-                        <td class="h-px w-72 whitespace-nowrap">
-                          <div class="px-6 py-3">
-                            <span class="block text-sm font-semibold text-gray-800">₱<?php echo number_format($row['gross_amount'], 2); ?></span>
-                            <?php if ($row['refunded_amount'] > 0): ?>
-                              <span class="block text-xs text-red-500">Refunded: ₱<?php echo number_format($row['refunded_amount'], 2); ?></span>
-                            <?php endif; ?>
-                          </div>
-                        </td>
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-100">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Method</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Gross</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Net</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        <?php if ($result->num_rows === 0): ?>
+        <tr><td colspan="7" class="py-16 text-center text-gray-400 text-sm">No payments found.</td></tr>
+        <?php else: while ($row = $result->fetch_assoc()):
+          $status = $row['payment_status'] ?? 'Pending';
+          [$badge, $card] = $paymentConf[$status] ?? ['bg-gray-100 text-gray-700','bg-gray-50 border-gray-200'];
+          $methodDisplay = strtoupper($row['payment_method'] ?? '—');
+          $methodIcon = $methodIcons[$row['payment_method'] ?? ''] ?? '💰';
+        ?>
+        <tr class="payment-row hover:bg-orange-50/30 transition-colors">
+          <!-- Order -->
+          <td class="px-6 py-3">
+            <a href="order_manage.php?order_id=<?= $row['order_id'] ?>" class="text-sm font-bold text-orange-600 hover:text-orange-700"><?= htmlspecialchars($row['order_code']) ?></a>
+            <div class="text-xs text-gray-400 font-mono"><?= htmlspecialchars($row['provider_id'] ? substr($row['provider_id'],0,20).'…' : '—') ?></div>
+          </td>
+          <!-- Customer -->
+          <td class="px-4 py-3">
+            <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['billing_email'] ?? $row['order_email'] ?? '—') ?></div>
+          </td>
+          <!-- Method -->
+          <td class="px-4 py-3">
+            <span class="text-sm"><?= $methodIcon ?></span>
+            <span class="text-xs text-gray-600 ml-1"><?= $methodDisplay ?></span>
+            <div class="text-xs text-gray-400"><?= $row['mode'] === 'live' ? '🟢 Live' : '🔵 Test' ?></div>
+          </td>
+          <!-- Status -->
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $badge ?>"><?= $status ?></span>
+            <?php if ($row['paid_at']): ?>
+            <div class="text-xs text-gray-400 mt-0.5"><?= date('M j, g:i A', strtotime($row['paid_at'])) ?></div>
+            <?php endif; ?>
+          </td>
+          <!-- Gross -->
+          <td class="px-4 py-3 text-right">
+            <span class="text-sm font-bold text-gray-800">₱<?= number_format($row['gross_amount'], 2) ?></span>
+          </td>
+          <!-- Net -->
+          <td class="px-4 py-3 text-right">
+            <span class="text-sm text-gray-600">₱<?= number_format($row['net_amount'] ?? $row['gross_amount'], 2) ?></span>
+            <?php if ($row['refunded_amount'] > 0): ?>
+            <div class="text-xs text-red-500">-₱<?= number_format($row['refunded_amount'], 2) ?> refunded</div>
+            <?php endif; ?>
+          </td>
+          <!-- Actions -->
+          <td class="px-4 py-3 text-right">
+            <button onclick="openPaymentModal(<?= $row['payment_id'] ?>)"
+              class="size-8 inline-flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors" title="View details">
+              <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </button>
+          </td>
+        </tr>
+        <?php endwhile; endif; ?>
+      </tbody>
+    </table>
+  </div>
 
-                        <td class="h-px w-72 whitespace-nowrap">
-                          <div class="px-6 py-3">
-                            <?php 
-                              $status = $row['payment_status'];
-                              $statusClass = '';
-                              $statusIcon = '';
+  <!-- Pagination -->
+  <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+    <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> payments</p>
+    <div class="flex gap-1">
+      <?php if ($page > 1): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page-1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+      <?php endif; ?>
+      <?php for ($i=max(1,$page-2); $i<=min($totalPages,$page+2); $i++): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$i])) ?>"
+           class="px-3 py-1.5 text-xs border rounded-lg <?= $i==$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>"><?= $i ?></a>
+      <?php endfor; ?>
+      <?php if ($page < $totalPages): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page+1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
 
-                              switch ($status) {
-                                case 'Pending':
-                                  $statusClass = 'bg-yellow-100 text-yellow-800';
-                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>';
-                                  break;
-                                case 'Paid':
-                                  $statusClass = 'bg-green-100 text-green-800';
-                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                                        d="M5 13l4 4L19 7"/>
-                                                </svg>';
-                                  break;
-                                case 'Failed':
-                                  $statusClass = 'bg-red-100 text-red-800';
-                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                                        d="M6 18L18 6M6 6l12 12"/>
-                                                </svg>';
-                                  break;
-                                case 'Refunded':
-                                  $statusClass = 'bg-purple-100 text-purple-800';
-                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                                        d="M4 4v16h16V4H4zm4 8h8"/>
-                                                </svg>';
-                                  break;
-                                default:
-                                  $statusClass = 'bg-gray-100 text-gray-800';
-                                  $statusIcon = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                                        d="M12 4v16m8-8H4"/>
-                                                </svg>';
-                                  break;
-                              }
-                            ?>
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
-                              <?php echo $statusIcon; ?>
-                              <?php echo ucfirst($status); ?>
-                            </span>
-                            <?php if ($row['failed_code']): ?>
-                              <span class="block text-xs text-red-500 mt-1">Error: <?php echo htmlspecialchars($row['failed_code']); ?></span>
-                            <?php endif; ?>
-                          </div>
-                        </td>
-
-                        <td class="h-px w-72 whitespace-nowrap">
-                          <div class="px-6 py-3">
-                            <?php if ($row['paid_at']): ?>
-                              <span class="block text-sm font-semibold text-gray-800"><?php echo date('M j, Y', strtotime($row['paid_at'])); ?></span>
-                              <span class="block text-xs text-gray-500">Paid: <?php echo date('h:i A', strtotime($row['paid_at'])); ?></span>
-                            <?php else: ?>
-                              <span class="block text-sm font-semibold text-gray-800"><?php echo date('M j, Y', strtotime($row['created_at'])); ?></span>
-                              <span class="block text-xs text-gray-500">Created: <?php echo date('h:i A', strtotime($row['created_at'])); ?></span>
-                            <?php endif; ?>
-                          </div>
-                        </td>
-
-                        <td class="size-px whitespace-nowrap">
-                          <div class="px-6 py-1.5 flex justify-end">
-                            <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl"  data-modal-target="viewPaymentModal<?php echo $row['payment_id']; ?>">
-                              <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    <?php endwhile; ?>
-                  <?php else: ?>
-                    <tr>
-                      <td colspan="7" class="text-center py-4 text-gray-500">No payments found.</td>
-                    </tr>
-                  <?php endif; ?>
-                </tbody>
-              </table>
-              <!-- End Table -->
-                  
-                        
-           <!-- Footer -->
-            <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-                <div>
-                    <p class="text-sm text-gray-600">
-                        <span class="font-semibold text-gray-800">
-                            <?php echo mysqli_num_rows($result); ?>
-                        </span> results
-                    </p>
-                </div>
-
-                <div>
-                    <div class="inline-flex gap-x-2">
-                        <?php
-                        // Build query string with current filters
-                        $queryParams = [];
-                        $preservedParams = ['payment_status', 'date_filter', 'search'];
-                        foreach ($preservedParams as $param) {
-                            if (isset($_GET[$param]) && !empty($_GET[$param])) {
-                                $queryParams[$param] = $_GET[$param];
-                            }
-                        }
-                        
-                        // Previous button
-                        if ($page > 1): 
-                            $prevParams = $queryParams;
-                            $prevParams['page'] = $page - 1;
-                            $prevQueryString = http_build_query($prevParams);
-                        ?>
-                            <a href="?<?php echo $prevQueryString; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m15 18-6-6 6-6" />
-                                </svg>
-                                Prev
-                            </a>
-                        <?php else: ?>
-                            <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m15 18-6-6 6-6" />
-                                </svg>
-                                Prev
-                            </span>
-                        <?php endif; ?>
-
-                        <!-- Page numbers -->
-                        <?php 
-                        $start = max(1, $page - 2);
-                        $end = min($totalPages, $page + 2);
-                        
-                        for ($i = $start; $i <= $end; $i++): 
-                            $pageParams = $queryParams;
-                            $pageParams['page'] = $i;
-                            $pageQueryString = http_build_query($pageParams);
-                        ?>
-                            <a href="?<?php echo $pageQueryString; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                                <?php echo $i; ?>
-                            </a>
-                        <?php endfor; ?>
-
-                        <!-- Next button -->
-                        <?php if ($page < $totalPages): 
-                            $nextParams = $queryParams;
-                            $nextParams['page'] = $page + 1;
-                            $nextQueryString = http_build_query($nextParams);
-                        ?>
-                            <a href="?<?php echo $nextQueryString; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                                Next
-                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m9 18 6-6-6-6" />
-                                </svg>
-                            </a>
-                        <?php else: ?>
-                            <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                                Next
-                                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m9 18 6-6-6-6" />
-                                </svg>
-                            </span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>
-
+<!-- Payment Detail Modal (AJAX) -->
+<div id="paymentDetailModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">
+  <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto p-6 flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-gray-800">Payment Details</h3>
+      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div id="paymentDetailContent" class="p-6">
+      <div class="flex items-center justify-center py-8">
+        <div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- View Payment Modals -->
-<?php if (mysqli_num_rows($result) > 0): ?>
-  <?php mysqli_data_seek($result, 0); // Reset the result pointer ?>
-  <?php while ($row = mysqli_fetch_assoc($result)): ?>
-    <div id="viewPaymentModal<?php echo $row['payment_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-      <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col relative">
-        <!-- Card -->
-        <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="paymentReceipt">
-          <!-- Grid -->
-          <div class="flex justify-between">
-            <!-- Col -->
-            <div class="">
-              <h2 class="text-2xl md:text-3xl font-semibold text-gray-800 ">Payment Details</h2>
-              <span class="mt-1 block text-gray-500">Payment ID: <?php echo htmlspecialchars($row['payment_id']); ?></span>
-            </div>
-            <!-- Col -->
-
+<script>
+function openPaymentModal(paymentId) {
+  const modal = document.getElementById('paymentDetailModal');
+  const content = document.getElementById('paymentDetailContent');
+  modal.classList.remove('hidden');
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>';
+  
+  fetch('./functions/fetch_payments.php?payment_id=' + paymentId)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) { content.innerHTML = '<p class="text-red-500 text-sm">Failed to load payment.</p>'; return; }
+      const p = data.payment;
+      const statusColors = {Paid:'bg-green-100 text-green-700',Pending:'bg-yellow-100 text-yellow-700',Failed:'bg-red-100 text-red-700',Refunded:'bg-blue-100 text-blue-700'};
+      const sClass = statusColors[p.payment_status] || 'bg-gray-100 text-gray-700';
+      
+      content.innerHTML = `
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
             <div>
-              <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('viewPaymentModal<?php echo $row['payment_id']; ?>')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 6L6 18" />
-                  <path d="M6 6l12 12" />
-                </svg>
-              </button>
+              <div class="text-lg font-bold text-orange-600">${p.order_code}</div>
+              <div class="text-sm text-gray-500">${p.billing_name || (p.first_name + ' ' + p.last_name)}</div>
+            </div>
+            <span class="px-3 py-1 rounded-full text-sm font-semibold ${sClass}">${p.payment_status}</span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-xs text-gray-500 mb-1">Gross Amount</div>
+              <div class="text-lg font-bold text-gray-800">₱${parseFloat(p.gross_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-xs text-gray-500 mb-1">Net Amount</div>
+              <div class="text-lg font-bold text-green-700">₱${parseFloat(p.net_amount||p.gross_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
             </div>
           </div>
-          <!-- End Grid -->
-
-          <!-- Grid -->
-          <div class="my-8 grid sm:grid-cols-2 gap-3">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-800 ">Order Information:</h3>
-              <h3 class="text-lg font-semibold text-gray-500 ">Order Code: <?php echo htmlspecialchars($row['order_code']); ?></h3>
-              <h3 class="mt-2 text-lg font-semibold text-gray-800 ">Customer:</h3>
-              <address class="not-italic text-gray-500 ">
-                <?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?><br>
-                <?php echo htmlspecialchars($row['billing_email']); ?>
-              </address>
+          
+          ${p.refunded_amount > 0 ? `<div class="bg-red-50 rounded-xl p-3">
+            <div class="text-xs text-red-500 mb-1">Refunded Amount</div>
+            <div class="text-lg font-bold text-red-700">₱${parseFloat(p.refunded_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+          </div>` : ''}
+          
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Provider ID</span>
+              <span class="font-mono text-xs text-gray-700 max-w-[200px] truncate">${p.provider_id || '—'}</span>
             </div>
-            <!-- Col -->
-            
-            <div class="sm:text-end space-y-2">
-              <!-- Grid -->
-              <div class="grid grid-cols-2 sm:grid-cols-1 gap-3 sm:gap-2">
-                <dl class="grid sm:grid-cols-5 gap-x-3">
-                  <dt class="col-span-3 font-semibold text-gray-800 ">Payment Status:</dt>
-                  <dd class="col-span-2 text-gray-500 ">
-                    <?php 
-                      $status = $row['payment_status'];
-                      $statusClass = '';
-                      switch ($status) {
-                        case 'Pending':
-                          $statusClass = 'bg-yellow-100 text-yellow-800';
-                          break;
-                        case 'Paid':
-                          $statusClass = 'bg-green-100 text-green-800';
-                          break;
-                        case 'Failed':
-                          $statusClass = 'bg-red-100 text-red-800';
-                          break;
-                        case 'Refunded':
-                          $statusClass = 'bg-purple-100 text-purple-800';
-                          break;
-                        default:
-                          $statusClass = 'bg-gray-100 text-gray-800';
-                      }
-                    ?>
-                    <span class="px-2 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
-                      <?php echo ucfirst($status); ?>
-                    </span>
-                  </dd>
-                </dl>
-                <dl class="grid sm:grid-cols-5 gap-x-3">
-                  <dt class="col-span-3 font-semibold text-gray-800 ">Payment Date:</dt>
-                  <dd class="col-span-2 text-gray-500">
-                    <?php 
-                      if ($row['paid_at']) {
-                        echo date("F j, Y, g:i a", strtotime($row['paid_at']));
-                      } else {
-                        echo date("F j, Y, g:i a", strtotime($row['created_at']));
-                      }
-                    ?>
-                  </dd>
-                </dl>
-              </div>
-              <!-- End Grid -->
+            <div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Payment Method</span>
+              <span class="font-medium text-gray-800">${p.payment_method || '—'}</span>
             </div>
-            <!-- Col -->
-          </div>
-          <!-- End Grid -->
-
-          <!-- Payment Details Table -->
-          <div class="mt-6">
-            <div class="border border-gray-200 p-4 rounded-lg space-y-4">
-              <div class="grid grid-cols-2 gap-2 items-center">
-                <div>
-                  <h5 class="text-start text-xs font-medium text-black uppercase">Payment Information</h5>
-                </div>
-                <div>
-                  <h5 class="text-start text-xs font-medium text-black uppercase">Amount Details</h5>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <!-- Payment Information -->
-                <div class="space-y-2">
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Provider ID:</span>
-                    <span class="font-medium"><?php echo $row['provider_id'] ? htmlspecialchars($row['provider_id']) : 'N/A'; ?></span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Payment Mode:</span>
-                    <span class="font-medium"><?php echo $row['mode'] ? htmlspecialchars($row['mode']) : 'N/A'; ?></span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Currency:</span>
-                    <span class="font-medium"><?php echo $row['currency'] ? htmlspecialchars($row['currency']) : 'PHP'; ?></span>
-                  </div>
-                </div>
-                
-                <!-- Amount Information -->
-                <div class="space-y-2">
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Gross Amount:</span>
-                    <span class="font-medium">₱<?php echo number_format($row['gross_amount'], 2); ?></span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Net Amount:</span>
-                    <span class="font-medium">₱<?php echo number_format($row['net_amount'], 2); ?></span>
-                  </div>
-                  <?php if ($row['refunded_amount'] > 0): ?>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Refunded Amount:</span>
-                    <span class="font-medium text-red-600">₱<?php echo number_format($row['refunded_amount'], 2); ?></span>
-                  </div>
-                  <?php endif; ?>
-                </div>
-              </div>
+            <div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Mode</span>
+              <span class="font-medium text-gray-800">${p.mode === 'live' ? '🟢 Live' : '🔵 Test'}</span>
             </div>
+            <div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Currency</span>
+              <span class="font-medium text-gray-800">${p.currency || 'PHP'}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Billing Email</span>
+              <span class="font-medium text-gray-800 text-xs">${p.billing_email || p.order_email || '—'}</span>
+            </div>
+            ${p.paid_at ? `<div class="flex justify-between py-1.5 border-b border-gray-100">
+              <span class="text-gray-500">Paid At</span>
+              <span class="font-medium text-gray-800">${new Date(p.paid_at).toLocaleString('en-PH')}</span>
+            </div>` : ''}
+            ${p.failed_code ? `<div class="flex justify-between py-1.5">
+              <span class="text-gray-500">Failure Code</span>
+              <span class="font-mono text-xs text-red-600">${p.failed_code}</span>
+            </div>` : ''}
           </div>
-          <!-- End Payment Details Table -->
-
-          <?php if ($row['failed_code']): ?>
-          <!-- Error Information -->
-          <div class="mt-6 p-4 bg-red-50 rounded-lg">
-            <h3 class="text-lg font-semibold text-red-800 mb-2">Payment Error</h3>
-            <p class="text-red-600">Error Code: <?php echo htmlspecialchars($row['failed_code']); ?></p>
-          </div>
-          <?php endif; ?>
-
-          <div class="mt-6 flex justify-end gap-x-3">
-            <?php if ($row['payment_status'] === 'paid' && $row['refunded_amount'] == 0): ?>
-            <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700">
-              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 12H4"/>
-                <path d="M10 18l-6-6 6-6"/>
-              </svg>
-              Process Refund
-            </button>
-            <?php endif; ?>
-            
-            <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700">
-              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" x2="12" y1="15" y2="3"/>
-              </svg>
-              Export Receipt
-            </button>
+          
+          <div class="flex gap-2 pt-2">
+            <a href="./order_manage.php?order_id=${p.order_id}" class="flex-1 px-4 py-2 text-sm text-center bg-orange-500 text-white rounded-lg hover:bg-orange-600">View Order</a>
+            <button onclick="closePaymentModal()" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
           </div>
         </div>
-        <!-- End Card -->
-      </div>
-    </div>
-  <?php endwhile; ?>
-<?php endif; ?>
-
-<style>
-  .payment-row {
-    transition: all 0.2s ease;
-    border-left: 4px solid transparent;
-  }
-
-  .payment-row:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    border-left-color: #3b82f6;
-  }
-</style>
-
-<script>
-  // Function to fetch and display payment details via AJAX
-  function fetchPaymentDetails(paymentId) {
-    fetch(`./functions/fetch_payments.php?payment_id=${paymentId}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          const payment = data.payment;
-          const modalContent = document.getElementById(`paymentDetails${paymentId}`);
-          
-          // Update modal content with payment data
-          modalContent.innerHTML = `
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Provider ID:</span>
-                  <span class="font-medium">${payment.provider_id || 'N/A'}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Payment Mode:</span>
-                  <span class="font-medium">${payment.mode || 'N/A'}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Currency:</span>
-                  <span class="font-medium">${payment.currency || 'PHP'}</span>
-                </div>
-              </div>
-              
-              <div class="space-y-2">
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Gross Amount:</span>
-                  <span class="font-medium">₱${parseFloat(payment.gross_amount).toFixed(2)}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Net Amount:</span>
-                  <span class="font-medium">₱${parseFloat(payment.net_amount).toFixed(2)}</span>
-                </div>
-                ${payment.refunded_amount > 0 ? `
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Refunded Amount:</span>
-                  <span class="font-medium text-red-600">₱${parseFloat(payment.refunded_amount).toFixed(2)}</span>
-                </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        } else {
-          console.error('Error fetching payment details:', data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Error fetching payment details:', error);
-      });
-  }
-
-  // Add event listener to the "View" button
-  document.querySelectorAll('[data-modal-target]').forEach(button => {
-    button.addEventListener('click', function() {
-      const modalId = this.getAttribute('data-modal-target');
-      const paymentId = modalId.replace('viewPaymentModal', '');
-      document.getElementById(modalId).classList.remove('hidden');
-      fetchPaymentDetails(paymentId); // Fetch payment details when the modal is opened
-    });
-  });
-
-  // Function to close the modal
-  function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-  }
+      `;
+    }).catch(() => { content.innerHTML = '<p class="text-red-500 text-sm text-center">Failed to load.</p>'; });
+}
+function closePaymentModal() { document.getElementById('paymentDetailModal').classList.add('hidden'); }
+document.getElementById('paymentDetailModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closePaymentModal();
+});
 </script>

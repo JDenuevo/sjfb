@@ -1,161 +1,380 @@
 <?php
 session_start();
 include 'conn.php';
-
 $pageTitle = 'Sustainability';
-
+$metaDescription = 'St. Joseph Fish Brokerage Inc. is committed to responsible fish brokerage, sustainable seafood practices, supporting Filipino fishing communities, and ethical operations across Philippine fish ports.';
+$ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=80';
 ?>
-
 <!DOCTYPE html>
-<html lang="en" dir="ltr" class="scroll-smooth"> 
-
+<html lang="en" dir="ltr" class="scroll-smooth">
 <head>
-  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-  <meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1">
-  
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title><?= $pageTitle ?> | St. Joseph Fish Brokerage Inc.</title>
-  <meta name="description" content="St. Joseph Fish Brokerage Inc. - Providing professional fish brokerage services with excellence and integrity.">
-
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://fishbrokers.net/">
-  <meta property="og:title" content="St. Joseph Fish Brokerage Inc.">
-  <meta property="og:description" content="Professional fish brokerage services with excellence and integrity.">
-  <meta property="og:image" content="https://fishbrokers.net/assets/icons/logo.svg"> 
-  <meta name="google-site-verification" content="SEvyztm_VEss7pZNU7eN79PfVCh0D6MskG7f9mKpJow" />
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="St. Joseph Fish Brokerage Inc.">
-  <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
-  <meta name="twitter:image" content="https://fishbrokers.net/assets/icons/logo.svg">
-
-  <link rel="shortcut icon" href="./assets/icons/logo.ico">
-  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
-  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
-    
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
-
-  <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
-
+  <meta name="description" content="<?= $metaDescription ?>">
+  <meta property="og:type" content="website"><meta property="og:url" content="https://fishbrokers.net/sustainability">
+  <meta property="og:title" content="Sustainability | St. Joseph Fish Brokerage Inc."><meta property="og:description" content="<?= $metaDescription ?>">
+  <meta property="og:image" content="<?= $ogImage ?>"><meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://fishbrokers.net/sustainability">
+  <link rel="shortcut icon" href="./assets/icons/logo.ico"><link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
+  <link href="style.css" rel="stylesheet"><link href="output.css" rel="stylesheet">
   <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
-  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
-  <noscript>
-    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
-  </noscript>
+  <style>
+    /* Only truly custom styles — hero, animations, brand accents */
+    body { font-family: 'Lexend', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
 
+    .sustain-hero { position:relative; height:90vh; min-height:600px; overflow:hidden; display:flex; align-items:center; }
+    .sustain-hero__bg { position:absolute; inset:0; background:url('https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1920&q=85') center/cover; transform:scale(1.05); transition:transform 8s ease-out; }
+    .sustain-hero__bg.loaded { transform:scale(1); }
+    .sustain-hero__overlay { position:absolute; inset:0; background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%); opacity:.88; }
+
+    .section-eyebrow { display:inline-flex; align-items:center; gap:.5rem; font-size:.75rem; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:#fb923c; margin-bottom:.75rem; }
+    .section-eyebrow::before { content:''; display:block; width:2rem; height:2px; background:#fb923c; }
+
+    /* Pillar card accent line */
+    .pillar-card { position:relative; overflow:hidden; }
+    .pillar-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; transform:scaleX(0); transition:transform .3s ease; }
+    .pillar-card:hover::after { transform:scaleX(1); }
+    .pillar-card--blue::after  { background:#fb923c; }
+    .pillar-card--green::after { background:#22c55e; }
+    .pillar-card--teal::after  { background:#14b8a6; }
+    .pillar-card--orange::after{ background:#f97316; }
+
+    /* Check item */
+    .check-item { display:flex; align-items:flex-start; gap:.75rem; padding:.875rem 1rem; border-radius:.75rem; background:rgba(26,111,168,.04); border-left:3px solid transparent; transition:all .2s; }
+    .check-item:hover { background:rgba(26,111,168,.08); border-left-color:#fb923c; }
+    .check-dot { width:1.5rem; height:1.5rem; border-radius:50%; background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+
+    /* Timeline */
+    .timeline-item { position:relative; padding-left:2.5rem; }
+    .timeline-item:not(:last-child)::before { content:''; position:absolute; left:.65rem; top:1.75rem; bottom:-1rem; width:2px; background:linear-gradient(to bottom,#fb923c,transparent); }
+    .timeline-dot { position:absolute; left:0; top:.25rem; width:1.375rem; height:1.375rem; border-radius:50%; background:white; border:3px solid #fb923c; box-shadow:0 0 0 4px rgba(251,146,60,.15); }
+
+    /* Deep section number */
+    .deep-section { scroll-margin-top:80px; }
+    .deep-num { font-family:'Playfair Display',serif; font-size:8rem; line-height:1; opacity:.06; position:absolute; top:-1rem; left:-1rem; color:#f97316; font-weight:700; pointer-events:none; }
+
+    /* Image hover zoom */
+    .img-zoom { position:relative; overflow:hidden; border-radius:1.5rem; }
+    .img-zoom img { width:100%; height:100%; object-fit:cover; transition:transform .6s ease; }
+    .img-zoom:hover img { transform:scale(1.03); }
+    @media (min-width:1024px) {
+      .img-shadow-r { box-shadow:24px 24px 0 rgba(26,111,168,.1); }
+      .img-shadow-l { box-shadow:-24px 24px 0 rgba(26,122,94,.1); }
+    }
+
+    /* Counter */
+    .impact-num { font-family:'Playfair Display',serif; font-size:3.5rem; font-weight:700; background:linear-gradient(135deg,#fff,rgba(255,255,255,.7)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+    /* CTA bg */
+    .cta-bg { position:absolute; inset:0; background:url('./assets/images/contents/sustainability_2.png') center/cover; filter:brightness(.35); }
+    .quote-mark { font-family:'Playfair Display',serif; font-size:20rem; position:absolute; top:-4rem; left:2rem; color:rgba(26,111,168,.06); line-height:1; pointer-events:none; }
+  </style>
 </head>
+<body class="bg-white">
+<?php include('./components/preloaders.php'); ?>
+<?php include('./components/navigation.php'); ?>
+<?php include('./components/nav_crumb.php'); ?>
 
-<body>
-<?php include('./components/preloader.php'); ?>
-<!-- Hero Section -->
-<section id="sustainability-section">
-    
-    <?php include('./components/navigation.php'); ?>
-
-    <?php include('./components/nav_crumb.php'); ?>
-
-    <!-- ========== MAIN CONTENT ========== -->
-    <main id="content" class="relative max-w-3xl px-4 sm:px-6 lg:px-8 flex flex-col justify-center sm:items-center mx-auto size-full before:absolute before:top-0 before:start-1/2 before:bg-[url('https://preline.co/assets/svg/examples-dark/squared-bg-element.svg')] before:bg-no-repeat before:bg-top before:size-full before:-z-1 before:transform before:-translate-x-1/2">
-      <div class="text-center py-8 px-4 sm:px-6 lg:px-8">
-        <svg class="w-20 sm:w-28 h-auto mx-auto mb-4 sm:mb-8" width="116" height="41" viewBox="0 0 116 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M33.5696 34.3182V14.8182H37.4474V17.2003H37.6229C37.7952 16.8187 38.0445 16.4309 38.3707 16.0369C38.7031 15.6368 39.134 15.3045 39.6634 15.0398C40.1989 14.7689 40.8636 14.6335 41.6577 14.6335C42.6918 14.6335 43.6458 14.9044 44.5199 15.446C45.3939 15.9815 46.0926 16.791 46.6158 17.8743C47.139 18.9515 47.4006 20.3026 47.4006 21.9276C47.4006 23.5095 47.1451 24.8452 46.6342 25.9347C46.1295 27.018 45.4401 27.8397 44.5661 28.3999C43.6982 28.9538 42.7256 29.2308 41.6484 29.2308C40.8852 29.2308 40.2358 29.1046 39.7003 28.8523C39.1709 28.5999 38.737 28.2829 38.3984 27.9013C38.0599 27.5135 37.8014 27.1226 37.6229 26.7287H37.5028V34.3182H33.5696ZM37.4197 21.9091C37.4197 22.7524 37.5367 23.4879 37.7706 24.1158C38.0045 24.7436 38.343 25.233 38.7862 25.5838C39.2294 25.9285 39.768 26.1009 40.402 26.1009C41.0421 26.1009 41.5838 25.9254 42.027 25.5746C42.4702 25.2176 42.8056 24.7251 43.0334 24.0973C43.2673 23.4633 43.3842 22.7339 43.3842 21.9091C43.3842 21.0904 43.2704 20.3703 43.0426 19.7486C42.8149 19.1269 42.4794 18.6406 42.0362 18.2898C41.593 17.9389 41.0483 17.7635 40.402 17.7635C39.7618 17.7635 39.2202 17.9328 38.777 18.2713C38.34 18.6098 38.0045 19.09 37.7706 19.7116C37.5367 20.3333 37.4197 21.0658 37.4197 21.9091ZM49.2427 29V14.8182H53.0559V17.2926H53.2037C53.4622 16.4124 53.8961 15.7476 54.5055 15.2983C55.1149 14.8428 55.8166 14.6151 56.6106 14.6151C56.8076 14.6151 57.02 14.6274 57.2477 14.652C57.4754 14.6766 57.6755 14.7105 57.8478 14.7536V18.2436C57.6632 18.1882 57.4077 18.139 57.0815 18.0959C56.7553 18.0528 56.4567 18.0312 56.1859 18.0312C55.6073 18.0312 55.0903 18.1574 54.6348 18.4098C54.1854 18.656 53.8284 19.0007 53.5638 19.4439C53.3052 19.8871 53.176 20.398 53.176 20.9766V29H49.2427ZM64.9043 29.277C63.4455 29.277 62.1898 28.9815 61.1373 28.3906C60.0909 27.7936 59.2845 26.9503 58.7182 25.8608C58.1519 24.7652 57.8688 23.4695 57.8688 21.9737C57.8688 20.5149 58.1519 19.2346 58.7182 18.1328C59.2845 17.031 60.0816 16.1723 61.1096 15.5568C62.1437 14.9413 63.3563 14.6335 64.7474 14.6335C65.683 14.6335 66.5539 14.7843 67.3603 15.0859C68.1728 15.3814 68.8806 15.8277 69.4839 16.4247C70.0932 17.0218 70.5672 17.7727 70.9057 18.6776C71.2443 19.5762 71.4135 20.6288 71.4135 21.8352V22.9155H59.4384V20.478H67.7111C67.7111 19.9117 67.588 19.41 67.3418 18.973C67.0956 18.536 66.754 18.1944 66.317 17.9482C65.8861 17.6958 65.3844 17.5696 64.812 17.5696C64.2149 17.5696 63.6856 17.7081 63.2239 17.9851C62.7684 18.2559 62.4114 18.6222 62.1529 19.0838C61.8944 19.5393 61.762 20.0471 61.7559 20.6072V22.9247C61.7559 23.6264 61.8851 24.2327 62.1437 24.7436C62.4083 25.2545 62.7807 25.6484 63.2608 25.9254C63.741 26.2024 64.3103 26.3409 64.9689 26.3409C65.406 26.3409 65.8061 26.2794 66.1692 26.1562C66.5324 26.0331 66.8432 25.8485 67.1018 25.6023C67.3603 25.3561 67.5572 25.0545 67.6927 24.6974L71.3304 24.9375C71.1458 25.8116 70.7672 26.5748 70.1948 27.2273C69.6285 27.8736 68.896 28.3783 67.9974 28.7415C67.1048 29.0985 66.0738 29.277 64.9043 29.277ZM77.1335 10.0909V29H73.2003V10.0909H77.1335ZM79.5043 29V14.8182H83.4375V29H79.5043ZM81.4801 12.9901C80.8954 12.9901 80.3937 12.7962 79.9752 12.4084C79.5628 12.0144 79.3566 11.5436 79.3566 10.9957C79.3566 10.4541 79.5628 9.98935 79.9752 9.60156C80.3937 9.20762 80.8954 9.01065 81.4801 9.01065C82.0649 9.01065 82.5635 9.20762 82.9759 9.60156C83.3944 9.98935 83.6037 10.4541 83.6037 10.9957C83.6037 11.5436 83.3944 12.0144 82.9759 12.4084C82.5635 12.7962 82.0649 12.9901 81.4801 12.9901ZM89.7415 20.8011V29H85.8083V14.8182H89.5569V17.3203H89.723C90.037 16.4955 90.5632 15.843 91.3019 15.3629C92.0405 14.8767 92.9361 14.6335 93.9887 14.6335C94.9735 14.6335 95.8322 14.849 96.5647 15.2798C97.2971 15.7107 97.8665 16.3262 98.2728 17.1264C98.679 17.9205 98.8821 18.8684 98.8821 19.9702V29H94.9489V20.6719C94.9551 19.804 94.7335 19.1269 94.2841 18.6406C93.8348 18.1482 93.2162 17.902 92.4283 17.902C91.8989 17.902 91.4311 18.0159 91.0249 18.2436C90.6248 18.4714 90.3109 18.8037 90.0831 19.2408C89.8615 19.6716 89.7477 20.1918 89.7415 20.8011ZM107.665 29.277C106.206 29.277 104.951 28.9815 103.898 28.3906C102.852 27.7936 102.045 26.9503 101.479 25.8608C100.913 24.7652 100.63 23.4695 100.63 21.9737C100.63 20.5149 100.913 19.2346 101.479 18.1328C102.045 17.031 102.842 16.1723 103.87 15.5568C104.905 14.9413 106.117 14.6335 107.508 14.6335C108.444 14.6335 109.315 14.7843 110.121 15.0859C110.934 15.3814 111.641 15.8277 112.245 16.4247C112.854 17.0218 113.328 17.7727 113.667 18.6776C114.005 19.5762 114.174 20.6288 114.174 21.8352V22.9155H102.199V20.478H110.472C110.472 19.9117 110.349 19.41 110.103 18.973C109.856 18.536 109.515 18.1944 109.078 17.9482C108.647 17.6958 108.145 17.5696 107.573 17.5696C106.976 17.5696 106.446 17.7081 105.985 17.9851C105.529 18.2559 105.172 18.6222 104.914 19.0838C104.655 19.5393 104.523 20.0471 104.517 20.6072V22.9247C104.517 23.6264 104.646 24.2327 104.905 24.7436C105.169 25.2545 105.542 25.6484 106.022 25.9254C106.502 26.2024 107.071 26.3409 107.73 26.3409C108.167 26.3409 108.567 26.2794 108.93 26.1562C109.293 26.0331 109.604 25.8485 109.863 25.6023C110.121 25.3561 110.318 25.0545 110.454 24.6974L114.091 24.9375C113.907 25.8116 113.528 26.5748 112.956 27.2273C112.389 27.8736 111.657 28.3783 110.758 28.7415C109.866 29.0985 108.835 29.277 107.665 29.277Z" fill="currentColor" class="fill-foreground-inverse"/>
-          <path d="M1 33V20C1 13.3726 6.37258 8 13 8C19.6274 8 25 13.3726 25 20C25 26.6274 19.6274 32 13 32H12" stroke="currentColor" stroke-width="2" class="stroke-foreground-inverse"/>
-          <path d="M5 33V20.16C5 15.6534 8.58172 12 13 12C17.4183 12 21 15.6534 21 20.16C21 24.6666 17.4183 28.32 13 28.32H12" stroke="currentColor" stroke-width="2" class="stroke-foreground-inverse"/>
-          <circle cx="13" cy="20.0215" r="5" fill="currentColor" class="fill-foreground-inverse"/>
-        </svg>
-        <h1 class="text-2xl text-foreground-inverse sm:text-4xl">
-          Careers
-        </h1>
-        <h2 class="mt-1 sm:mt-3 text-4xl font-bold text-foreground-inverse sm:text-6xl">
-          <span class="bg-clip-text bg-linear-to-tr from-primary to-purple-400 text-transparent">Careers</span>
-        </h2>
-
-        <form>
-          <div class="mt-8 space-y-4">
-            <div>
-              <label for="hs-cover-with-gradient-form-name-1" class="sr-only">Full name</label>
-              <div class="relative">
-                <input type="text" id="hs-cover-with-gradient-form-name-1" class="py-2.5 sm:py-3 ps-11 pe-4 block w-full bg-plain/10 border-line-inverse/20 text-foreground-inverse placeholder:text-foreground-inverse rounded-lg sm:text-sm focus:border-line-inverse/30 focus:ring-line-inverse/30 sm:p-4 sm:ps-11" placeholder="Full name">
-                <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-4">
-                  <svg class="shrink-0 size-4 text-foreground-inverse/50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label for="hs-cover-with-gradient-form-email-1" class="sr-only">Email address</label>
-              <div class="relative">
-                <input type="email" id="hs-cover-with-gradient-form-email-1" class="py-2.5 sm:py-3 ps-11 pe-4 block w-full bg-plain/10 border-line-inverse/20 text-foreground-inverse placeholder:text-foreground-inverse rounded-lg sm:text-sm focus:border-line-inverse/30 focus:ring-line-inverse/30 sm:p-4 sm:ps-11" placeholder="Email address">
-                <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-4">
-                  <svg class="shrink-0 size-4 text-foreground-inverse/50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            <div class="grid">
-              <button type="submit" class="sm:p-4 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-plain/10 text-foreground-inverse hover:bg-plain/20 focus:outline-hidden focus:bg-plain/20 disabled:opacity-50 disabled:pointer-events-none">
-                Join the waitlist
-                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-              </button>
-            </div>
-          </div>
-        </form>
+<!-- HERO -->
+<section class="sustain-hero">
+  <div class="sustain-hero__bg" id="heroBg"></div>
+  <div class="sustain-hero__overlay"></div>
+  <div class="relative z-10 w-full max-w-5xl mx-auto px-6 text-white">
+    <div data-aos="fade-up" data-aos-duration="800">
+      <span class="inline-block text-xs font-bold tracking-widest uppercase text-emerald-300 mb-4">Our Commitment</span>
+      <h1 class="font-display text-5xl md:text-7xl font-bold leading-tight mb-6 max-w-3xl">
+        Sustaining the Sea,<br><em class="not-italic text-emerald-300">Sustaining Lives</em>
+      </h1>
+      <p class="text-lg md:text-xl text-white/80 max-w-2xl leading-relaxed mb-8">
+        At St. Joseph Fish Brokerage Inc., sustainability isn't a policy — it's how we've always done business.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="#pillars" class="py-3 px-5 inline-flex items-center gap-2 rounded-xl bg-white text-orange-600 font-semibold text-sm hover:bg-orange-50 transition-all hover:-translate-y-0.5 shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"/></svg>
+          Explore Our Commitments
+        </a>
+        <a href="/contact" class="py-3 px-5 inline-flex items-center gap-2 rounded-xl border border-white/40 text-white font-semibold text-sm hover:bg-white/10 transition-all hover:-translate-y-0.5">
+          Partner With Us
+        </a>
       </div>
-    </main>
-    <!-- ========== END MAIN CONTENT ========== -->
-    
-    <!-- <div class="relative" data-aos="zoom-in" data-aos-duration="1000" data-aos-anchor-placement="center-bottom">
-      <img class="h-80 w-full object-cover rounded-md" src="./assets/images/sustainability.jpg" loading="lazy" alt="St. Joseph Fish Brokerage Inc. Navotas Market">
-      <div class="absolute inset-0 bg-black opacity-60"></div>
-      <div class="absolute inset-0 flex items-center justify-center text-white"> 
-        <div class="max-w-[70rem] px-4 sm:px-6 lg:px-8 mx-auto">
-          <div class="grid md:grid-cols-3 gap-x-3 md:items-center">
-            
-            <div class="md:col-span-1" data-aos="zoom-out-right" data-aos-duration="2000"> 
-              <h2 class="text-3xl font-bold text-center">Our Commitment to Sustainability</h2>
-            </div>  
-         
-            <div class="md:col-span-2 md:mt-0" data-aos="zoom-out-left" data-aos-duration="2000">
-            
-              <p class="text-justify font-semibold">
-               At St. Joseph Fish Brokerage Inc., we source our seafood from responsible fish producers who prioritize the health of marine ecosystems. Our goal is to offer quality fresh seafood from our fish producers while actively supporting and aimed at conserving marine life.
-              </p>
-          
+    </div>
+  </div>
+  <div class="absolute bottom-0 left-0 right-0 z-10">
+    <svg viewBox="0 0 1440 80" fill="none" preserveAspectRatio="none" style="width:100%;display:block">
+      <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z" fill="white"/>
+    </svg>
+  </div>
+</section>
+
+<!-- INTRO + SDG BADGES -->
+<section class="py-20 bg-white">
+  <div class="max-w-4xl mx-auto px-6 text-center" data-aos="fade-up">
+    <span class="section-eyebrow justify-center">Who We Are</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+      More Than a Fish Broker — A Partner in the Philippine Seafood Ecosystem
+    </h2>
+    <p class="text-lg text-gray-600 leading-relaxed mb-8">
+      With operations spanning <strong class="text-blue-700">Navotas</strong>, <strong class="text-blue-700">Malabon</strong>, <strong class="text-blue-700">Davao Toril</strong>, and growing, we serve as the critical link between hardworking Filipino fishermen and the buyers who depend on fresh, traceable seafood.
+    </p>
+    <!-- Preline badge pattern: inline-flex + rounded-full + color utilities -->
+    <div class="flex flex-wrap gap-2 justify-center mt-2">
+      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">🌱 SDG 14 — Life Below Water</span>
+      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">🤝 SDG 17 — Partnerships</span>
+      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-200">🏘️ SDG 8 — Decent Work</span>
+      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">⚖️ SDG 10 — Reduced Inequalities</span>
+    </div>
+  </div>
+</section>
+
+<!-- PILLARS -->
+<section id="pillars" class="py-20 bg-slate-50">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="text-center mb-14" data-aos="fade-up">
+      <span class="section-eyebrow justify-center">Our Framework</span>
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900">Four Pillars of Sustainable Practice</h2>
+      <p class="text-gray-500 mt-3 max-w-xl mx-auto">Each pillar represents a core area where we measure, improve, and remain accountable.</p>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <?php
+      $pillars = [
+        ['href'=>'#responsible-brokerage','mod'=>'--blue','ibg'=>'bg-blue-50','ic'=>'text-blue-600','lc'=>'text-blue-600','title'=>'Responsible Brokerage','desc'=>'Ethical trading, regulatory compliance, and full traceability from catch to buyer.'],
+        ['href'=>'#people-workplace','mod'=>'--green','ibg'=>'bg-emerald-50','ic'=>'text-emerald-600','lc'=>'text-emerald-600','title'=>'People & Workplace','desc'=>'Fair wages, safe conditions, inclusive culture, and continuous employee growth.'],
+        ['href'=>'#community-livelihoods','mod'=>'--teal','ibg'=>'bg-teal-50','ic'=>'text-teal-600','lc'=>'text-teal-600','title'=>'Community & Livelihoods','desc'=>'Direct support for fishing families, local suppliers, and coastal communities.'],
+        ['href'=>'#environmental-responsibility','mod'=>'--orange','ibg'=>'bg-orange-50','ic'=>'text-orange-600','lc'=>'text-orange-600','title'=>'Environmental Stewardship','desc'=>'Mindful operations, waste reduction, and support for marine conservation efforts.'],
+      ];
+      $icons = [
+        'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
+        'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+        'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+        'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064',
+      ];
+      foreach ($pillars as $i => $p):
+      ?>
+      <!-- Preline-style card: bg-white rounded-2xl border shadow-sm hover:shadow-xl transition-all -->
+      <a href="<?= $p['href'] ?>" class="pillar-card pillar-card<?= $p['mod'] ?> block bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 group" data-aos="fade-up" data-aos-delay="<?= $i*100 ?>">
+        <div class="size-16 <?= $p['ibg'] ?> rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+          <svg class="size-7 <?= $p['ic'] ?>" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="<?= $icons[$i] ?>"/></svg>
+        </div>
+        <h3 class="font-bold text-gray-900 mb-2"><?= $p['title'] ?></h3>
+        <p class="text-sm text-gray-500 leading-relaxed"><?= $p['desc'] ?></p>
+        <span class="mt-4 inline-flex items-center <?= $p['lc'] ?> text-xs font-semibold gap-1">
+          Learn more <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE 1 -->
+<section id="responsible-brokerage" class="deep-section py-24 bg-white">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid lg:grid-cols-2 gap-10 items-center">
+      <div class="img-zoom img-shadow-r aspect-[4/3]" data-aos="fade-right">
+        <img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80" alt="Fish brokerage operations" loading="lazy">
+      </div>
+      <div data-aos="fade-left" data-aos-delay="100">
+        <div class="relative">
+          <div class="deep-num">01</div>
+          <span class="section-eyebrow">Pillar One</span>
+          <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900 mb-6">Responsible Fish Brokerage</h2>
+          <p class="text-gray-600 leading-relaxed mb-6">As a licensed fish broker, we ensure every transaction is fair, transparent, and legally compliant. Our reputation across three decades is built on integrity.</p>
+          <div class="space-y-3">
+            <?php foreach ([
+              ['Fair-price guarantee','fishermen receive market-competitive rates with no hidden deductions'],
+              ['Full regulatory compliance','licensed under BFAR, FDA-registered, HACCP compliant'],
+              ['Supply chain transparency','traceable documentation from catch origin to end buyer'],
+              ['Anti-illegal fishing stance','we verify all suppliers and refuse products from illegal sources'],
+            ] as $item): ?>
+            <div class="check-item">
+              <div class="check-dot"><svg class="size-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+              <p class="text-sm text-gray-600"><strong class="text-gray-800"><?= $item[0] ?></strong> — <?= $item[1] ?></p>
             </div>
-            
+            <?php endforeach; ?>
           </div>
         </div>
       </div>
-      
-    </div> -->
-   
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE 2 -->
+<section id="people-workplace" class="deep-section py-24 bg-slate-50">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid lg:grid-cols-2 gap-10 items-center">
+      <div data-aos="fade-right">
+        <div class="deep-num">02</div>
+        <span class="section-eyebrow">Pillar Two</span>
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900 mb-6">People & Workplace</h2>
+        <p class="text-gray-600 leading-relaxed mb-8">Our people are the backbone of St. Joseph. Every team member is treated with dignity, compensated fairly, and given the tools to grow.</p>
+        <div class="space-y-6">
+          <?php foreach ([
+            ['Safe Working Conditions','PPE provided to all port-side staff; regular safety audits at all locations.'],
+            ['Good Compensation','Salaries regional minimum wage; 13th month, SSS, PhilHealth, Pag-IBIG covered.'],
+            ['Career Development','In-house training, fisheries knowledge programs, and internal promotion pathways.'],
+            ['Inclusive Culture','Equal opportunity employer — we value diversity in gender, background, and experience.'],
+          ] as $item): ?>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <h4 class="font-semibold text-gray-900 mb-1"><?= $item[0] ?></h4>
+            <p class="text-sm text-gray-500"><?= $item[1] ?></p>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="img-zoom img-shadow-l aspect-[4/3]" data-aos="fade-left">
+        <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80" alt="St. Joseph team" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE 3 -->
+<section id="community-livelihoods" class="deep-section py-24 bg-white">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid lg:grid-cols-2 gap-10 items-center">
+      <div class="img-zoom img-shadow-r aspect-[4/3]" data-aos="fade-right">
+        <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80" alt="Filipino fishing community" loading="lazy">
+      </div>
+      <div data-aos="fade-left" data-aos-delay="100">
+        <div class="deep-num">03</div>
+        <span class="section-eyebrow">Pillar Three</span>
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900 mb-6">Community & Livelihoods</h2>
+        <p class="text-gray-600 leading-relaxed mb-6">Fishing communities around Navotas, Malabon, and Davao aren't just our supply chain — they are our neighbors and partners.</p>
+        <div class="space-y-3">
+          <?php foreach ([
+            ['Priority local sourcing','95%+ of supply comes from registered small-scale and artisanal fishermen'],
+            ['Advance payment program','helps fishermen cover fuel and equipment costs before catch'],
+            ['Community scholarships','supporting education for children of long-term supplier families'],
+            ['Market access programs','connecting small suppliers to institutional buyers they couldn\'t reach alone'],
+          ] as $item): ?>
+          <div class="check-item" style="border-left-color:transparent">
+            <div class="check-dot" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%);"><svg class="size-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <p class="text-sm text-gray-600"><strong class="text-gray-800"><?= $item[0] ?></strong> — <?= $item[1] ?></p>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE 4 -->
+<section id="environmental-responsibility" class="deep-section py-24 bg-slate-50">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid lg:grid-cols-2 gap-10 items-center">
+      <div data-aos="fade-right">
+        <div class="deep-num">04</div>
+        <span class="section-eyebrow">Pillar Four</span>
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900 mb-6">Environmental Stewardship</h2>
+        <p class="text-gray-600 leading-relaxed mb-6">The ocean is not a resource to exploit — it's a living system that sustains millions of Filipinos.</p>
+        <!-- Preline-style mini cards: bg-white rounded-xl border p-4 -->
+        <div class="grid sm:grid-cols-2 gap-4">
+          <?php foreach ([
+            ['bg-blue-50','text-blue-600','Closed Season Compliance','We halt trading of regulated species during mandated closed seasons.','M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'],
+            ['bg-green-50','text-green-600','Zero-Waste Drive','Fish scraps and unsold portions redirect to fishmeal processors — nothing wasted.','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
+            ['bg-teal-50','text-teal-600','Biodiversity Awareness','Staff trained to refuse endangered or undersize catches per BFAR guidelines.','M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064'],
+            ['bg-orange-50','text-orange-600','Cold Chain Efficiency','Optimized ice and refrigeration logistics reduce spoilage and energy use.','M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707'],
+          ] as [$ibg,$ic,$title,$desc,$path]): ?>
+          <div class="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow">
+            <div class="size-10 <?= $ibg ?> rounded-lg flex items-center justify-center mb-3">
+              <svg class="size-5 <?= $ic ?>" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="<?= $path ?>"/></svg>
+            </div>
+            <h4 class="font-semibold text-gray-900 text-sm mb-1"><?= $title ?></h4>
+            <p class="text-xs text-gray-500"><?= $desc ?></p>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="img-zoom img-shadow-l aspect-[4/3]" data-aos="fade-left">
+        <img src="https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=800&q=80" alt="Marine conservation" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACT NUMBERS -->
+<section class="relative py-24 overflow-hidden" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%);">
+  <div class="relative z-10 max-w-5xl mx-auto px-6">
+    <div class="text-center mb-14" data-aos="fade-up">
+      <span class="text-xs font-bold tracking-widest uppercase text-emerald-300">By The Numbers</span>
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-white mt-2">Our Impact at a Glance</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center" id="impact-section">
+      <?php foreach ([['32','+','Brokerage Stalls','Nationwide'],['3','','Major Fish Ports','Luzon to Mindanao'],['100','+','Supplier Partners','Local Fishermen'],['30','+','Years of Service','Since the 90s']] as $i=>[$n,$s,$l,$sub]): ?>
+      <div data-aos="fade-up" data-aos-delay="<?= $i*100 ?>">
+        <div class="impact-num" data-target="<?= $n ?>" data-suffix="<?= $s ?>">0<?= $s ?></div>
+        <p class="text-white/70 text-sm mt-2 font-medium"><?= $l ?></p>
+        <p class="text-white/40 text-xs mt-1"><?= $sub ?></p>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE -->
+<section class="relative py-24 bg-amber-50 overflow-hidden">
+  <div class="quote-mark">"</div>
+  <div class="relative z-10 max-w-4xl mx-auto px-6 text-center" data-aos="fade-up">
+    <p class="font-display text-2xl md:text-3xl italic text-gray-700 leading-relaxed mb-8">
+      "Sustainability is not a destination — it is a commitment we live every day through responsible business, trusted relationships, and continuous improvement for the Filipino fishing industry."
+    </p>
+    <div class="flex items-center justify-center gap-3">
+      <div class="w-12 h-px bg-gray-300"></div>
+      <span class="text-sm font-semibold text-gray-500">St. Joseph Fish Brokerage, Inc.</span>
+      <div class="w-12 h-px bg-gray-300"></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="relative py-20 overflow-hidden">
+  <div class="absolute inset-0 z-0">
+    <div class="cta-bg"></div>
+  </div>
+  
+  <div class="relative z-10 max-w-3xl mx-auto px-6 text-center text-white" data-aos="fade-up">
+    <span class="text-xs font-bold tracking-widest uppercase text-orange-300 block mb-4">Work With Us</span>
+    <h2 class="font-display text-3xl md:text-5xl font-bold mb-6">Building a Sustainable Future — Together</h2>
+    <p class="text-lg text-white/75 mb-10 leading-relaxed">Whether you're a buyer, a cooperative, or a business partner — St. Joseph is ready.</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="./services.php" class="py-3 px-6 inline-flex items-center justify-center rounded-xl bg-white text-orange-600 font-semibold hover:bg-orange-50 transition-all hover:-translate-y-0.5 shadow-md">Explore Our Markets</a>
+      <a href="./contact.php" class="py-3 px-6 inline-flex items-center justify-center rounded-xl border border-white/40 text-white font-semibold hover:bg-white/10 transition-all hover:-translate-y-0.5">Contact Us Today</a>
+    </div>
+  </div>
 </section>
 
 <?php include('./components/footer.php'); ?>
-
-  <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
-  <script>
-    AOS.init();
-  </script>
-  <script src="node_modules/preline/dist/preline.js"></script>
-  
-  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
-  
-  <?php include('live_chat.php'); ?>
-
-
+<script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+<?php include('live_chat.php'); ?>
+<script>
+AOS.init({ once:true, easing:'ease-out-cubic' });
+window.addEventListener('load', () => document.getElementById('heroBg')?.classList.add('loaded'));
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) { e.preventDefault(); window.scrollTo({ top: t.offsetTop - 80, behavior:'smooth' }); }
+  });
+});
+function animateCounter(el) {
+  const target = parseInt(el.dataset.target), suffix = el.dataset.suffix || '';
+  let cur = 0, step = Math.max(1, Math.floor(target/40));
+  const t = setInterval(() => { cur = Math.min(cur+step,target); el.textContent=cur+suffix; if(cur>=target)clearInterval(t); }, 40);
+}
+new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) { e.target.querySelectorAll('.impact-num').forEach(animateCounter); } });
+}, { threshold:0.3 }).observe(document.getElementById('impact-section'));
+</script>
 </body>
 </html>

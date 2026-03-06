@@ -86,6 +86,14 @@ if (isset($_GET['resend']) && isset($_SESSION['email'])) {
   </noscript>
 
 </head>
+
+<style>
+/* Only truly custom styles — hero, animations, brand accents */
+body { font-family: 'Lexend', sans-serif; }
+.font-display { font-family: 'Playfair Display', serif; }
+
+</style>
+
 <body>
 
 <?php include('./components/preloader.php'); ?>

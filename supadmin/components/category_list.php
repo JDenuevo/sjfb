@@ -1,225 +1,203 @@
+<?php
+// category_list.php — improved
+$searchCat = $_GET['search_cat'] ?? '';
 
-<div class="flex flex-col">
-  <div class="-m-1.5 overflow-x-auto">
-    <div class="p-1.5 min-w-full inline-block align-middle">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <!-- Header -->
-        <div class="px-6 py-4 grid gap-3 md:flex md:items-center border-b border-gray-200">
-          <div class="flex justify-between items-center">
-            <div>
-              <h2 class="text-xl font-semibold text-gray-800">
-                Category
-              </h2>
-              <p class="text-sm text-gray-600">
-                Manage your category
-              </p>
-            </div>
-            <div class="inline-flex gap-x-2">
-              <a class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-none focus:bg-orange-700" 
-                href="#" data-modal-target="addCategoryModal">
-                <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14" />
-                  <path d="M12 5v14" />
-                </svg>
-                Add Category
-              </a>
-            </div>
-          </div>
+// Stats
+$catStats = [];
+$r = $conn->query("SELECT COUNT(*) as v FROM product_categories WHERE is_active=1"); $catStats['active'] = (int)$r->fetch_assoc()['v'];
+$r = $conn->query("SELECT COUNT(*) as v FROM product_categories WHERE parent_id IS NULL AND is_active=1"); $catStats['top'] = (int)$r->fetch_assoc()['v'];
+$r = $conn->query("SELECT COUNT(*) as v FROM product_categories WHERE parent_id IS NOT NULL AND is_active=1"); $catStats['sub'] = (int)$r->fetch_assoc()['v'];
+?>
+
+<!-- Stats strip -->
+<div class="grid grid-cols-3 gap-3 mb-4">
+  <div class="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-orange-700"><?= $catStats['active'] ?></div>
+    <div class="text-xs text-orange-600">Total Active</div>
+  </div>
+  <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-blue-700"><?= $catStats['top'] ?></div>
+    <div class="text-xs text-blue-600">Top Level</div>
+  </div>
+  <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+    <div class="text-xl font-bold text-purple-700"><?= $catStats['sub'] ?></div>
+    <div class="text-xs text-purple-600">Subcategories</div>
+  </div>
+</div>
+
+<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+  <!-- Header -->
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+    <div class="flex-1">
+      <h2 class="text-lg font-semibold text-gray-800">Categories</h2>
+      <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> categories</p>
+    </div>
+    <div class="flex gap-2">
+      <form method="GET">
+        <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <input type="text" name="search_cat" value="<?= htmlspecialchars($searchCat) ?>" placeholder="Search categories…" class="text-sm px-3 py-2 focus:outline-none w-40">
+          <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
+            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
         </div>
-        <!-- End Header -->
+      </form>
+      <button type="button" data-modal-target="addCategoryModal"
+        class="flex items-center gap-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Add Category
+      </button>
+    </div>
+  </div>
 
-        <!-- Table -->
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Category ID</span>
-                </div>
-              </th>
-              <th scope="col" class="ps-6 py-3 text-start">
-                <div class="flex items-center gap-x-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Category Name</span>
-                </div>
-              </th>
-              
-              <th scope="col" class="px-6 py-3 text-end"></th>
-            </tr>
-          </thead>
-
-          <tbody class="divide-y divide-gray-200 ">
-            <?php while ($row = $result->fetch_assoc()): ?>
-            <tr class="category-row bg-white">
-              <td class="ps-6 py-3">
-                <div class="flex items-center gap-x-3">
-                  <div class="grow">
-                    <span class="block text-sm font-semibold text-gray-800 "><?= htmlspecialchars($row['category_id']) ?></span>
-                  </div>
-                </div>
-              </td>
-              
-              <td class="px-6 py-3">
-                <span class="block text-sm font-semibold text-gray-800 "><?= $row['category_name'] ?></span>
-              </td>
-
-              <td class="px-6 py-3 inline-flex gap-1 items-center">
-                <button type="button" style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="document.getElementById('editCategoryModal<?php echo $row['category_id']; ?>').classList.remove('hidden')">
-                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
-                </button>
-                <button type="button" style="background-color: #ef4444;" class="px-3 py-2 text-white rounded-xl" data-modal-target="deleteCategoryModal<?php echo $row['category_id']; ?>">
-                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
-                </button>
-              </td>
-              
-              
-            
-            </tr>
-
-            <!-- Edit Category Modal -->
-            <div id="editCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-              <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-                <h3 class="text-lg font-semibold mb-4">Edit Category</h3>
-                <form action="./functions/update.php" method="POST">
-                  <input type="hidden" name="category_id" value="<?php echo $row['category_id']; ?>">
-                  
-                  <div class="mb-3">
-                    <label class="block text-sm font-medium">Category Name</label>
-                    <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_name']); ?>">
-                  </div>
-                  
-                  <div class="flex justify-end space-x-3 mt-4">
-                  
-                    <button type="submit" name="update_category" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Update Category</button>
-                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('editCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
-                                        
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <!-- Delete Category Modal -->
-            <div id="deleteCategoryModal<?php echo $row['category_id']; ?>" class="fixed inset-0 z-100 flex items-center justify-center bg-black bg-opacity-50 hidden">
-              <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-                <h3 class="text-lg font-semibold mb-4">Delete Category</h3>
-                <form action="./functions/delete.php" method="POST">
-                  <input type="hidden" name="category_id" value="<?php echo $row['category_id']; ?>">
-                  
-                  <div class="mb-3">
-                    <label class="block text-sm font-medium">Category Name</label>
-                    <input type="text" name="category_name" required class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($row['category_name']); ?>">
-                  </div>
-                  
-                  <div class="flex justify-end space-x-3 mt-4">
-
-                    <button type="submit" name="delete_category" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Delete Category</button>
-                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('deleteCategoryModal<?php echo $row['category_id']; ?>')">Cancel</button>
-                     </div>
-                </form>
-              </div>
-            </div>
-
-            <?php endwhile; ?>
-          </tbody>
-        </table>
-        <!-- End Table -->
-
-        
-        <!-- Footer -->
-        <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-          <div>
-            <p class="text-sm text-gray-600">
-              <span class="font-semibold text-gray-800">
-                <?php echo $totalItems; ?>
-              </span> results
-            </p>
-          </div>
-
-          <div>
-            <div class="inline-flex gap-x-2">
-              <?php
-              // Previous button
-              if ($page > 1): ?>
-                <a href="?page=<?php echo $page - 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                  Prev
-                </a>
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-100">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Level</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Parent</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Products</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        <?php while ($row = $result->fetch_assoc()):
+          $levelConf = [1=>['bg-orange-100 text-orange-700','Main'],2=>['bg-blue-100 text-blue-700','Sub'],3=>['bg-purple-100 text-purple-700','Sub-sub']];
+          [$lBadge, $lLabel] = $levelConf[$row['category_level']] ?? ['bg-gray-100 text-gray-700','Level '.$row['category_level']];
+          $indent = str_repeat('— ', ($row['category_level']-1));
+        ?>
+        <tr class="category-row hover:bg-orange-50/30 transition-colors">
+          <!-- Category name + image -->
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-3">
+              <?php if ($row['category_image']): ?>
+              <img src="../uploads/categories/<?= htmlspecialchars($row['category_image']) ?>" class="size-9 rounded-lg object-cover border border-gray-100" alt="">
               <?php else: ?>
-                <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                  Prev
-                </span>
+              <div class="size-9 rounded-lg bg-orange-100 flex items-center justify-center">
+                <svg class="size-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0"/></svg>
+              </div>
               <?php endif; ?>
-
-              <!-- Page numbers -->
-              <?php 
-              $start = max(1, $page - 2);
-              $end = min($totalPages, $page + 2);
-              
-              // Show first page if not in range
-              if ($start > 1): ?>
-                <a href="?page=1" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  1
-                </a>
-                <?php if ($start > 2): ?>
-                  <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
-                <?php endif;
-              endif;
-              
-              for ($i = $start; $i <= $end; $i++): ?>
-                <a href="?page=<?php echo $i; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  <?php echo $i; ?>
-                </a>
-              <?php endfor; 
-              
-              // Show last page if not in range
-              if ($end < $totalPages): ?>
-                <?php if ($end < $totalPages - 1): ?>
-                  <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
+              <div>
+                <div class="text-sm font-semibold text-gray-800"><?= $indent . htmlspecialchars($row['category_name']) ?></div>
+                <?php if ($row['category_description']): ?>
+                <div class="text-xs text-gray-400 max-w-[200px] truncate"><?= htmlspecialchars($row['category_description']) ?></div>
                 <?php endif; ?>
-                <a href="?page=<?php echo $totalPages; ?>" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                  <?php echo $totalPages; ?>
-                </a>
-              <?php endif; ?>
-
-              <!-- Next button -->
-              <?php if ($page < $totalPages): ?>
-                <a href="?page=<?php echo $page + 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                  Next
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </a>
-              <?php else: ?>
-                <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                  Next
-                  <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </span>
-              <?php endif; ?>
+              </div>
             </div>
+          </td>
+          <!-- Level -->
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $lBadge ?>"><?= $lLabel ?></span>
+          </td>
+          <!-- Parent -->
+          <td class="px-4 py-3">
+            <span class="text-sm text-gray-600"><?= htmlspecialchars($row['parent_name'] ?? '—') ?></span>
+          </td>
+          <!-- Product count -->
+          <td class="px-4 py-3 text-center">
+            <span class="text-sm font-bold text-gray-800"><?= (int)$row['product_count'] ?></span>
+          </td>
+          <!-- Sort order -->
+          <td class="px-4 py-3 text-center">
+            <span class="text-xs text-gray-500"><?= $row['sort_order'] ?></span>
+          </td>
+          <!-- Actions -->
+          <td class="px-4 py-3 text-right">
+            <div class="inline-flex gap-1">
+              <button type="button" onclick="openEditCategoryModal(<?= $row['category_id'] ?>)"
+                class="size-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button type="button" data-modal-target="deleteCategoryModal<?= $row['category_id'] ?>"
+                class="size-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors" title="Delete">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Delete Modal -->
+        <div id="deleteCategoryModal<?= $row['category_id'] ?>" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 hidden p-4">
+          <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="size-10 bg-red-100 rounded-xl flex items-center justify-center">
+                <svg class="size-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-gray-800">Delete Category</h3>
+                <p class="text-xs text-gray-500">This cannot be undone.</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Delete <strong><?= htmlspecialchars($row['category_name']) ?></strong>? Products linked to this category will need to be reassigned.</p>
+            <form action="./functions/delete.php" method="POST">
+              <input type="hidden" name="category_id" value="<?= $row['category_id'] ?>">
+              <div class="flex gap-2">
+                <button type="button" onclick="closeModal('deleteCategoryModal<?= $row['category_id'] ?>')" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" name="delete_category" class="flex-1 px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg">Delete</button>
+              </div>
+            </form>
           </div>
         </div>
-        <!-- End Footer -->
-         
+        <?php endwhile; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+    <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> categories</p>
+    <div class="flex gap-1">
+      <?php if ($page > 1): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page-1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+      <?php endif; ?>
+      <?php for ($i=max(1,$page-2); $i<=min($totalPages,$page+2); $i++): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$i])) ?>"
+           class="px-3 py-1.5 text-xs border rounded-lg <?= $i==$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>"><?= $i ?></a>
+      <?php endfor; ?>
+      <?php if ($page < $totalPages): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page+1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Category Modal (AJAX-loaded) -->
+<div id="editCategoryModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 hidden p-4">
+  <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-gray-800">Edit Category</h3>
+      <button onclick="closeModal('editCategoryModal')" class="text-gray-400 hover:text-gray-600">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div id="editCategoryContent" class="p-6">
+      <div class="flex items-center justify-center py-8">
+        <div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     </div>
   </div>
 </div>
 
-<style>
-  .category-row {
-    transition: all 0.2s ease;
-    border-left: 4px solid transparent;
-  }
-
-  .category-row:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    border-left-color: #3b82f6;
-  }
-</style>
+<script>
+function openEditCategoryModal(categoryId) {
+  const modal = document.getElementById('editCategoryModal');
+  const content = document.getElementById('editCategoryContent');
+  modal.classList.remove('hidden');
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>';
+  fetch('./functions/fetch_category.php?category_id=' + categoryId)
+    .then(r => r.text())
+    .then(html => { content.innerHTML = html; })
+    .catch(() => { content.innerHTML = '<p class="text-red-500 text-sm">Failed to load.</p>'; });
+}
+document.getElementById('editCategoryModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeModal('editCategoryModal');
+});
+document.querySelectorAll('[data-modal-target]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.getElementById(this.getAttribute('data-modal-target'))?.classList.remove('hidden');
+  });
+});
+function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
+</script>

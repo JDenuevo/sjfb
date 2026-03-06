@@ -1,6 +1,9 @@
 <?php
+// ==================== admin/functions/update.php ====================
 session_start();
 require '../../conn.php';
+include 'slug_helper.php';
+require_once 'activity_log_helper.php'; // ← shared logger
 
 function redirectWithMessage($location, $message, $type) {
     $_SESSION['message'] = ['text' => $message, 'type' => $type];
@@ -8,307 +11,208 @@ function redirectWithMessage($location, $message, $type) {
     exit();
 }
 
+['userId' => $actorId, 'userType' => $actorType] = getActorFromSession();
+
+// ── UPDATE ACCOUNT (admin panel) ──────────────────────────────────────────────
 if (isset($_POST['update_account'])) {
-    $account_id = $_POST['account_id'];
-    $username = trim(htmlspecialchars($_POST['username']));
-    $role = htmlspecialchars($_POST['role']);
-    $first_name = trim(htmlspecialchars($_POST['first_name']));
-    $last_name = trim(htmlspecialchars($_POST['last_name']));
-    $email = trim(htmlspecialchars($_POST['email']));
-    $phone_number = trim(htmlspecialchars($_POST['phone_number']));
-    $address = trim(htmlspecialchars($_POST['address']));
-    $city = trim(htmlspecialchars($_POST['city']));
+    $account_id  = intval($_POST['account_id']);
+    $username    = trim(htmlspecialchars($_POST['username']));
+    $role        = htmlspecialchars($_POST['role']);
+    $first_name  = trim(htmlspecialchars($_POST['first_name']));
+    $last_name   = trim(htmlspecialchars($_POST['last_name']));
+    $email       = trim(htmlspecialchars($_POST['email']));
+    $phone_number= trim(htmlspecialchars($_POST['phone_number']));
+    $address     = trim(htmlspecialchars($_POST['address']));
+    $city        = trim(htmlspecialchars($_POST['city']));
     $postal_code = trim(htmlspecialchars($_POST['postal_code']));
 
-    // Validate email format
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         redirectWithMessage("../accounts.php", "Invalid email format.", "error");
     }
 
-    // Handle password update only if a new password is provided
+    // Fetch old values for diff log
+    $old = $conn->prepare("SELECT username, role, email FROM accounts WHERE account_id = ?");
+    $old->bind_param("i", $account_id); $old->execute();
+    $oldData = $old->get_result()->fetch_assoc();
+    $old->close();
+
     if (!empty($_POST['password']) && !empty($_POST['confirm_password'])) {
-        $password = $_POST['password'];
-        $confirm_password = $_POST['confirm_password'];
-
-        if ($password !== $confirm_password) {
-            redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
-        }
-
-        // Hash the password before storing it
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-        // ✅ Corrected column name: password_hash instead of password
-        $updateQuery = "UPDATE accounts SET username = ?, role = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, address = ?, city = ?, postal_code = ?, password_hash = ? WHERE account_id = ?";
-        $stmt = $conn->prepare($updateQuery);
-        $stmt->bind_param("ssssssssssi", $username, $role, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code, $hashed_password, $account_id);
+        $password = $_POST['password']; $confirm = $_POST['confirm_password'];
+        if ($password !== $confirm) redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
+        $hashed = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE accounts SET username=?,role=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=?,password_hash=? WHERE account_id=?");
+        $stmt->bind_param("ssssssssssi", $username,$role,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$hashed,$account_id);
     } else {
-        // Update query without password
-        $updateQuery = "UPDATE accounts SET username = ?, role = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, address = ?, city = ?, postal_code = ? WHERE account_id = ?";
-        $stmt = $conn->prepare($updateQuery);
-        $stmt->bind_param("sssssssssi", $username, $role, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code, $account_id);
+        $stmt = $conn->prepare("UPDATE accounts SET username=?,role=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=? WHERE account_id=?");
+        $stmt->bind_param("sssssssssi", $username,$role,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$account_id);
     }
 
-    // Execute the update query
     if ($stmt->execute()) {
-        $stmt->close();
-        $conn->close();
+        logActivity($conn, 'account', $account_id, 'Account updated',
+            json_encode(['username'=>$oldData['username'],'role'=>$oldData['role'],'email'=>$oldData['email']]),
+            json_encode(['username'=>$username,'role'=>$role,'email'=>$email]),
+            "Account ID {$account_id} updated by admin. Name: {$first_name} {$last_name}",
+            $actorId, $actorType
+        );
+        $stmt->close(); $conn->close();
         redirectWithMessage("../accounts.php", "Account successfully updated!", "success");
     } else {
-        $stmt->close();
-        $conn->close();
+        $stmt->close(); $conn->close();
         redirectWithMessage("../accounts.php", "Failed to update account.", "error");
     }
 }
 
-
+// ── UPDATE PROFILE (self-service) ─────────────────────────────────────────────
 elseif (isset($_POST['update_profile'])) {
-    $account_id = $_SESSION['account_id'];
-    $username = $_POST['username'];
-    $first_name = $_POST['first_name'];
-    $last_name = $_POST['last_name'];
-    $email = $_POST['email'];
-    $phone_number = $_POST['phone_number'];
-    $address = $_POST['address'];
-    $city = $_POST['city'];
-    $postal_code = $_POST['postal_code'];
-    
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
+    $account_id  = $_SESSION['account_id'];
+    $username    = $_POST['username'];   $first_name  = $_POST['first_name'];
+    $last_name   = $_POST['last_name'];  $email       = $_POST['email'];
+    $phone_number= $_POST['phone_number']; $address  = $_POST['address'];
+    $city        = $_POST['city'];       $postal_code = $_POST['postal_code'];
+    $password    = $_POST['password'];   $confirm     = $_POST['confirm_password'];
 
-    // ✅ Check if email already exists in another account
-    $checkEmail = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? AND account_id != ?");
-    $checkEmail->bind_param("si", $email, $account_id);
-    $checkEmail->execute();
-    $checkEmail->store_result();
+    $ck = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? AND account_id != ?");
+    $ck->bind_param("si", $email, $account_id); $ck->execute(); $ck->store_result();
+    if ($ck->num_rows > 0) { $ck->close(); redirectWithMessage('../profile.php','Email already taken.','error'); }
+    $ck->close();
 
-    if ($checkEmail->num_rows > 0) {
-        $checkEmail->close();
-        $conn->close();
-        redirectWithMessage('../profile.php', 'Email is already taken by another account.', 'error');
-    }
-    $checkEmail->close();
+    $cku = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? AND account_id != ?");
+    $cku->bind_param("si", $username, $account_id); $cku->execute(); $cku->store_result();
+    if ($cku->num_rows > 0) { $cku->close(); redirectWithMessage('../profile.php','Username already taken.','error'); }
+    $cku->close();
 
-    // ✅ Check if username already exists in another account
-    $checkUsername = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? AND account_id != ?");
-    $checkUsername->bind_param("si", $username, $account_id);
-    $checkUsername->execute();
-    $checkUsername->store_result();
-
-    if ($checkUsername->num_rows > 0) {
-        $checkUsername->close();
-        $conn->close();
-        redirectWithMessage('../profile.php', 'Username is already taken by another account.', 'error');
-    }
-    $checkUsername->close();
-
-    // ✅ Handle password update only if provided
-    if (!empty($password) || !empty($confirm_password)) {
-        if ($password !== $confirm_password) {
-            redirectWithMessage('../profile.php', 'Password and Confirm Password do not match.', 'error');
-        }
-
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "UPDATE accounts 
-                SET username = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, address = ?, city = ?, postal_code = ?, password_hash = ? 
-                WHERE account_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssssssssi", $username, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code, $hashedPassword, $account_id);
+    if (!empty($password) || !empty($confirm)) {
+        if ($password !== $confirm) redirectWithMessage('../profile.php','Passwords do not match.','error');
+        $hashed = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE accounts SET username=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=?,password_hash=? WHERE account_id=?");
+        $stmt->bind_param("sssssssssi",$username,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$hashed,$account_id);
     } else {
-        $sql = "UPDATE accounts 
-                SET username = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, address = ?, city = ?, postal_code = ? 
-                WHERE account_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssssssssi", $username, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code, $account_id);
+        $stmt = $conn->prepare("UPDATE accounts SET username=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=? WHERE account_id=?");
+        $stmt->bind_param("ssssssssi",$username,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$account_id);
     }
 
     if ($stmt->execute()) {
-        redirectWithMessage('../profile.php', 'Account updated successfully.', 'success');
+        logActivity($conn, 'account', $account_id, 'Profile updated',
+            null,
+            json_encode(['username'=>$username,'email'=>$email]),
+            "User ID {$account_id} updated their own profile.",
+            $account_id, 'customer'
+        );
+        redirectWithMessage('../profile.php','Account updated successfully.','success');
     } else {
-        redirectWithMessage('../profile.php', 'Failed to update account.', 'error');
+        redirectWithMessage('../profile.php','Failed to update account.','error');
     }
-
-    $stmt->close();
-    $conn->close();
+    $stmt->close(); $conn->close();
 }
 
+// ── UPDATE PRODUCT ────────────────────────────────────────────────────────────
 elseif (isset($_POST['update_product'])) {
-    $product_id = intval($_POST['product_id']);
-    $product_name = htmlspecialchars(trim($_POST['product_name']));
+    $product_id          = intval($_POST['product_id']);
+    $product_name        = htmlspecialchars(trim($_POST['product_name']));
     $product_description = htmlspecialchars(trim($_POST['product_description']));
-    $product_unit = htmlspecialchars(trim($_POST['product_unit'] ?? ''));
-    
-    // Get categories
-    $selected_categories = isset($_POST['product_categories']) ? $_POST['product_categories'] : [];
-    $primary_category = isset($_POST['primary_category']) ? intval($_POST['primary_category']) : 0;
-    
+    $product_unit        = htmlspecialchars(trim($_POST['product_unit'] ?? ''));
+    $selected_categories = $_POST['product_categories'] ?? [];
+    $primary_category    = intval($_POST['primary_category'] ?? 0);
+
     if (empty($product_name) || empty($selected_categories)) {
-        redirectWithMessage("../products.php", "Product name and at least one category are required.", "error");
+        redirectWithMessage("../products.php","Product name and at least one category are required.","error");
     }
 
+    // Fetch old name for log
+    $op = $conn->prepare("SELECT product_name FROM products WHERE product_id = ?");
+    $op->bind_param("i",$product_id); $op->execute();
+    $oldProd = $op->get_result()->fetch_assoc(); $op->close();
+
     $conn->begin_transaction();
-
     try {
-        // Update product
-        $stmt = $conn->prepare("UPDATE products SET product_name = ?, product_description = ?, product_unit = ? WHERE product_id = ?");
-        $stmt->bind_param("sssi", $product_name, $product_description, $product_unit, $product_id);
-        $stmt->execute();
-        $stmt->close();
+        $stmt = $conn->prepare("UPDATE products SET product_name=?,product_description=?,product_unit=? WHERE product_id=?");
+        $stmt->bind_param("sssi",$product_name,$product_description,$product_unit,$product_id);
+        $stmt->execute(); $stmt->close();
 
-        // Update categories - delete all and reinsert
-        $delete_stmt = $conn->prepare("DELETE FROM product_category_links WHERE product_id = ?");
-        $delete_stmt->bind_param("i", $product_id);
-        $delete_stmt->execute();
-        $delete_stmt->close();
-
-        foreach ($selected_categories as $category_id) {
-            $is_primary = ($category_id == $primary_category) ? 1 : 0;
-            $link_stmt = $conn->prepare("INSERT INTO product_category_links (product_id, category_id, is_primary) VALUES (?, ?, ?)");
-            $link_stmt->bind_param("iii", $product_id, $category_id, $is_primary);
-            $link_stmt->execute();
-            $link_stmt->close();
+        $del = $conn->prepare("DELETE FROM product_category_links WHERE product_id=?");
+        $del->bind_param("i",$product_id); $del->execute(); $del->close();
+        foreach ($selected_categories as $cat_id) {
+            $ip = ($cat_id == $primary_category) ? 1 : 0;
+            $lk = $conn->prepare("INSERT INTO product_category_links (product_id,category_id,is_primary) VALUES (?,?,?)");
+            $lk->bind_param("iii",$product_id,$cat_id,$ip); $lk->execute(); $lk->close();
         }
-
-        // If no primary category set, set the first one as primary
         if ($primary_category == 0 && !empty($selected_categories)) {
-            $first_category = $selected_categories[0];
-            $update_primary = "UPDATE product_category_links SET is_primary = 1 WHERE product_id = ? AND category_id = ?";
-            $stmt = $conn->prepare($update_primary);
-            $stmt->bind_param("ii", $product_id, $first_category);
-            $stmt->execute();
-            $stmt->close();
+            $fc = $selected_categories[0];
+            $up = $conn->prepare("UPDATE product_category_links SET is_primary=1 WHERE product_id=? AND category_id=?");
+            $up->bind_param("ii",$product_id,$fc); $up->execute(); $up->close();
         }
 
-        // Handle variants (update existing and insert new)
         if (isset($_POST['variant_name']) && is_array($_POST['variant_name'])) {
-            $variant_ids = $_POST['variant_id'];
-            $variant_names = $_POST['variant_name'];
-            $unit_types = $_POST['unit_type'];
-            $minimum_orders = $_POST['minimum_order'];
-            $order_increments = $_POST['order_increment'];
-            $stock_quantities = $_POST['stock_quantity'];
-            $variant_prices = $_POST['variant_price'];
+            $variant_ids     = $_POST['variant_id'];
+            $variant_names   = $_POST['variant_name'];   $unit_types      = $_POST['unit_type'];
+            $minimum_orders  = $_POST['minimum_order'];  $order_increments= $_POST['order_increment'];
+            $stock_quantities= $_POST['stock_quantity']; $variant_prices  = $_POST['variant_price'];
             $discount_prices = $_POST['discount_price'] ?? [];
-
             for ($i = 0; $i < count($variant_names); $i++) {
-                $variant_id = !empty($variant_ids[$i]) ? intval($variant_ids[$i]) : null;
-                $variant_name = htmlspecialchars(trim($variant_names[$i]));
-                $unit_type = $unit_types[$i];
-                $minimum_order = floatval($minimum_orders[$i]);
-                $order_increment = floatval($order_increments[$i]);
+                $variant_id     = !empty($variant_ids[$i]) ? intval($variant_ids[$i]) : null;
+                $variant_name   = htmlspecialchars(trim($variant_names[$i]));
+                $unit_type      = $unit_types[$i];
+                $minimum_order  = floatval($minimum_orders[$i]);
+                $order_increment= floatval($order_increments[$i]);
                 $stock_quantity = intval($stock_quantities[$i]);
-                $variant_price = floatval($variant_prices[$i]);
+                $variant_price  = floatval($variant_prices[$i]);
                 $discount_price = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
-                $stock_status = $stock_quantity > 0 ? 'In Stock' : 'Out of Stock';
-
+                $stock_status   = $stock_quantity > 0 ? 'In Stock' : 'Out of Stock';
                 if ($variant_id) {
-                    // Update existing
-                    $stmt = $conn->prepare("UPDATE product_variants SET variant_name = ?, unit_type = ?, minimum_order = ?, order_increment = ?, stock_quantity = ?, variant_price = ?, discount_price = ?, stock_status = ? WHERE variant_id = ?");
-                    $stmt->bind_param("ssddiddsi", $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status, $variant_id);
+                    $s = $conn->prepare("UPDATE product_variants SET variant_name=?,unit_type=?,minimum_order=?,order_increment=?,stock_quantity=?,variant_price=?,discount_price=?,stock_status=? WHERE variant_id=?");
+                    $s->bind_param("ssddiddsi",$variant_name,$unit_type,$minimum_order,$order_increment,$stock_quantity,$variant_price,$discount_price,$stock_status,$variant_id);
                 } else {
-                    // Insert new
-                    $stmt = $conn->prepare("INSERT INTO product_variants (product_id, variant_name, unit_type, minimum_order, order_increment, stock_quantity, variant_price, discount_price, stock_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("issddidds", $product_id, $variant_name, $unit_type, $minimum_order, $order_increment, $stock_quantity, $variant_price, $discount_price, $stock_status);
+                    $s = $conn->prepare("INSERT INTO product_variants (product_id,variant_name,unit_type,minimum_order,order_increment,stock_quantity,variant_price,discount_price,stock_status) VALUES (?,?,?,?,?,?,?,?,?)");
+                    $s->bind_param("issddidds",$product_id,$variant_name,$unit_type,$minimum_order,$order_increment,$stock_quantity,$variant_price,$discount_price,$stock_status);
                 }
-                $stmt->execute();
-                $stmt->close();
+                $s->execute(); $s->close();
             }
         }
 
-        // Handle deleted images - FIXED PRIMARY IMAGE LOGIC
+        // Handle deleted images
         if (!empty($_POST['deleted_images'])) {
             $deletedImages = explode(',', $_POST['deleted_images']);
-            
-            // Check if any of the deleted images is primary
-            $checkPrimaryQuery = "SELECT image_id FROM product_images WHERE image_id IN (" . implode(',', array_fill(0, count($deletedImages), '?')) . ") AND is_primary = 1";
-            $checkPrimaryStmt = $conn->prepare($checkPrimaryQuery);
-            
-            // Bind parameters
-            $types = str_repeat('i', count($deletedImages));
-            $checkPrimaryStmt->bind_param($types, ...$deletedImages);
-            $checkPrimaryStmt->execute();
-            $primaryResult = $checkPrimaryStmt->get_result();
-            $wasPrimaryDeleted = $primaryResult->num_rows > 0;
-            $checkPrimaryStmt->close();
-
-            // Delete the images
+            $ck_p = $conn->prepare("SELECT image_id FROM product_images WHERE image_id IN (" . implode(',', array_fill(0,count($deletedImages),'?')) . ") AND is_primary=1");
+            $types = str_repeat('i',count($deletedImages));
+            $ck_p->bind_param($types,...$deletedImages); $ck_p->execute();
+            $wasPrimaryDeleted = $ck_p->get_result()->num_rows > 0; $ck_p->close();
             foreach ($deletedImages as $imageId) {
                 $imageId = intval($imageId);
                 if ($imageId > 0) {
-                    // Get image path
-                    $stmt = $conn->prepare("SELECT image_path FROM product_images WHERE image_id = ?");
-                    $stmt->bind_param("i", $imageId);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    if ($row = $result->fetch_assoc()) {
-                        $imagePath = "../../uploads/products/" . $row['image_path'];
-                        if (file_exists($imagePath)) {
-                            unlink($imagePath);
-                        }
-                    }
-                    $stmt->close();
-                    
-                    // Delete from database
-                    $stmt = $conn->prepare("DELETE FROM product_images WHERE image_id = ?");
-                    $stmt->bind_param("i", $imageId);
-                    $stmt->execute();
-                    $stmt->close();
+                    $gi = $conn->prepare("SELECT image_path FROM product_images WHERE image_id=?");
+                    $gi->bind_param("i",$imageId); $gi->execute();
+                    if ($row = $gi->get_result()->fetch_assoc()) { $p = "../../uploads/products/".$row['image_path']; if (file_exists($p)) unlink($p); }
+                    $gi->close();
+                    $di = $conn->prepare("DELETE FROM product_images WHERE image_id=?");
+                    $di->bind_param("i",$imageId); $di->execute(); $di->close();
                 }
             }
-
-            // If primary image was deleted, set a new primary image
             if ($wasPrimaryDeleted) {
-                // Find the first remaining image for this product
-                $findNewPrimaryQuery = "SELECT image_id FROM product_images WHERE product_id = ? ORDER BY image_id ASC LIMIT 1";
-                $findNewPrimaryStmt = $conn->prepare($findNewPrimaryQuery);
-                $findNewPrimaryStmt->bind_param("i", $product_id);
-                $findNewPrimaryStmt->execute();
-                $newPrimaryResult = $findNewPrimaryStmt->get_result();
-                
-                if ($newPrimaryResult->num_rows > 0) {
-                    $newPrimaryId = $newPrimaryResult->fetch_assoc()['image_id'];
-                    
-                    // Set the new primary image
-                    $updatePrimaryQuery = "UPDATE product_images SET is_primary = 1 WHERE image_id = ?";
-                    $updatePrimaryStmt = $conn->prepare($updatePrimaryQuery);
-                    $updatePrimaryStmt->bind_param("i", $newPrimaryId);
-                    $updatePrimaryStmt->execute();
-                    $updatePrimaryStmt->close();
+                $fnp = $conn->prepare("SELECT image_id FROM product_images WHERE product_id=? ORDER BY image_id ASC LIMIT 1");
+                $fnp->bind_param("i",$product_id); $fnp->execute();
+                if ($nr = $fnp->get_result()->fetch_assoc()) {
+                    $sp = $conn->prepare("UPDATE product_images SET is_primary=1 WHERE image_id=?");
+                    $sp->bind_param("i",$nr['image_id']); $sp->execute(); $sp->close();
                 }
-                $findNewPrimaryStmt->close();
+                $fnp->close();
             }
         }
 
-        // Handle new images
         if (!empty($_FILES['product_images']['name'][0])) {
             $target_dir = "../../uploads/products/";
-            
-            // Check how many images exist after deletions
-            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM product_images WHERE product_id = ?");
-            $stmt->bind_param("i", $product_id);
-            $stmt->execute();
-            $existingCount = $stmt->get_result()->fetch_assoc()['count'];
-            $stmt->close();
-            
-            // If no images exist after deletions, the first new image becomes primary
-            $isPrimary = ($existingCount == 0) ? 1 : 0;
-            
+            $ecnt = $conn->prepare("SELECT COUNT(*) as c FROM product_images WHERE product_id=?");
+            $ecnt->bind_param("i",$product_id); $ecnt->execute();
+            $existing = $ecnt->get_result()->fetch_assoc()['c']; $ecnt->close();
+            $isPrimary = ($existing == 0) ? 1 : 0;
             foreach ($_FILES['product_images']['tmp_name'] as $key => $tmp_name) {
                 if ($_FILES['product_images']['error'][$key] === UPLOAD_ERR_OK) {
-                    $file_name = basename($_FILES['product_images']['name'][$key]);
-                    $file_size = $_FILES['product_images']['size'][$key];
-                    $file_type = mime_content_type($tmp_name);
-
-                    if (strpos($file_type, 'image') === 0 && $file_size <= 5 * 1024 * 1024) {
-                        $unique_file_name = uniqid() . '_' . $file_name;
-                        $target_file = $target_dir . $unique_file_name;
-
-                        if (move_uploaded_file($tmp_name, $target_file)) {
-                            $stmt = $conn->prepare("INSERT INTO product_images (product_id, image_path, is_primary) VALUES (?, ?, ?)");
-                            $stmt->bind_param("isi", $product_id, $unique_file_name, $isPrimary);
-                            $stmt->execute();
-                            $stmt->close();
-                            
-                            // Only the first image should be primary
+                    $fn = basename($_FILES['product_images']['name'][$key]);
+                    $ft = mime_content_type($tmp_name);
+                    if (strpos($ft,'image')===0 && $_FILES['product_images']['size'][$key] <= 5*1024*1024) {
+                        $ufn = uniqid().'_'.$fn;
+                        if (move_uploaded_file($tmp_name, $target_dir.$ufn)) {
+                            $ins = $conn->prepare("INSERT INTO product_images (product_id,image_path,is_primary) VALUES (?,?,?)");
+                            $ins->bind_param("isi",$product_id,$ufn,$isPrimary); $ins->execute(); $ins->close();
                             $isPrimary = 0;
                         }
                     }
@@ -316,180 +220,444 @@ elseif (isset($_POST['update_product'])) {
             }
         }
 
-        $conn->commit();
-        redirectWithMessage("../products.php", "Product updated successfully!", "success");
+        logActivity($conn, 'product', $product_id, 'Product updated',
+            json_encode(['product_name'=>$oldProd['product_name']]),
+            json_encode(['product_name'=>$product_name,'unit'=>$product_unit]),
+            "Product ID {$product_id} updated. Old name: '{$oldProd['product_name']}' → New name: '{$product_name}'",
+            $actorId, $actorType
+        );
 
+        $conn->commit();
+        redirectWithMessage("../products.php","Product updated successfully!","success");
     } catch (Exception $e) {
         $conn->rollback();
         error_log("Update error: " . $e->getMessage());
-        redirectWithMessage("../products.php", "Failed to update product: " . $e->getMessage(), "error");
+        redirectWithMessage("../products.php","Failed to update product: ".$e->getMessage(),"error");
     }
 }
 
-
+// ── UPDATE CATEGORY ───────────────────────────────────────────────────────────
 elseif (isset($_POST['update_category'])) {
-    $category_id = intval($_POST['category_id']);
-    $category_name = trim($_POST['category_name']);
-    $category_slug = isset($_POST['category_slug']) ? trim($_POST['category_slug']) : '';
-    $category_description = isset($_POST['category_description']) ? trim($_POST['category_description']) : '';
-    $parent_id = isset($_POST['parent_id']) && !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null;
-    $sort_order = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
-    $is_active = isset($_POST['is_active']) ? intval($_POST['is_active']) : 1;
+    $category_id          = intval($_POST['category_id']);
+    $category_name        = trim($_POST['category_name']);
+    $category_slug        = trim($_POST['category_slug'] ?? '');
+    $category_description = trim($_POST['category_description'] ?? '');
+    $parent_id            = !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null;
+    $sort_order           = intval($_POST['sort_order'] ?? 0);
+    $is_active            = intval($_POST['is_active'] ?? 1);
+    if (empty($category_name)) redirectWithMessage("../category.php","Category name is required","error");
+    if (empty($category_slug)) $category_slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/','-',$category_name)));
 
-    if (empty($category_name)) {
-        redirectWithMessage("../category.php", "Category name is required", "error");
-    }
+    $ck = $conn->prepare("SELECT COUNT(*) FROM product_categories WHERE category_name=? AND category_id!=? AND is_active=1");
+    $ck->bind_param("si",$category_name,$category_id); $ck->execute(); $ck->bind_result($cnt); $ck->fetch(); $ck->close();
+    if ($cnt > 0) redirectWithMessage("../category.php","Category name already exists","error");
 
-    // Auto-generate slug if empty
-    if (empty($category_slug)) {
-        $category_slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $category_name)));
-    }
+    $cks = $conn->prepare("SELECT COUNT(*) FROM product_categories WHERE category_slug=? AND category_id!=? AND is_active=1");
+    $cks->bind_param("si",$category_slug,$category_id); $cks->execute(); $cks->bind_result($sc); $cks->fetch(); $cks->close();
+    if ($sc > 0) redirectWithMessage("../category.php","Category slug already exists","error");
 
-    // Check for duplicate category name (excluding the current category)
-    $check_sql = "SELECT COUNT(*) FROM product_categories WHERE category_name = ? AND category_id != ? AND is_active = 1";
-    $check_stmt = $conn->prepare($check_sql);
-    $check_stmt->bind_param("si", $category_name, $category_id);
-    $check_stmt->execute();
-    $check_stmt->bind_result($count);
-    $check_stmt->fetch();
-    $check_stmt->close();
-
-    if ($count > 0) {
-        redirectWithMessage("../category.php", "Category name already exists", "error");
-    }
-
-    // Check for duplicate slug (excluding the current category)
-    if (!empty($category_slug)) {
-        $check_slug_sql = "SELECT COUNT(*) FROM product_categories WHERE category_slug = ? AND category_id != ? AND is_active = 1";
-        $check_slug_stmt = $conn->prepare($check_slug_sql);
-        $check_slug_stmt->bind_param("si", $category_slug, $category_id);
-        $check_slug_stmt->execute();
-        $check_slug_stmt->bind_result($slug_count);
-        $check_slug_stmt->fetch();
-        $check_slug_stmt->close();
-        
-        if ($slug_count > 0) {
-            redirectWithMessage("../category.php", "Category slug already exists", "error");
-        }
-    }
-
-    // Calculate category level based on parent
     $category_level = 1;
     if ($parent_id) {
-        $level_query = "SELECT category_level FROM product_categories WHERE category_id = ?";
-        $level_stmt = $conn->prepare($level_query);
-        $level_stmt->bind_param("i", $parent_id);
-        $level_stmt->execute();
-        $level_result = $level_stmt->get_result();
-        if ($parent = $level_result->fetch_assoc()) {
-            $category_level = $parent['category_level'] + 1;
-        }
-        $level_stmt->close();
+        $lv = $conn->prepare("SELECT category_level FROM product_categories WHERE category_id=?");
+        $lv->bind_param("i",$parent_id); $lv->execute();
+        if ($p = $lv->get_result()->fetch_assoc()) $category_level = $p['category_level'] + 1;
+        $lv->close();
     }
 
-    // Handle image upload
-    $category_image = null;
-    $upload_new_image = false;
-    
+    // Fetch old for log
+    $oc = $conn->prepare("SELECT category_name, is_active FROM product_categories WHERE category_id=?");
+    $oc->bind_param("i",$category_id); $oc->execute();
+    $oldCat = $oc->get_result()->fetch_assoc(); $oc->close();
+
+    $category_image = null; $upload_new_image = false;
     if (isset($_FILES['category_image']) && $_FILES['category_image']['error'] === UPLOAD_ERR_OK) {
         $target_dir = "../../uploads/categories/";
-        
-        // Create directory if it doesn't exist
-        if (!file_exists($target_dir)) {
-            mkdir($target_dir, 0777, true);
-        }
-        
-        $file_name = basename($_FILES['category_image']['name']);
-        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-        $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (in_array($file_ext, $allowed_ext)) {
-            // Get old image to delete later
-            $old_image_query = "SELECT category_image FROM product_categories WHERE category_id = ?";
-            $old_image_stmt = $conn->prepare($old_image_query);
-            $old_image_stmt->bind_param("i", $category_id);
-            $old_image_stmt->execute();
-            $old_image_result = $old_image_stmt->get_result();
-            $old_image = $old_image_result->fetch_assoc();
-            $old_image_stmt->close();
-            
-            // Upload new image
-            $unique_file_name = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9.]/', '', $file_name);
-            $target_file = $target_dir . $unique_file_name;
-            
-            if (move_uploaded_file($_FILES['category_image']['tmp_name'], $target_file)) {
-                $category_image = $unique_file_name;
-                $upload_new_image = true;
-                
-                // Delete old image if exists
-                if (!empty($old_image['category_image'])) {
-                    $old_image_path = $target_dir . $old_image['category_image'];
-                    if (file_exists($old_image_path)) {
-                        unlink($old_image_path);
-                    }
-                }
+        if (!file_exists($target_dir)) mkdir($target_dir,0777,true);
+        $fn = basename($_FILES['category_image']['name']);
+        $ext= strtolower(pathinfo($fn,PATHINFO_EXTENSION));
+        if (in_array($ext,['jpg','jpeg','png','gif','webp'])) {
+            $oi = $conn->prepare("SELECT category_image FROM product_categories WHERE category_id=?");
+            $oi->bind_param("i",$category_id); $oi->execute();
+            $old_img = $oi->get_result()->fetch_assoc(); $oi->close();
+            $ufn = uniqid().'_'.preg_replace('/[^a-zA-Z0-9.]/','',$fn);
+            if (move_uploaded_file($_FILES['category_image']['tmp_name'], $target_dir.$ufn)) {
+                $category_image = $ufn; $upload_new_image = true;
+                if (!empty($old_img['category_image'])) { $op = $target_dir.$old_img['category_image']; if (file_exists($op)) unlink($op); }
             }
         }
     }
 
-    // Build the UPDATE query based on whether there's a new image
     if ($upload_new_image) {
-        // With new image
-        $sql = "UPDATE product_categories SET 
-                category_name = ?, 
-                category_slug = ?, 
-                category_description = ?, 
-                category_image = ?, 
-                parent_id = ?, 
-                category_level = ?, 
-                sort_order = ?, 
-                is_active = ? 
-                WHERE category_id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssssiiiii", 
-            $category_name, 
-            $category_slug, 
-            $category_description, 
-            $category_image, 
-            $parent_id, 
-            $category_level, 
-            $sort_order, 
-            $is_active, 
-            $category_id
-        );
+        $stmt = $conn->prepare("UPDATE product_categories SET category_name=?,category_slug=?,category_description=?,category_image=?,parent_id=?,category_level=?,sort_order=?,is_active=? WHERE category_id=?");
+        $stmt->bind_param("ssssiiiii",$category_name,$category_slug,$category_description,$category_image,$parent_id,$category_level,$sort_order,$is_active,$category_id);
     } else {
-        // Without new image (keep existing image)
-        $sql = "UPDATE product_categories SET 
-                category_name = ?, 
-                category_slug = ?, 
-                category_description = ?, 
-                parent_id = ?, 
-                category_level = ?, 
-                sort_order = ?, 
-                is_active = ? 
-                WHERE category_id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssiiiii", 
-            $category_name, 
-            $category_slug, 
-            $category_description, 
-            $parent_id, 
-            $category_level, 
-            $sort_order, 
-            $is_active, 
-            $category_id
-        );
+        $stmt = $conn->prepare("UPDATE product_categories SET category_name=?,category_slug=?,category_description=?,parent_id=?,category_level=?,sort_order=?,is_active=? WHERE category_id=?");
+        $stmt->bind_param("sssiiiii",$category_name,$category_slug,$category_description,$parent_id,$category_level,$sort_order,$is_active,$category_id);
     }
-
     if ($stmt->execute()) {
-        redirectWithMessage("../category.php", "Category updated successfully", "success");
+        logActivity($conn,'category',$category_id,'Category updated',
+            json_encode(['name'=>$oldCat['category_name'],'is_active'=>$oldCat['is_active']]),
+            json_encode(['name'=>$category_name,'slug'=>$category_slug,'is_active'=>$is_active]),
+            "Category ID {$category_id} updated. Old name: '{$oldCat['category_name']}' → '{$category_name}'",
+            $actorId, $actorType
+        );
+        redirectWithMessage("../category.php","Category updated successfully","success");
     } else {
-        redirectWithMessage("../category.php", "Failed to update category: " . $stmt->error, "error");
+        redirectWithMessage("../category.php","Failed to update category: ".$stmt->error,"error");
     }
-    
     $stmt->close();
 }
 
+// ── UPDATE BLOG ───────────────────────────────────────────────────────────────
+elseif (isset($_POST['update_blog'])) {
+    $blog_id               = intval($_POST['blog_id']);
+    $blog_title            = mysqli_real_escape_string($conn, $_POST['blog_title']);
+    $blog_content          = mysqli_real_escape_string($conn, $_POST['blog_content']);
+    $blog_excerpt          = mysqli_real_escape_string($conn, $_POST['blog_excerpt']);
+    $blog_author           = mysqli_real_escape_string($conn, $_POST['blog_author']);
+    $blog_status           = mysqli_real_escape_string($conn, $_POST['blog_status']);
+    $blog_meta_title       = mysqli_real_escape_string($conn, $_POST['blog_meta_title']);
+    $blog_meta_description = mysqli_real_escape_string($conn, $_POST['blog_meta_description']);
+    $blog_meta_keywords    = mysqli_real_escape_string($conn, $_POST['blog_meta_keywords']);
+    $existing_image        = $_POST['existing_image'] ?? '';
+    $remove_current_image  = isset($_POST['remove_current_image']);
+
+    $cur = mysqli_query($conn, "SELECT blog_title, blog_slug, blog_status FROM blogs WHERE blog_id={$blog_id}");
+    $cur_blog = mysqli_fetch_assoc($cur);
+    $blog_slug = ($blog_title !== $cur_blog['blog_title']) ? getUniqueSlug($conn,$blog_title,'blogs',$blog_id) : $cur_blog['blog_slug'];
+
+    $conn->begin_transaction();
+    try {
+        $blog_featured_image = $existing_image;
+        if ($remove_current_image && !empty($existing_image)) {
+            $fp = $_SERVER['DOCUMENT_ROOT'].$existing_image; if (file_exists($fp)) unlink($fp);
+            $blog_featured_image = '';
+        }
+        if (isset($_FILES['blog_featured_image']) && !empty($_FILES['blog_featured_image']['name'])) {
+            $target_dir = "../../uploads/blogs/";
+            if (!file_exists($target_dir)) mkdir($target_dir,0777,true);
+            $tmp = $_FILES['blog_featured_image']['tmp_name'];
+            $err = $_FILES['blog_featured_image']['error'];
+            if ($err === UPLOAD_ERR_OK) {
+                if (strpos(mime_content_type($tmp),'image')!==0) throw new Exception("Only image files are allowed");
+                if ($_FILES['blog_featured_image']['size'] > 5*1024*1024) throw new Exception("File must be < 5MB");
+                $ext = strtolower(pathinfo($_FILES['blog_featured_image']['name'],PATHINFO_EXTENSION));
+                $ufn = uniqid().'_'.time().'.'.$ext;
+                if (move_uploaded_file($tmp,$target_dir.$ufn)) {
+                    if (!empty($blog_featured_image) && !$remove_current_image) { $op = $_SERVER['DOCUMENT_ROOT'].$blog_featured_image; if (file_exists($op)) unlink($op); }
+                    $blog_featured_image = '/sjfbi-js/uploads/blogs/'.$ufn;
+                } else throw new Exception("Failed to move uploaded file");
+            }
+        }
+        $stmt = $conn->prepare("UPDATE blogs SET blog_title=?,blog_slug=?,blog_content=?,blog_excerpt=?,blog_featured_image=?,blog_author=?,blog_status=?,blog_meta_title=?,blog_meta_description=?,blog_meta_keywords=? WHERE blog_id=?");
+        $stmt->bind_param("ssssssssssi",$blog_title,$blog_slug,$blog_content,$blog_excerpt,$blog_featured_image,$blog_author,$blog_status,$blog_meta_title,$blog_meta_description,$blog_meta_keywords,$blog_id);
+        if (!$stmt->execute()) throw new Exception("Failed to update blog: ".$stmt->error);
+
+        logActivity($conn,'blog',$blog_id,'Blog post updated',
+            json_encode(['title'=>$cur_blog['blog_title'],'status'=>$cur_blog['blog_status']]),
+            json_encode(['title'=>$blog_title,'slug'=>$blog_slug,'status'=>$blog_status]),
+            "Blog ID {$blog_id} updated. Old title: '{$cur_blog['blog_title']}' → '{$blog_title}'",
+            $actorId, $actorType
+        );
+
+        $conn->commit();
+        redirectWithMessage("../blogs.php","Blog post updated successfully!","success");
+    } catch (Exception $e) {
+        $conn->rollback();
+        redirectWithMessage("../blogs.php","Error: ".$e->getMessage(),"error");
+    }
+}
+
+// ── UPDATE SUGGESTION ─────────────────────────────────────────────────────────
+elseif (isset($_POST['update_suggestion'])) {
+    $suggestion_id = intval($_POST['suggestion_id']);
+    $product_id    = intval($_POST['product_id']);
+    $dish_name     = htmlspecialchars(trim($_POST['dish_name']));
+    $ingredients   = htmlspecialchars(trim($_POST['ingredients']));
+    $steps         = htmlspecialchars(trim($_POST['steps']));
+    $prep_time     = !empty($_POST['prep_time_minutes']) ? intval($_POST['prep_time_minutes']) : null;
+    $cook_time     = !empty($_POST['cook_time_minutes']) ? intval($_POST['cook_time_minutes']) : null;
+    $difficulty    = $_POST['difficulty_level'] ?? 'Easy';
+
+    if (!$suggestion_id||!$product_id||empty($dish_name)||empty($ingredients)||empty($steps)) {
+        redirectWithMessage("../cooking_suggestions.php","Please fill in all required fields.","error");
+    }
+    $ck = $conn->prepare("SELECT suggestion_id FROM product_cooking_suggestions WHERE product_id=? AND dish_name=? AND suggestion_id!=?");
+    $ck->bind_param("isi",$product_id,$dish_name,$suggestion_id); $ck->execute();
+    if ($ck->get_result()->num_rows > 0) redirectWithMessage("../cooking_suggestions.php","Dish name already exists for that product.","error");
+    $ck->close();
+
+    // Fetch old for log
+    $os = $conn->prepare("SELECT dish_name, difficulty_level FROM product_cooking_suggestions WHERE suggestion_id=?");
+    $os->bind_param("i",$suggestion_id); $os->execute();
+    $oldSug = $os->get_result()->fetch_assoc(); $os->close();
+
+    $stmt = $conn->prepare("UPDATE product_cooking_suggestions SET product_id=?,dish_name=?,ingredients=?,steps=?,prep_time_minutes=?,cook_time_minutes=?,difficulty_level=? WHERE suggestion_id=?");
+    $stmt->bind_param("isssiisi",$product_id,$dish_name,$ingredients,$steps,$prep_time,$cook_time,$difficulty,$suggestion_id);
+    if ($stmt->execute()) {
+        logActivity($conn,'cooking_suggestion',$suggestion_id,'Cooking suggestion updated',
+            json_encode(['dish_name'=>$oldSug['dish_name'],'difficulty'=>$oldSug['difficulty_level']]),
+            json_encode(['dish_name'=>$dish_name,'difficulty'=>$difficulty]),
+            "Suggestion ID {$suggestion_id} updated. Old dish: '{$oldSug['dish_name']}' → '{$dish_name}'",
+            $actorId, $actorType
+        );
+        redirectWithMessage("../cooking_suggestions.php","Suggestion '{$dish_name}' updated successfully!","success");
+    } else {
+        redirectWithMessage("../cooking_suggestions.php","Failed to update suggestion: ".$stmt->error,"error");
+    }
+    $stmt->close();
+}
+
+// ── UPDATE REVIEW STATUS ──────────────────────────────────────────────────────
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_id'], $_POST['status'])) {
+    $review_id = intval($_POST['review_id']);
+    $status    = $_POST['status'];
+    $allowed   = ['pending','approved','rejected','spam'];
+    
+    if (!in_array($status, $allowed, true)) { redirectWithMessage("../reviews.php", "Invalid status.", "error"); }
+    $or = $conn->prepare("SELECT status FROM reviews WHERE review_id = ?");
+    $or->bind_param("i", $review_id);
+    $or->execute();
+    $oldReview = $or->get_result()->fetch_assoc();
+    $or->close();
+
+    if (!$oldReview) {
+        redirectWithMessage("../reviews.php", "Review not found.", "error");
+    }
+    $stmt = $conn->prepare("UPDATE reviews SET status = ? WHERE review_id = ?");
+    $stmt->bind_param("si", $status, $review_id);
+
+    if ($stmt->execute()) { logActivity( $conn, 'review', $review_id, 'Review status updated', $oldReview['status'], $status, "Review ID {$review_id} status changed from '{$oldReview['status']}' to '{$status}'.", $actorId, $actorType ); redirectWithMessage( "../reviews.php", "Review marked as " . ucfirst($status) . ".", "success" );
+    } else {
+        redirectWithMessage( "../reviews.php", "Failed to update review status.", "error" );
+    }
+    $stmt->close();
+}
+
+// ── UPDATE MARKET ──────────────────────────────────────────────────────
+elseif (isset($_POST['update_market'])) {
+
+    $marketsDir = "../../uploads/markets/";
+    $membersDir = "../../uploads/members/";
+
+    $market_id     = intval($_POST['market_id']);
+    $market_name   = htmlspecialchars(trim($_POST['market_name']));
+    $location_short= htmlspecialchars(trim($_POST['location_short']));
+    $location_full = htmlspecialchars(trim($_POST['location_full']));
+    $description   = htmlspecialchars(trim($_POST['description']));
+    $stall_count   = intval($_POST['stall_count']);
+    $map_embed     = htmlspecialchars(trim($_POST['map_embed'] ?? ''));
+    $accent_color  = $_POST['accent_color'] ?? '#f97316';
+    $display_order = intval($_POST['display_order'] ?? 0);
+
+    $highlights_lines = explode("\n", trim($_POST['highlights']));
+    $highlights_json  = json_encode(array_values(array_filter(array_map('trim', $highlights_lines))));
+
+    // ── Shared single-file upload helper (local scope) ─────────────────────
+    $doUpload = function (array $file, string $dir, string $suffix = ''): ?string {
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
+        $mime = mime_content_type($file['tmp_name']);
+        if (strpos($mime, 'image/') !== 0)    return null;
+        if ($file['size'] > 5 * 1024 * 1024) return null;
+        $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $filename = uniqid() . ($suffix ? "_{$suffix}" : '') . '.' . $ext;
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        return move_uploaded_file($file['tmp_name'], $dir . $filename) ? $filename : null;
+    };
+
+    $doUploadIndexed = function (array $filesArray, int $i, string $dir, string $suffix = '') use ($doUpload): ?string {
+        return $doUpload([
+            'error'    => $filesArray['error'][$i]    ?? UPLOAD_ERR_NO_FILE,
+            'tmp_name' => $filesArray['tmp_name'][$i] ?? '',
+            'name'     => $filesArray['name'][$i]     ?? '',
+            'size'     => $filesArray['size'][$i]     ?? 0,
+        ], $dir, $suffix);
+    };
+
+    $conn->begin_transaction();
+
+    try {
+        // ── Basic info ──────────────────────────────────────────────────────
+        $stmt = $conn->prepare("
+            UPDATE markets
+            SET market_name=?, location_short=?, location_full=?, description=?,
+                highlights=?, stall_count=?, map_embed=?, accent_color=?, display_order=?
+            WHERE market_id=?
+        ");
+        $stmt->bind_param(
+            "sssssisssi",   // NOTE: 12 type chars + trailing i for market_id = 13 total — added light_bg/badge/tag
+            $market_name, $location_short, $location_full, $description, $highlights_json, 
+            $stall_count, $map_embed, $accent_color, $display_order, $market_id
+        );
+        if (!$stmt->execute()) throw new Exception("Update market info failed: " . $stmt->error);
+        $stmt->close();
+
+        // ── Main image ──────────────────────────────────────────────────────
+        if (!empty($_FILES['main_image']['name'])) {
+            $saved = $doUpload($_FILES['main_image'], $marketsDir, 'main');
+            if ($saved === null) throw new Exception("Main image upload failed. Use JPG/PNG/WEBP under 5 MB.");
+
+            // Delete old main image file
+            $old = $conn->prepare("SELECT main_image FROM markets WHERE market_id=?");
+            $old->bind_param("i", $market_id);
+            $old->execute();
+            $oldImg = $old->get_result()->fetch_assoc()['main_image'] ?? null;
+            $old->close();
+            if ($oldImg && file_exists($marketsDir . $oldImg)) unlink($marketsDir . $oldImg);
+
+            $s = $conn->prepare("UPDATE markets SET main_image=? WHERE market_id=?");
+            $s->bind_param("si", $saved, $market_id);
+            $s->execute();
+            $s->close();
+        }
+
+        // ── Gallery images (append) ─────────────────────────────────────────
+        if (!empty($_FILES['gallery_images']['name'][0])) {
+            // Load existing gallery
+            $gq = $conn->prepare("SELECT gallery_images FROM markets WHERE market_id=?");
+            $gq->bind_param("i", $market_id);
+            $gq->execute();
+            $row = $gq->get_result()->fetch_assoc();
+            $gq->close();
+            $existing_gallery = !empty($row['gallery_images']) ? (json_decode($row['gallery_images'], true) ?: []) : [];
+
+            $count = count($_FILES['gallery_images']['tmp_name']);
+            for ($i = 0; $i < $count; $i++) {
+                $saved = $doUploadIndexed($_FILES['gallery_images'], $i, $marketsDir, "gallery_{$i}");
+                if ($saved) $existing_gallery[] = $saved;
+            }
+
+            $gallery_json = json_encode(array_values($existing_gallery));
+            $s = $conn->prepare("UPDATE markets SET gallery_images=? WHERE market_id=?");
+            $s->bind_param("si", $gallery_json, $market_id);
+            $s->execute();
+            $s->close();
+        }
+
+        // ── Update EXISTING team members ────────────────────────────────────
+        if (isset($_POST['member_id'])) {
+            $memberFilesByKey = [];
+            // Reformat $_FILES['member_image_file'] into per-key sub-arrays
+            if (!empty($_FILES['member_image_file'])) {
+                foreach ($_FILES['member_image_file']['error'] as $memberId => $err) {
+                    $memberFilesByKey[$memberId] = [
+                        'error'    => $err,
+                        'tmp_name' => $_FILES['member_image_file']['tmp_name'][$memberId] ?? '',
+                        'name'     => $_FILES['member_image_file']['name'][$memberId]     ?? '',
+                        'size'     => $_FILES['member_image_file']['size'][$memberId]     ?? 0,
+                    ];
+                }
+            }
+
+            foreach ($_POST['member_id'] as $idx => $member_id) {
+                $member_id = intval($member_id);
+                $name      = htmlspecialchars(trim($_POST['member_name'][$idx]    ?? ''));
+                $position  = htmlspecialchars(trim($_POST['member_position'][$idx] ?? ''));
+                $order     = intval($_POST['member_order'][$idx]                  ?? 0);
+
+                // FIXED: check $_FILES, not $_POST, for the new photo
+                $new_image_url = null;
+                if (isset($memberFilesByKey[$member_id])
+                    && $memberFilesByKey[$member_id]['error'] === UPLOAD_ERR_OK) {
+
+                    $saved = $doUpload($memberFilesByKey[$member_id], $membersDir, "member_{$member_id}");
+                    if ($saved) {
+                        // Delete old photo
+                        $og = $conn->prepare("SELECT image_url FROM market_members WHERE member_id=?");
+                        $og->bind_param("i", $member_id);
+                        $og->execute();
+                        $oldPhoto = $og->get_result()->fetch_assoc()['image_url'] ?? null;
+                        $og->close();
+                        if ($oldPhoto && file_exists($membersDir . $oldPhoto)) unlink($membersDir . $oldPhoto);
+                        $new_image_url = $saved;
+                    }
+                }
+
+                if ($new_image_url !== null) {
+                    // Update with new photo
+                    $s = $conn->prepare("UPDATE market_members SET name=?, position=?, image_url=?, display_order=? WHERE member_id=? AND market_id=?");
+                    $s->bind_param("sssiii", $name, $position, $new_image_url, $order, $member_id, $market_id);
+                } else {
+                    // No new photo — keep existing
+                    $s = $conn->prepare("UPDATE market_members SET name=?, position=?, display_order=? WHERE member_id=? AND market_id=?");
+                    $s->bind_param("ssiii", $name, $position, $order, $member_id, $market_id);
+                }
+                $s->execute();
+                $s->close();
+            }
+        }
+
+        // ── Add NEW team members ────────────────────────────────────────────
+        // FIXED: reads from $_FILES['new_member_image_file'][], NOT $_POST URL
+        if (!empty($_POST['new_member_name'])) {
+            $newMemberFiles = $_FILES['new_member_image_file'] ?? null;
+
+            foreach ($_POST['new_member_name'] as $i => $name) {
+                $name = htmlspecialchars(trim($name));
+                if (empty($name)) continue;
+
+                $position  = htmlspecialchars(trim($_POST['new_member_position'][$i] ?? ''));
+                $order     = intval($_POST['new_member_order'][$i] ?? 0);
+                $image_url = null;
+
+                if ($newMemberFiles && isset($newMemberFiles['tmp_name'][$i])
+                    && ($newMemberFiles['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+
+                    $saved = $doUploadIndexed($newMemberFiles, $i, $membersDir, "newmember_{$i}");
+                    if ($saved) $image_url = $saved;
+                }
+
+                $s = $conn->prepare("INSERT INTO market_members (market_id, name, position, image_url, display_order) VALUES (?, ?, ?, ?, ?)");
+                $s->bind_param("isssi", $market_id, $name, $position, $image_url, $order);
+                $s->execute();
+                $s->close();
+            }
+        }
+
+        // ── Product links ───────────────────────────────────────────────────
+        if (isset($_POST['product_link_id'])) {
+            foreach ($_POST['product_link_id'] as $i => $link_id) {
+                $order = intval($_POST['product_order'][$i] ?? 0);
+                $s = $conn->prepare("UPDATE market_products SET display_order=? WHERE id=?");
+                $s->bind_param("ii", $order, $link_id);
+                $s->execute();
+                $s->close();
+            }
+        }
+
+        if (!empty($_POST['new_product_ids'])) {
+            $new_order = intval($_POST['new_products_order'] ?? 0);
+            foreach ($_POST['new_product_ids'] as $product_id) {
+                if (empty($product_id)) continue;
+                $ck = $conn->prepare("SELECT id FROM market_products WHERE market_id=? AND product_id=?");
+                $ck->bind_param("ii", $market_id, $product_id);
+                $ck->execute();
+                if ($ck->get_result()->num_rows === 0) {
+                    $s = $conn->prepare("INSERT INTO market_products (market_id, product_id, display_order) VALUES (?, ?, ?)");
+                    $s->bind_param("iii", $market_id, $product_id, $new_order);
+                    $s->execute();
+                    $s->close();
+                    $new_order++;
+                }
+                $ck->close();
+            }
+        }
+
+        // ── Log ─────────────────────────────────────────────────────────────
+        logActivity($conn, 'market', $market_id, 'Market updated',
+            null,
+            json_encode(['market_name' => $market_name]),
+            "Market ID {$market_id} updated",
+            $actorId, $actorType
+        );
+
+        $conn->commit();
+        redirectWithMessage("../markets.php", "Market '{$market_name}' updated successfully!", "success");
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error updating market: " . $e->getMessage());
+        redirectWithMessage("../markets.php", "Failed to update market: " . $e->getMessage(), "error");
+    }
+}
 ?>

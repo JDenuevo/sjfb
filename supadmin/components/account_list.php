@@ -1,312 +1,292 @@
-<div class="flex flex-col">
-    <div class="-m-1.5 overflow-x-auto">
-        <div class="p-1.5 min-w-full inline-block align-middle">
-            <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div class="px-6 py-4 gap-3 flex justify-between items-center border-b border-gray-200">
-  
-                  <!-- Left section -->
-                  <div>
-                    <h2 class="text-xl font-semibold text-gray-800">
-                      Accounts
-                    </h2>
-                    <p class="text-sm text-gray-600">
-                      Manage your accounts
-                    </p>
-                  </div>
+<?php
+// account_list.php — improved
+// Helper: avatar color based on name
+function avatarColor($name) {
+  $colors = [['bg-orange-100','text-orange-600'],['bg-blue-100','text-blue-600'],['bg-purple-100','text-purple-600'],
+             ['bg-green-100','text-green-600'],['bg-rose-100','text-rose-600'],['bg-cyan-100','text-cyan-600']];
+  return $colors[ord($name[0] ?? 'A') % count($colors)];
+}
 
-                  <!-- Right section -->
-                  <a class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-none focus:bg-orange-700" 
-                    href="#" data-modal-target="addAccountModal">
-                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M5 12h14" />
-                      <path d="M12 5v14" />
-                    </svg>
-                    Add Account
-                  </a>
+// Re-fetch with search if needed (override parent query if search applied)
+$searchTerm = $_GET['search'] ?? '';
+$roleFilter = $_GET['role'] ?? '';
 
-                </div>
+$where = ["role IN ('customer','admin','rider','super_admin')"];
+$bindParams = [];
+$bindTypes  = '';
 
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-start">
-                                <div class="flex items-center gap-x-2">
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                                        User Type
-                                    </span>
-                                </div>
-                            </th>
-                            <th scope="col" class="ps-6 py-3 text-start">
-                                <div class="flex items-center gap-x-2">
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                                        Username
-                                    </span>
-                                </div>
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-start">
-                                <div class="flex items-center gap-x-2">
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                                        Email
-                                    </span>
-                                </div>
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-start">
-                                <div class="flex items-center gap-x-2">
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                                        Phone
-                                    </span>
-                                </div>
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-start">
-                                <div class="flex items-center gap-x-2">
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-800 ">
-                                        Date Created
-                                    </span>
-                                </div>
-                            </th>
-                            <th scope="col" class="px-6 text-end"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 ">
-                        <?php while ($row = $result->fetch_assoc()): ?>
-                            <tr class="accounts-row bg-white">
-                              <td class="px-6 py-3">
-                                <span class="block text-sm font-semibold text-gray-800 "><?= $row['role'] ?></span>
-                              </td>
-                              <td class="ps-6 py-3">
-                                <div class="flex items-center gap-x-3">
-                                  <div class="grow">
-                                    <span class="block text-sm font-semibold text-gray-800 "><?= htmlspecialchars($row['username']) ?></span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td class="px-6 py-3">
-                                <span class="block text-sm font-semibold text-gray-800 "><?= $row['email'] ?></span>
-                              </td>
-                              <td class="px-6 py-3">
-                                <span class="block text-sm font-semibold text-gray-800 "><?= $row['phone_number'] ?></span>
-                              </td>
-                              <td class="px-6 py-3">
-                                <span class="text-sm text-gray-500 "><?= date("F j, Y, g:i a", strtotime($row['created_at'])) ?></span>
-                              </td>
-                              <td class="px-6 py-3 inline-flex gap-1 items-center">
-                                <button style="background-color: #3b82f6;" class="px-3 py-2 text-white rounded-xl" onclick="document.getElementById('updateAccountModal<?php echo $row['account_id']; ?>').classList.remove('hidden')">
-                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
-                                </button>
-                                <button style="background-color: #ef4444;" class="px-3 py-2 text-white rounded-xl" onclick="document.getElementById('deleteAccountModal<?php echo $row['account_id']; ?>').classList.remove('hidden')">
-                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="16"  height="16"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
-                                </button>
-                              </td>
-                            </tr>
+if ($searchTerm) {
+  $where[] = "(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ?)";
+  $st = "%$searchTerm%";
+  $bindParams = array_merge($bindParams, [$st,$st,$st,$st]);
+  $bindTypes .= 'ssss';
+}
+if ($roleFilter) {
+  $where[] = "role = ?";
+  $bindParams[] = $roleFilter;
+  $bindTypes .= 's';
+}
 
-                            <div id="updateAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-                              <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
-                                <h3 class="text-xl font-semibold mb-4 text-gray-800">Update Account</h3>
-                                
-                                <form action="./functions/update.php" method="POST">
-                                  <input type="hidden" name="account_id" value="<?php echo htmlspecialchars($row['account_id']); ?>">
+$whereClause = 'WHERE '.implode(' AND ', $where);
 
-                                  <div class="grid grid-cols-2 gap-x-2">
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">Username</label>
-                                      <input type="text" name="username" value="<?php echo htmlspecialchars($row['username']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                    </div>
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">Role</label>
-                                      <select name="role" required class="w-full px-3 py-2 border rounded-lg">
-                                        <option value="admin" <?php echo ($row['role'] == 'admin') ? 'selected' : ''; ?>>Admin</option>
-                                        <option value="customer" <?php echo ($row['role'] == 'customer') ? 'selected' : ''; ?>>Customer</option>
-                                        <option value="rider" <?php echo ($row['role'] == 'rider') ? 'selected' : ''; ?>>Rider</option>
-                                        <option value="guest" <?php echo ($row['role'] == 'guest') ? 'selected' : ''; ?>>Guest</option>
-                                      </select>
-                                    </div>
-                                  </div>
+// Count
+$cStmt = $conn->prepare("SELECT COUNT(*) as total FROM accounts $whereClause");
+if ($bindTypes) $cStmt->bind_param($bindTypes, ...$bindParams);
+$cStmt->execute();
+$totalItems = $cStmt->get_result()->fetch_assoc()['total'];
+$cStmt->close();
 
-                                  <div class="grid grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                      <label for="password" class="block text-sm font-medium text-gray-700">New Password</label>
-                                      <input 
-                                        type="password" 
-                                        name="password" 
-                                        id="password" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        placeholder="Leave blank to keep current password"
-                                      >
-                                    </div>
+$page = isset($_GET['page']) ? max(1,(int)$_GET['page']) : 1;
+$perPage = 10;
+$offset = ($page-1)*$perPage;
+$totalPages = ceil($totalItems / $perPage);
 
-                                    <div>
-                                      <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm Password</label>
-                                      <input 
-                                        type="password" 
-                                        name="confirm_password" 
-                                        id="confirm_password" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      >
-                                    </div>
-                                  </div>
+// Role counts for stats
+$roleCounts = [];
+$rcResult = $conn->query("SELECT role, COUNT(*) as cnt FROM accounts WHERE role IN ('customer','admin','rider','super_admin') GROUP BY role");
+while ($rc = $rcResult->fetch_assoc()) $roleCounts[$rc['role']] = $rc['cnt'];
 
-                                  <div class="grid grid-cols-2 gap-x-2">
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">First Name</label>
-                                      <input type="text" name="first_name" value="<?php echo htmlspecialchars($row['first_name']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                    </div>
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">Last Name</label>
-                                      <input type="text" name="last_name" value="<?php echo htmlspecialchars($row['last_name']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                    </div>
-                                  </div>
+// Main query
+$mStmt = $conn->prepare("SELECT * FROM accounts $whereClause ORDER BY created_at DESC LIMIT ? OFFSET ?");
+$allParams = array_merge($bindParams, [$perPage, $offset]);
+$allTypes  = $bindTypes . 'ii';
+$mStmt->bind_param($allTypes, ...$allParams);
+$mStmt->execute();
+$result = $mStmt->get_result();
+?>
 
-                                  <div class="mb-3">
-                                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                                    <input type="email" name="email" value="<?php echo htmlspecialchars($row['email']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                  </div>
-
-                                  <div class="mb-3">
-                                    <label class="block text-sm font-medium text-gray-700">Phone Number</label>
-                                    <input type="number" name="phone_number" value="<?php echo htmlspecialchars($row['phone_number']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                  </div>
-
-                                  <div class="mb-3">
-                                    <label class="block text-sm font-medium text-gray-700">Address</label>
-                                    <textarea name="address" class="w-full px-3 py-2 border rounded-lg" required><?php echo htmlspecialchars($row['address']); ?></textarea>
-                                  </div>
-
-                                  <div class="grid grid-cols-2 gap-x-2">
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">City</label>
-                                      <input type="text" name="city" value="<?php echo htmlspecialchars($row['city']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                    </div>
-                                    <div class="mb-3">
-                                      <label class="block text-sm font-medium text-gray-700">Postal Code</label>
-                                      <input type="number" name="postal_code" value="<?php echo htmlspecialchars($row['postal_code']); ?>" required class="w-full px-3 py-2 border rounded-lg">
-                                    </div>
-                                  </div>
-
-                                  <!-- Action Buttons -->
-                                  <div class="flex justify-end space-x-3 mt-4">
-                                    <button type="submit" name="update_account" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Update Account</button>
-                                    <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('updateAccountModal<?php echo $row['account_id']; ?>')">Cancel</button>
-                                  </div>
-                                </form>
-                              </div>
-                            </div>
-
-                            <div id="deleteAccountModal<?php echo $row['account_id']; ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-                                <div class="bg-white w-96 p-6 rounded-2xl shadow-2xl flex flex-col">
-                                    <form action="./functions/delete.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-                                        <input type="hidden" name="account_id" value="<?php echo $row['account_id']; ?>">
-                                        
-                                        <p>Are you sure you want to delete <strong><?php echo htmlspecialchars($row['username']); ?></strong>?</p>
-
-                                        <div class="flex justify-end mt-4">
-                                            <button type="submit" name="delete_account" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">Delete Account</button>
-                                            <button type="button" class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200" onclick="closeModal('deleteAccountModal<?php echo $row['account_id']; ?>')">Cancel</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-                <!-- Footer -->
-                <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-                  <div>
-                    <p class="text-sm text-gray-600">
-                      <span class="font-semibold text-gray-800">
-                        <?php echo $totalItems; ?>
-                      </span> results
-                    </p>
-                  </div>
-
-                  <div>
-                    <div class="inline-flex gap-x-2">
-                      <?php
-                      // Previous button
-                      if ($page > 1): ?>
-                        <a href="?page=<?php echo $page - 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                          </svg>
-                          Prev
-                        </a>
-                      <?php else: ?>
-                        <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                          </svg>
-                          Prev
-                        </span>
-                      <?php endif; ?>
-
-                      <!-- Page numbers -->
-                      <?php 
-                      $start = max(1, $page - 2);
-                      $end = min($totalPages, $page + 2);
-                      
-                      // Show first page if not in range
-                      if ($start > 1): ?>
-                        <a href="?page=1" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                          1
-                        </a>
-                        <?php if ($start > 2): ?>
-                          <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
-                        <?php endif;
-                      endif;
-                      
-                      for ($i = $start; $i <= $end; $i++): ?>
-                        <a href="?page=<?php echo $i; ?>" class="<?php echo $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'; ?> py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                          <?php echo $i; ?>
-                        </a>
-                      <?php endfor; 
-                      
-                      // Show last page if not in range
-                      if ($end < $totalPages): ?>
-                        <?php if ($end < $totalPages - 1): ?>
-                          <span class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium text-gray-800">...</span>
-                        <?php endif; ?>
-                        <a href="?page=<?php echo $totalPages; ?>" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
-                          <?php echo $totalPages; ?>
-                        </a>
-                      <?php endif; ?>
-
-                      <!-- Next button -->
-                      <?php if ($page < $totalPages): ?>
-                        <a href="?page=<?php echo $page + 1; ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50">
-                          Next
-                          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m9 18 6-6-6-6" />
-                          </svg>
-                        </a>
-                      <?php else: ?>
-                        <span class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
-                          Next
-                          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m9 18 6-6-6-6" />
-                          </svg>
-                        </span>
-                      <?php endif; ?>
-                    </div>
-                  </div>
-                </div>
-                <!-- End Footer -->
-
-            </div>
-        </div>
-    </div>
+<!-- Stats strip -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+  <?php
+  $rConf = [
+    'customer'    => ['bg-blue-50','text-blue-700','border-blue-100', 'Customers'],
+    'admin'       => ['bg-orange-50','text-orange-700','border-orange-100', 'Admins'],
+    'rider'       => ['bg-purple-50','text-purple-700','border-purple-100', 'Riders'],
+    'super_admin' => ['bg-gray-50','text-gray-700','border-gray-100', 'Super Admins'],
+  ];
+  foreach ($rConf as $role => [$bg,$text,$border,$label]): ?>
+  <div class="<?= $bg ?> border <?= $border ?> rounded-xl p-3 text-center">
+    <div class="text-xl font-bold <?= $text ?>"><?= $roleCounts[$role] ?? 0 ?></div>
+    <div class="text-xs <?= $text ?>"><?= $label ?></div>
+  </div>
+  <?php endforeach; ?>
 </div>
 
-<style>
-  .accounts-row {
-    transition: all 0.2s ease;
-    border-left: 4px solid transparent;
-  }
+<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
-  .accounts-row:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    border-left-color: #3b82f6;
-  }
-</style>
+  <!-- Header -->
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+    <div class="flex-1">
+      <h2 class="text-lg font-semibold text-gray-800">Accounts</h2>
+      <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> total accounts</p>
+    </div>
+    <form method="GET" class="flex flex-wrap gap-2">
+      <!-- Role filter -->
+      <select name="role" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400">
+        <option value="">All Roles</option>
+        <?php foreach (['customer','admin','rider','super_admin'] as $r): ?>
+        <option value="<?= $r ?>" <?= $roleFilter === $r ? 'selected' : '' ?>><?= ucfirst(str_replace('_',' ',$r)) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <!-- Search -->
+      <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+        <input type="text" name="search" value="<?= htmlspecialchars($searchTerm) ?>" placeholder="Search accounts..." class="text-sm px-3 py-2 focus:outline-none w-48">
+        <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
+          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+      </div>
+      <!-- Add Account button -->
+      <button type="button" data-modal-target="addAccountModal"
+        class="flex items-center gap-x-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Add Account
+      </button>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-100">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Location</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        <?php while ($row = $result->fetch_assoc()):
+          [$avatarBg, $avatarText] = avatarColor($row['first_name'] ?? 'A');
+          $initials = strtoupper(substr($row['first_name'],0,1).substr($row['last_name'],0,1));
+          $roleConf = ['customer'=>['bg-blue-100','text-blue-700'],'admin'=>['bg-orange-100','text-orange-700'],
+                       'rider'=>['bg-purple-100','text-purple-700'],'super_admin'=>['bg-gray-100','text-gray-700'],'guest'=>['bg-gray-100','text-gray-600']];
+          [$roleBg, $roleText] = $roleConf[$row['role']] ?? ['bg-gray-100','text-gray-600'];
+        ?>
+        <tr class="account-row hover:bg-orange-50/30 transition-colors">
+          <!-- User -->
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-3">
+              <div class="size-9 rounded-full <?= $avatarBg ?> flex items-center justify-center text-xs font-bold <?= $avatarText ?> shrink-0">
+                <?= $initials ?>
+              </div>
+              <div>
+                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+                <div class="text-xs text-gray-400">@<?= htmlspecialchars($row['username'] ?? '—') ?></div>
+              </div>
+            </div>
+          </td>
+          <!-- Role -->
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $roleBg ?> <?= $roleText ?>">
+              <?= ucfirst(str_replace('_',' ', $row['role'])) ?>
+            </span>
+          </td>
+          <!-- Contact -->
+          <td class="px-4 py-3">
+            <div class="text-xs text-gray-700"><?= htmlspecialchars($row['email']) ?></div>
+            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['phone_number'] ?? '—') ?></div>
+          </td>
+          <!-- Location -->
+          <td class="px-4 py-3">
+            <div class="text-xs text-gray-700"><?= htmlspecialchars($row['city'] ?: '—') ?></div>
+            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['postal_code'] ?: '') ?></div>
+          </td>
+          <!-- Date -->
+          <td class="px-4 py-3">
+            <div class="text-xs text-gray-600"><?= date('M j, Y', strtotime($row['created_at'])) ?></div>
+            <div class="text-xs text-gray-400"><?= date('g:i A', strtotime($row['created_at'])) ?></div>
+          </td>
+          <!-- Actions -->
+          <td class="px-4 py-3 text-right">
+            <div class="inline-flex gap-1">
+              <button onclick="document.getElementById('updateAccountModal<?= $row['account_id'] ?>').classList.remove('hidden')"
+                class="size-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button onclick="document.getElementById('deleteAccountModal<?= $row['account_id'] ?>').classList.remove('hidden')"
+                class="size-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors" title="Delete">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Update Modal -->
+        <div id="updateAccountModal<?= $row['account_id'] ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+          <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-800">Edit Account — <?= htmlspecialchars($row['first_name']) ?></h3>
+              <button onclick="document.getElementById('updateAccountModal<?= $row['account_id'] ?>').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <form action="./functions/update.php" method="POST" class="p-6 space-y-4">
+              <input type="hidden" name="account_id" value="<?= $row['account_id'] ?>">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Username</label>
+                  <input type="text" name="username" value="<?= htmlspecialchars($row['username'] ?? '') ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                  <select name="role" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                    <?php foreach (['customer','admin','rider','guest'] as $r): ?>
+                    <option value="<?= $r ?>" <?= $row['role']==$r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">New Password <span class="text-gray-400">(leave blank to keep)</span></label>
+                  <input type="password" name="password" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400" placeholder="New password">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Confirm Password</label>
+                  <input type="password" name="confirm_password" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400" placeholder="Confirm">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">First Name</label>
+                  <input type="text" name="first_name" value="<?= htmlspecialchars($row['first_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Last Name</label>
+                  <input type="text" name="last_name" value="<?= htmlspecialchars($row['last_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                <input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Phone Number</label>
+                <input type="text" name="phone_number" value="<?= htmlspecialchars($row['phone_number'] ?? '') ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                <textarea name="address" rows="2" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"><?= htmlspecialchars($row['address']) ?></textarea>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">City</label>
+                  <input type="text" name="city" value="<?= htmlspecialchars($row['city']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Postal Code</label>
+                  <input type="text" name="postal_code" value="<?= htmlspecialchars($row['postal_code']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('updateAccountModal<?= $row['account_id'] ?>').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" name="update_account" class="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div id="deleteAccountModal<?= $row['account_id'] ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
+          <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="size-10 bg-red-100 rounded-xl flex items-center justify-center">
+                <svg class="size-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-gray-800">Delete Account</h3>
+                <p class="text-xs text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Are you sure you want to delete <strong><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></strong>?</p>
+            <form action="./functions/delete.php" method="POST">
+              <input type="hidden" name="account_id" value="<?= $row['account_id'] ?>">
+              <div class="flex gap-2">
+                <button type="button" onclick="document.getElementById('deleteAccountModal<?= $row['account_id'] ?>').classList.add('hidden')" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" name="delete_account" class="flex-1 px-4 py-2 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors">Delete</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <?php endwhile; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer / Pagination -->
+  <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+    <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> total accounts</p>
+    <div class="flex gap-1">
+      <?php if ($page > 1): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page-1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+      <?php endif; ?>
+      <?php for ($i=max(1,$page-2); $i<=min($totalPages,$page+2); $i++): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$i])) ?>"
+           class="px-3 py-1.5 text-xs border rounded-lg <?= $i==$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>"><?= $i ?></a>
+      <?php endfor; ?>
+      <?php if ($page < $totalPages): ?>
+        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page+1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>

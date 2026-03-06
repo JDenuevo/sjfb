@@ -1,3 +1,5 @@
+<!-- update_cart_quantity.php -->
+
 <?php
 session_start();
 header('Content-Type: application/json');

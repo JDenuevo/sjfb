@@ -156,6 +156,9 @@ if (empty($stats)) {
 
 </head>
 <style>
+    body { font-family: 'Lexend', sans-serif; }
+.font-display { font-family: 'Playfair Display', serif; }
+
   @keyframes fadeIn {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }

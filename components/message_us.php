@@ -10,29 +10,28 @@
       </div>
 
       <div class="mt-12">
-        <!-- Form -->
-        <form action="./functions/send_email.php" method="POST" enctype="multipart/form-data" id="contact-form">
-        <!-- CSRF Token (required) -->
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-        
-        <!-- Honeypot Field (hidden from users - NOT required for real users) -->
-        <div style="display: none; opacity: 0; position: absolute; left: -9999px;">
+        <!-- Form - Note: Removed action attribute, using JavaScript -->
+        <form id="contact-form" method="POST" enctype="multipart/form-data">
+          <!-- CSRF Token -->
+          <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+          
+          <!-- Honeypot Field -->
+          <div style="display: none; opacity: 0; position: absolute; left: -9999px;">
             <label for="website">Website</label>
             <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
-        </div>
-        
-        <!-- Your existing form fields (no company field needed) -->
-        <div class="grid gap-4 lg:gap-6">
+          </div>
+          
+          <div class="grid gap-4 lg:gap-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-                <div>
-                    <label for="firstName" class="block mb-2 text-sm text-gray-700 font-medium">First Name</label>
-                    <input type="text" name="firstName" placeholder="First Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
-                </div>
-    
-                <div>
-                    <label for="lastName" class="block mb-2 text-sm text-gray-700 font-medium">Last Name</label>
-                    <input type="text" name="lastName" placeholder="Last Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
-                </div>
+              <div>
+                <label for="firstName" class="block mb-2 text-sm text-gray-700 font-medium">First Name</label>
+                <input type="text" name="firstName" id="firstName" placeholder="First Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+              </div>
+  
+              <div>
+                <label for="lastName" class="block mb-2 text-sm text-gray-700 font-medium">Last Name</label>
+                <input type="text" name="lastName" id="lastName" placeholder="Last Name" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500" required>
+              </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
@@ -68,28 +67,33 @@
                 <span class="block text-base font-semibold text-gray-900 group-hover:text-orange-500">Upload a file</span>
                 <span class="mt-1 block text-sm text-gray-500">Supported: JPG, PNG, PDF. Max size: 2MB</span>
               </label>
-              <input type="file" id="attachment" name="attachments[]" accept=".jpg,.png,.pdf" multiple class="hidden">
-              <!-- Display Selected Files -->
+              <input type="file" id="attachment" name="attachments[]" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden">
               <div id="file-list" class="mt-4 text-sm text-gray-600"></div>
             </div>
           </div>
 
-          <!-- Loading Spinner -->
+          <!-- Status Messages -->
           <div id="loading" class="hidden text-center mt-4">
-            <p>Sending your inquiry..</p>
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-orange-600 border-t-transparent"></div>
+            <p class="mt-2 text-gray-600">Sending your inquiry...</p>
           </div>
 
-          <!-- Success Message -->
-          <div id="success" class="hidden text-center mt-4 text-green-500">
+          <div id="success" class="hidden text-center mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
             <p>Your inquiry has been sent successfully!</p>
           </div>
 
+          <div id="error" class="hidden text-center mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p id="error-message"></p>
+          </div>
+
           <div class="mt-6 grid">
-            <button type="submit" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700" aria-label="Submit the form">Send inquiry</button>
+            <button type="submit" id="submit-btn" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              Send inquiry
+            </button>
           </div>
 
           <div class="mt-3 text-center">
-            <p class="text-sm text-gray-500 dark:text-neutral-500">We'll get back to you in 5-7 business days.</p>
+            <p class="text-sm text-gray-500">We'll get back to you in 5-7 business days.</p>
           </div>
         </form>
       </div>
@@ -97,85 +101,105 @@
   </div>
 </div>
 
-
 <script>
-  const form = document.getElementById('contact-form');
-  const loadingIndicator = document.getElementById('loading');
-  const successMessage = document.getElementById('success');
-  const fileList = document.getElementById('file-list');
-  const attachmentInput = document.getElementById('attachment');
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('contact-form');
+    const loadingIndicator = document.getElementById('loading');
+    const successMessage = document.getElementById('success');
+    const errorMessage = document.getElementById('error');
+    const errorMessageText = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submit-btn');
+    const fileList = document.getElementById('file-list');
+    const attachmentInput = document.getElementById('attachment');
 
-  form.addEventListener('submit', function(event) {
-    event.preventDefault();
-
-    // Show loading indicator
-    loadingIndicator.classList.remove('hidden');
-    successMessage.classList.add('hidden'); // Hide success message if form is resubmitted
-
-    const formData = new FormData(form);
-
-    // In your message_us.php JavaScript, update the fetch error handling:
-    fetch('./functions/send_email.php', {
-        method: 'POST',
-        body: formData,
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        loadingIndicator.classList.add('hidden');
-        if (data.status === 'success') {
-            successMessage.classList.remove('hidden');
-            form.reset(); // Clear form on success
-            fileList.innerHTML = ''; // Clear file list
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        loadingIndicator.classList.add('hidden');
-        alert('There was an error sending your message: ' + error.message);
-    });
-  });
-
-  attachmentInput.addEventListener('change', function() {
-    const files = this.files;
-    fileList.innerHTML = ''; // Clear the existing list
-
-    if (files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileItem = document.createElement('div');
-        fileItem.classList.add('file-item');
-        fileItem.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
-
-        // Create a remove button for each file
-        const removeButton = document.createElement('button');
-        removeButton.textContent = 'Remove';
-        removeButton.classList.add('ml-2', 'text-red-500', 'text-sm');
-        removeButton.addEventListener('click', function() {
-          // Remove the file from the list and the input
-          const dataTransfer = new DataTransfer(); // This will allow us to remove files from the input element
-          for (let j = 0; j < files.length; j++) {
-            if (j !== i) {
-              dataTransfer.items.add(files[j]);
+    // File input change handler
+    attachmentInput.addEventListener('change', function() {
+        const files = this.files;
+        fileList.innerHTML = '';
+        
+        if (files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileItem = document.createElement('div');
+                fileItem.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg mb-2';
+                fileItem.innerHTML = `
+                    <span class="text-sm">${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+                    <button type="button" class="text-red-500 hover:text-red-700 text-sm font-medium" data-index="${i}">Remove</button>
+                `;
+                fileList.appendChild(fileItem);
             }
-          }
-          attachmentInput.files = dataTransfer.files; // Update the input file list
-          fileItem.remove(); // Remove the file item from the display list
-        });
+            
+            // Add remove functionality
+            fileList.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const index = this.dataset.index;
+                    const dt = new DataTransfer();
+                    const files = attachmentInput.files;
+                    
+                    for (let i = 0; i < files.length; i++) {
+                        if (i != index) {
+                            dt.items.add(files[i]);
+                        }
+                    }
+                    
+                    attachmentInput.files = dt.files;
+                    this.closest('.flex').remove();
+                });
+            });
+        } else {
+            fileList.innerHTML = '<p class="text-sm text-gray-500">No files selected.</p>';
+        }
+    });
 
-        // Append the remove button to the file item
-        fileItem.appendChild(removeButton);
+    // Form submit handler
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
 
-        // Append the file item to the list
-        fileList.appendChild(fileItem);
-      }
-    } else {
-      fileList.innerHTML = 'No files selected.';
-    }
-  });
+        // Hide all messages
+        loadingIndicator.classList.remove('hidden');
+        successMessage.classList.add('hidden');
+        errorMessage.classList.add('hidden');
+        submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+
+        try {
+            const scriptPath = './functions/send_email.php'; // Relative path
+            const response = await fetch(scriptPath, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            loadingIndicator.classList.add('hidden');
+            submitBtn.disabled = false;
+
+            if (data.status === 'success') {
+                successMessage.classList.remove('hidden');
+                form.reset();
+                fileList.innerHTML = '<p class="text-sm text-gray-500">No files selected.</p>';
+                
+                // Hide success message after 5 seconds
+                setTimeout(() => {
+                    successMessage.classList.add('hidden');
+                }, 5000);
+            } else {
+                errorMessageText.textContent = data.message || 'An error occurred. Please try again.';
+                errorMessage.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            loadingIndicator.classList.add('hidden');
+            submitBtn.disabled = false;
+            errorMessageText.textContent = 'Connection error. Please check if the server is accessible. Error: ' + error.message;
+            errorMessage.classList.remove('hidden');
+        }
+    });
+});
 </script>

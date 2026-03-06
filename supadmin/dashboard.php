@@ -17,6 +17,15 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 $account_id = $_SESSION['account_id'];
 $role = $_SESSION['role']; // super_admin, admin, customer, rider
 
+// FIX: $adminName was never set — monitoring.php banner always showed "Admin" fallback
+$adminNameStmt = $conn->prepare("SELECT first_name, last_name FROM accounts WHERE account_id = ?");
+$adminNameStmt->bind_param("i", $account_id);
+$adminNameStmt->execute();
+$adminNameRow = $adminNameStmt->get_result()->fetch_assoc();
+$adminNameStmt->close();
+$adminName = trim(($adminNameRow['first_name'] ?? '') . ' ' . ($adminNameRow['last_name'] ?? ''));
+if (empty($adminName)) $adminName = $_SESSION['username'] ?? 'Admin';
+
 // Pagination variables
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $perPage = 25; // Logs per page
@@ -163,4 +172,3 @@ $totalPages = ceil($totalItems / $perPage);
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
 </body>
 </html>
-

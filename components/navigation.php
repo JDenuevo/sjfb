@@ -1,5 +1,4 @@
 <?php
-
 // Get the base URL for your site
 $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 
@@ -7,26 +6,32 @@ $cart = $_SESSION['cart'] ?? [];
 ?>
 
 <!-- ========== HEADER ========== -->
-<header id="main-header" class="fixed top-0 left-0 right-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full py-1 bg-white shadow-xs transition-transform duration-300 ease-in-out">
+<header id="main-header" class="fixed top-0 left-0 right-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full py-2 bg-white shadow-xs transition-transform duration-300 ease-in-out">
   <nav class="main-nav relative max-w-7xl w-full grid px-4 md:px-6 mx-auto">
     <div class="flex items-center">
       <!-- Logo -->
       <a class="flex-none rounded-xl inline-block font-semibold focus:outline-hidden focus:opacity-80" href="/" aria-label="Home">
-        <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
+        <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="logo-big w-20 h-20 lg:w-24 lg:h-24 transition-all duration-500 hover:scale-110 hover:rotate-3 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
+        <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="md:hidden logo-small w-14 h-14 transition-all duration-500 hover:scale-110 hover:rotate-3 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
       </a>
       <!-- End Logo -->
     </div>
 
     <div class="top-nav flex items-center justify-center gap-x-8 w-fit mx-auto bg-gray-100 border border- rounded-full px-8 py-2">
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>" aria-current="page" title="St. Joseph Fish Brokerage Inc. – Largest Fish Brokerage in the Philippines">Home</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>shop.php" title="Seafood Shop – Fresh Fish and Seafood in the Philippines">Seafood Shop</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>about.php" title="About St. Joseph Fish Brokerage Inc. – The Largest Fish Brokerage in the Philippines">About</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>sustainability.php" title="Sustainable Seafood Practices – St. Joseph Fish Brokerage Inc.">Sustainability</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>services.php" title="Fish Brokerage Services in the Philippines – Seafood Trading & Wholesale">Services</a>
-      <a class="text-black cursor-pointer hover:text-orange-500 transition translate-y-1" href="<?= $baseUrl ?>careers.php" title="Careers at St. Joseph Fish Brokerage Inc. – Join Our Team">Careers</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>" aria-current="page" title="St. Joseph Fish Brokerage Inc. – Largest Fish Brokerage in the Philippines">Home</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>shop.php" title="Seafood Shop – Fresh Fish and Seafood in the Philippines">Seafood Shop</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>about.php" title="About St. Joseph Fish Brokerage Inc. – The Largest Fish Brokerage in the Philippines">About</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>sustainability.php" title="Sustainable Seafood Practices – St. Joseph Fish Brokerage Inc.">Sustainability</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>services.php" title="Fish Brokerage Services in the Philippines – Seafood Trading & Wholesale">Services</a>
+      <a class="text-gray-700 hover:text-orange-500 cursor-pointer text-sm font-medium rounded-xl transition-all duration-300" href="<?= $baseUrl ?>contact.php" title="Contact us at St. Joseph Fish Brokerage Inc. – Contact us Directly">Contact</a>
     </div>
 
     <div class="flex items-center justify-center gap-x-1 ms-auto">
+      <div class="ml-auto relative">
+        <a href="./track.php" class="size-10 relative flex justify-center items-center rounded-xl bg-white border border-gray-200 text-black hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none">
+          <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-map-pin"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></svg>
+        </a>
+      </div>
       <div class="ml-auto relative">
         <button type="button" class="size-10 relative flex justify-center items-center rounded-xl bg-white border border-gray-200 text-black hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-cart-sidebar" aria-label="Toggle navigation" onclick="openOffCanvas()">
           <span class="sr-only">Cart</span>
@@ -47,7 +52,7 @@ $cart = $_SESSION['cart'] ?? [];
       </button>
 
       <!-- Mobile Navigation Dropdown (visible only on small screens) -->
-      <div class="relative inline-flex ml-4">
+      <div class="relative inline-flex ml-4 md:hidden">
         <button type="button" id="mobile-nav-button" class="size-9.5 flex justify-center items-center rounded-xl border border-gray-200 text-black hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none" aria-label="Toggle mobile menu">
           <svg class="menu-icon-open shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" x2="21" y1="6" y2="6" />
@@ -105,7 +110,7 @@ $cart = $_SESSION['cart'] ?? [];
               </svg>
               Services
             </a>
-            <a href="<?= $baseUrl ?>careers.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Careers at St. Joseph Fish Brokerage Inc. – Join Our Team">
+            <a href="<?= $baseUrl ?>contact.php" class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100" title="Contact us at St. Joseph Fish Brokerage Inc. – Contact us Directly">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-briefcase">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9" />
@@ -113,7 +118,7 @@ $cart = $_SESSION['cart'] ?? [];
                 <path d="M12 12l0 .01" />
                 <path d="M3 13a20 20 0 0 0 18 0" />
               </svg>
-              Careers
+              Contact
             </a>
           </div>
         </div>
@@ -128,10 +133,11 @@ $cart = $_SESSION['cart'] ?? [];
 <!-- Add padding to the body content to account for fixed header -->
 <div class="pt-24"></div>
 
-<?php include('./components/sign_in.php'); ?>
+ <?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/sign_in.php'; ?>
 
-<?php include('./components/cart.php'); ?>
+  <?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/cart.php'; ?>
 
+  
 <style>
   .cart-count-1 {
     background-color: #f97316; /* Orange */
@@ -193,7 +199,7 @@ $cart = $_SESSION['cart'] ?? [];
   }
 
   /* Hide center nav on small screens */
-  .top-nav {
+  .top-nav, .logo-big {
     display: none;
   }
 
@@ -207,6 +213,11 @@ $cart = $_SESSION['cart'] ?? [];
       display: flex;
       justify-content: center;
     }
+
+    .logo-big{
+      display: block;
+    }
+
   }
 
 </style>

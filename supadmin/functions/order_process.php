@@ -1,3 +1,5 @@
+ <!-- ==================== in functions folder the super admin the order_process functions that correlates the User, Guest, Rider, Admin and Super Admin to manage the whole order_process ==================== -->
+
 <?php
 // Use absolute path instead of relative path
 require_once __DIR__ . '/../../conn.php';

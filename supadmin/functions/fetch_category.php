@@ -131,20 +131,23 @@ $categories = $conn->query("SELECT category_id, category_name, category_level FR
     });
 
     window.deleteCategoryImage = function(categoryId) {
-        if (confirm('Delete this image?')) {
-            fetch('./functions/delete_category_image.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'category_id=' + categoryId
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed to delete image');
-                }
-            });
-        }
-    };
+    if (confirm('Delete this image?')) {
+        fetch('./functions/delete.php', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'action=delete_category_image&category_id=' + categoryId
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to delete image: ' + data.message);
+            }
+        });
+    }
+};
 </script>

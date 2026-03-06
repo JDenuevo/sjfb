@@ -1,55 +1,118 @@
-<!-- Preloader -->
-<div id="preloader" class="shadow-xl" style="position: fixed; top: 0; left: 0; width: 100%; height: 0; background-color: #fff; display: flex; justify-content: center; align-items: center; z-index: 9999; overflow: hidden;">
-  <div class="loader" style="text-align: center; opacity: 0; animation: pulse 2s infinite;">
-    <svg id="preloaderSVG" width="150" height="150" viewBox="0 0 502 402" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Your SVG paths here -->
-    </svg>
-  </div>
+<!-- Page Transition Overlay -->
+<div id="page-transition" aria-hidden="true">
+  <div id="transition-curtain"></div>
 </div>
 
-<style scoped>
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.2); opacity: 0.5; }
-    100% { transform: scale(1); opacity: 1; }
+<style>
+  /* ── CURTAIN LAYERS ── */
+  #page-transition {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    pointer-events: none;
   }
 
-  @keyframes slideDownBG {
-    0% { height: 0; }
-    100% { height: 100%; }
+  #transition-curtain {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #FFFFFF;
+    transform: translateY(-100%);
+    will-change: transform;
   }
 
-  @keyframes fadeInLoader {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
+  /* ── STATE: PAGE ENTERING (curtain sweeps DOWN to cover screen) ── */
+  #page-transition.is-leaving #transition-curtain {
+    animation: curtain-cover 0.55s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+    pointer-events: all;
   }
 
-  #preloader.show {
-    animation: slideDownBG 0.8s forwards;
+  /* ── STATE: PAGE ENTERING (curtain sweeps DOWN off screen to reveal page) ── */
+  #page-transition.is-entering #transition-curtain {
+    transform: translateY(0%); /* start already covering */
+    animation: curtain-reveal 0.6s cubic-bezier(0.76, 0, 0.24, 1) forwards;
   }
 
-  .loader.show {
-    animation: pulse 2s infinite, fadeInLoader 0.8s forwards;
-    animation-delay: 0.8s;
+  @keyframes curtain-cover {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(0%); }
+  }
+
+  @keyframes curtain-reveal {
+    0%   { transform: translateY(0%); }
+    100% { transform: translateY(100%); }
   }
 </style>
 
 <script>
-  $(document).ready(function () {
-    // Slide down the white background
-    $('#preloader').addClass('show');
+(function () {
+  const transition = document.getElementById('page-transition');
+  const curtain    = document.getElementById('transition-curtain');
+  const SESSION_KEY = 'sjfb_page_transition';
 
-    // Fade in loader after background slides
-    setTimeout(function () {
-      $('.loader').addClass('show');
-    }, 800);
+  // ── On page load: only reveal if we arrived via a transition link click ──
+  window.addEventListener('DOMContentLoaded', function () {
+    const wasTransitioned = sessionStorage.getItem(SESSION_KEY) === '1';
 
-    // Wait a bit while preloader is down (1s) and swap content
-    setTimeout(function () {
-      $('#preloader').fadeOut(800, function () {
-        $(this).remove();
-        $('#content').fadeIn(500);
+    if (wasTransitioned) {
+      // Clear the flag immediately so refreshes don't re-trigger
+      sessionStorage.removeItem(SESSION_KEY);
+
+      // Curtain starts covering the screen, then sweeps down to reveal
+      curtain.style.transform = 'translateY(0%)';
+      transition.classList.add('is-entering');
+
+      curtain.addEventListener('animationend', function handler() {
+        transition.classList.remove('is-entering');
+        curtain.style.transform = 'translateY(-100%)';
+        curtain.removeEventListener('animationend', handler);
       });
-    }, 2500); // slightly longer pause
+    }
+    // else: normal page load / refresh — no animation, page just appears instantly
   });
+
+  // ── On link click: curtain sweeps DOWN to cover, set flag, then navigate ──
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('a');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    // Skip non-navigating links
+    if (
+      href.startsWith('#') ||
+      href.startsWith('javascript') ||
+      href.startsWith('mailto') ||
+      href.startsWith('tel') ||
+      link.target === '_blank' ||
+      link.hasAttribute('data-fancybox') ||
+      e.ctrlKey || e.metaKey || e.shiftKey || e.altKey
+    ) return;
+
+    // Only intercept same-origin links
+    try {
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+    } catch (_) { return; }
+
+    e.preventDefault();
+
+    // Reset curtain position above screen, then animate it covering down
+    curtain.style.animation = 'none';
+    curtain.style.transform = 'translateY(-100%)';
+    void curtain.offsetHeight; // force reflow
+    curtain.style.animation = '';
+
+    transition.classList.add('is-leaving');
+
+    curtain.addEventListener('animationend', function handler() {
+      curtain.removeEventListener('animationend', handler);
+      // Set flag so the NEXT page knows to play the reveal
+      sessionStorage.setItem(SESSION_KEY, '1');
+      window.location.href = href;
+    });
+  });
+})();
 </script>

@@ -10,8 +10,8 @@ function sendBuyerProducerNotification($data) {
         $mail->isSMTP();
         $mail->Host = 'smtp.secureserver.net'; // GoDaddy SMTP server
         $mail->SMTPAuth = true;
-        $mail->Username = 'contact@fishbrokers.net'; // Your professional email
-        $mail->Password = 'your-email-password'; // Your email password
+        $mail->Username = 'marketing@fishbrokers.net'; // Your professional email
+        $mail->Password = ''; // Your email password
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         

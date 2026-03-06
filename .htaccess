@@ -1,8 +1,75 @@
 RewriteEngine On
 
-# Redirect /item/product-name (with special characters) to item.php?name=product-name
+# If the request is for a real file or directory, serve it directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ===== SUPER ADMIN AREA RULES =====
+RewriteRule ^supadmin/?$ supadmin/index.php [L,QSA]
+RewriteRule ^supadmin/([^/.]+)/?$ supadmin/$1.php [L,QSA]
+RewriteRule ^supadmin/([^/.]+)/([^/.]+)/?$ supadmin/$1.php?action=$2 [L,QSA]
+
+# ===== ADMIN AREA RULES =====
+RewriteRule ^admin/?$ admin/index.php [L,QSA]
+RewriteRule ^admin/([^/.]+)/?$ admin/$1.php [L,QSA]
+RewriteRule ^admin/([^/.]+)/([^/.]+)/?$ admin/$1.php?action=$2 [L,QSA]
+
+# ===== USER AREA RULES =====
+RewriteRule ^account/?$ account/index.php [L,QSA]
+RewriteRule ^account/([^/.]+)/?$ account/$1.php [L,QSA]
+RewriteRule ^account/([^/.]+)/([^/.]+)/?$ saccount/$1.php?action=$2 [L,QSA]
+
+# ===== RIDERS AREA RULES =====
+RewriteRule ^rider/?$ rider/index.php [L,QSA]
+RewriteRule ^rider/([^/.]+)/?$ rider/$1.php [L,QSA]
+RewriteRule ^rider/([^/.]+)/([^/.]+)/?$ rider/$1.php?action=$2 [L,QSA]
+
+# BLOGS RULES - ORDER IS IMPORTANT!
+# First: Blog listing page (exact match /blogs or /blogs/)
+RewriteRule ^blogs/?$ blogs/index.php [L,QSA]
+
+# Second: Single blog post (must have something after blogs/)
+RewriteRule ^blogs/(.+)$ blogs/single.php?slug=$1 [L,QSA]
+
+# ITEM RULES
 RewriteRule ^item/([^/]+)/?$ item.php?name=$1 [L,QSA]
 
-# Redirect old ID-based URLs to new SEO-friendly URLs
-RewriteCond %{QUERY_STRING} ^id=([0-9]+)$
-RewriteRule ^item\.php$ /item/%1? [R=301,L]
+# MEMBERS
+RewriteRule ^about/members/([^/]+)/?$ about/members/single.php [L,QSA]
+
+# SERVICES/MARKETS
+RewriteRule ^services/markets/([^/]+)/?$ services/markets/single.php [L,QSA]
+
+# CAREERS
+RewriteRule ^careers/([^/]+)/?$ careers/single.php [L,QSA]
+
+# IMAGES
+RewriteRule ^images/(.*)$ uploads/products/$1 [L]
+
+# Remove .php extension for other files
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^/.]+)$ $1.php [L]
+
+# Error Pages
+ErrorDocument 400 /sjfbi-js/error/400.php
+ErrorDocument 401 /sjfbi-js/error/401.php
+ErrorDocument 403 /sjfbi-js/error/403.php
+ErrorDocument 404 /sjfbi-js/error/404.php
+ErrorDocument 405 /sjfbi-js/error/405.php
+ErrorDocument 500 /sjfbi-js/error/500.php
+ErrorDocument 502 /sjfbi-js/error/502.php
+ErrorDocument 503 /sjfbi-js/error/503.php
+# ------------------------------------
+# Protect .env
+# ------------------------------------
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Allow image files
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>

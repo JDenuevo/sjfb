@@ -19,20 +19,7 @@ if ($paymentId <= 0) {
 
 // Fetch payment details with related order information
 $query = "SELECT
-            p.payment_id,
-            p.provider_id,
-            p.currency,
-            p.gross_amount,
-            p.net_amount,
-            p.refunded_amount,
-            p.payment_status,
-            p.failed_code,
-            p.paid_at,
-            p.mode,
-            p.billing_name,
-            p.billing_email,
-            p.billing_phone,
-            p.created_at,
+            p.*,
             o.order_code,
             o.first_name,
             o.last_name,

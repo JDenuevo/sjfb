@@ -1,3 +1,4 @@
+<!-- fetch_products.php -->
 <?php
 session_start();
 include '../conn.php';
@@ -15,11 +16,13 @@ $query = "SELECT
             v.discount_price,
             v.unit_type, 
             v.minimum_order, 
-            v.order_increment,
+            v.order_increment, 
+            v.stock_quantity,
+            v.stock_status,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as category_names
           FROM products p
           LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
-          LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.stock_status = 'In Stock'
+          LEFT JOIN product_variants v ON p.product_id = v.product_id
           LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
           LEFT JOIN product_categories c ON pcl.category_id = c.category_id
           WHERE p.is_deleted = 0";
@@ -115,10 +118,16 @@ if ($result->num_rows > 0) {
                 'product_nickname' => $row['product_nickname'],
                 'image_url' => !empty($row['image_path']) ? $baseUrl . "uploads/products/" . $row['image_path'] : $baseUrl . "uploads/products/default.png",
                 'category_names' => $row['category_names'],
-                'variants' => []
+                'variants' => [],
+                'has_stock' => false, // Track if any variant has stock quantity > 0
+                'total_stock' => 0     // Total available stock across all variants
             ];
         }
         if (!empty($row['variant_id'])) {
+            // Check actual stock quantity
+            $stockQuantity = intval($row['stock_quantity'] ?? 0);
+            $hasStock = $stockQuantity > 0;
+            
             $products[$product_id]['variants'][] = [
                 'variant_id' => $row['variant_id'],
                 'variant_name' => $row['variant_name'],
@@ -126,8 +135,16 @@ if ($result->num_rows > 0) {
                 'discount_price' => $row['discount_price'],
                 'unit_type' => $row['unit_type'] ?? 'piece',
                 'minimum_order' => $row['minimum_order'] ?? 1,
-                'order_increment' => $row['order_increment'] ?? 1
+                'order_increment' => $row['order_increment'] ?? 1,
+                'stock_quantity' => $stockQuantity,
+                'has_stock' => $hasStock
             ];
+            
+            // Update product stock status
+            if ($hasStock) {
+                $products[$product_id]['has_stock'] = true;
+            }
+            $products[$product_id]['total_stock'] += $stockQuantity;
         }
     }
 
@@ -138,6 +155,8 @@ if ($result->num_rows > 0) {
         $image_url = $product['image_url'];
         $category_names = $product['category_names'];
         $variants = $product['variants'];
+        $hasStock = $product['has_stock'];
+        $totalStock = $product['total_stock'];
         
         // Decode nickname JSON for display
         $nicknames = [];
@@ -148,18 +167,30 @@ if ($result->num_rows > 0) {
             }
         }
         
+        // Determine stock status class
+        $stockClass = $hasStock ? '' : 'out-of-stock';
+        
         // Generate share URLs
         $canonicalUrl = $baseUrl . "item/" . urlencode(strtolower(str_replace(' ', '-', $product_name)));
         $shareUrlNew = $canonicalUrl;
         $shareTitle = $product_name;
         $shareText = "Check out this fresh seafood: " . $product_name . " from St. Joseph Fish Brokerage Inc.";
 ?>
-    <div class="flex flex-col h-full bg-white shadow-lg rounded-lg p-5 relative group">
-        <div class="">
-            <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>">
+    <div class="flex flex-col h-full bg-white shadow-lg rounded-lg p-5 relative group <?= $stockClass ?>">
+        <div class="relative">
+            <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>" class="block">
                 <img src="<?= htmlspecialchars($image_url) ?>" 
                      alt="<?= htmlspecialchars($product_name) ?>" 
-                     class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">
+                     class="w-full h-48 object-cover rounded-md mb-4 shadow-sm <?= !$hasStock ? 'opacity-60' : '' ?>">
+                
+                <!-- Out of Stock Overlay - Only shows if no stock -->
+                <?php if (!$hasStock): ?>
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-md h-48">
+                    <span class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg transform -rotate-12 shadow-lg">
+                        NO STOCK
+                    </span>
+                </div>
+                <?php endif; ?>
             </a>
             
             <!-- Product Name and Category -->
@@ -190,7 +221,8 @@ if ($result->num_rows > 0) {
             <?php endif; ?>
         </div>
     
-        <!-- Add to Cart Form -->
+        <?php if ($hasStock): ?>
+        <!-- Add to Cart Form (only for products with stock) -->
         <form class="add-to-cart-form flex flex-col flex-grow" data-product-id="<?= $product_id ?>">
             <input type="hidden" name="add_to_cart" value="1">
             <input type="hidden" name="product_id" value="<?= $product_id ?>">
@@ -204,18 +236,37 @@ if ($result->num_rows > 0) {
             <input type="hidden" name="minimum_order" value="">
             <input type="hidden" name="order_increment" value="">
 
-            <!-- Variant Buttons -->
+            <!-- Variant Buttons - Show all variants but disable out of stock ones -->
             <?php if (!empty($variants)): ?>
             <div class="min-h-[72px]">
                 <label class="block text-sm font-medium text-gray-700">Select Size:</label>
                 <div class="flex flex-wrap gap-2">
                     <?php 
                     $first = true;
-                    foreach ($variants as $variant): ?>
+                    $firstInStock = null;
+                    
+                    // Find first in-stock variant to auto-select
+                    foreach ($variants as $variant) { 
+                        if ($variant['has_stock']) {
+                            $firstInStock = $variant;
+                            break;
+                        }
+                    }
+                    
+                    foreach ($variants as $variant): 
+                        $variantHasStock = $variant['has_stock'];
+                        $stockQuantity = $variant['stock_quantity'];
+                        
+                        // Determine button state
+                        $isSelected = ($firstInStock && $variant === $firstInStock) || (!$firstInStock && $first && $variantHasStock);
+                        $disabled = !$variantHasStock ? 'disabled' : '';
+                        $disabledClass = !$variantHasStock ? 'opacity-50 cursor-not-allowed' : '';
+                    ?>
                         <button type="button"
                             class="variant-button px-3 py-2 border rounded-lg text-sm font-medium 
                                   hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200 
-                                  <?= $first ? 'selected-variant border-gray-400 bg-gray-100' : 'border-gray-300' ?>"
+                                  <?= $isSelected ? 'selected-variant border-gray-400 bg-gray-100' : 'border-gray-300' ?>
+                                  <?= $disabledClass ?>"
                             data-product-id="<?= $product_id ?>"
                             data-variant-id="<?= $variant['variant_id'] ?>"
                             data-variant-name="<?= htmlspecialchars($variant['variant_name']) ?>"
@@ -223,8 +274,14 @@ if ($result->num_rows > 0) {
                             data-discount-price="<?= $variant['discount_price'] ?>"
                             data-unit-type="<?= $variant['unit_type'] ?>"
                             data-minimum-order="<?= $variant['minimum_order'] ?>"
-                            data-order-increment="<?= $variant['order_increment'] ?>">
+                            data-order-increment="<?= $variant['order_increment'] ?>"
+                            data-stock-quantity="<?= $stockQuantity ?>"
+                            data-has-stock="<?= $variantHasStock ? 'true' : 'false' ?>"
+                            <?= $disabled ?>>
                             <?= htmlspecialchars($variant['variant_name']) ?>
+                            <?php if (!$variantHasStock): ?>
+                                <span class="ml-1 text-red-500">(No Stock)</span>
+                            <?php endif; ?>
                         </button>
                     <?php 
                         $first = false;
@@ -232,7 +289,7 @@ if ($result->num_rows > 0) {
                 </div>
             </div>
 
-            <!-- Quantity Selector with Unit Display -->
+            <!-- Quantity Selector with Unit Display and Stock Limit -->
             <div class="mt-3">
                 <div class="flex items-center">
                     <div class="flex items-center border border-gray-300 rounded">
@@ -244,6 +301,7 @@ if ($result->num_rows > 0) {
                     <span class="text-sm font-medium text-gray-600 unit-display"></span>
                 </div>
                 <p class="text-xs text-gray-500 mt-1 minimum-order-text"></p>
+                <p class="text-xs text-green-600 mt-1 stock-info hidden"></p>
             </div>
 
             <!-- Price and Discount Display -->
@@ -290,11 +348,22 @@ if ($result->num_rows > 0) {
           
             <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
             <p class="text-red-500 text-sm mt-2 minimum-error-message hidden"></p>
+            <p class="text-red-500 text-sm mt-2 stock-error-message hidden"></p>
             
             <?php else: ?>
             <p class="text-gray-500 text-sm text-center py-4">No variants available for this product</p>
             <?php endif; ?>
         </form>
+        <?php else: ?>
+            <!-- Out of Stock - No Add to Cart, only view details button -->
+            <div class="flex-grow"></div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>" 
+                  class="block w-full py-2 rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-medium transition-all duration-300 text-center">
+                    View Details
+                </a>
+            </div>
+        <?php endif; ?>
     </div>
 
 <?php
