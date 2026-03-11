@@ -159,6 +159,11 @@ while ($c = $all_cats_result->fetch_assoc()) {
               <option value="kg"    <?= $v['unit_type'] == 'kg'    ? 'selected' : '' ?>>Kilogram</option>
               <option value="piece" <?= $v['unit_type'] == 'piece' ? 'selected' : '' ?>>Piece</option>
               <option value="gram"  <?= $v['unit_type'] == 'gram'  ? 'selected' : '' ?>>Gram</option>
+              <option value="pack"  <?= $v['unit_type'] == 'pack'  ? 'selected' : '' ?>>Pack</option>
+              <option value="box"  <?= $v['unit_type'] == 'box'  ? 'selected' : '' ?>>Box</option>
+              <option value="banyera"  <?= $v['unit_type'] == 'banyera'  ? 'selected' : '' ?>>Banyera</option>
+              <option value="sack"  <?= $v['unit_type'] == 'sack'  ? 'selected' : '' ?>>Sack</option>
+              <option value="tray"  <?= $v['unit_type'] == 'tray'  ? 'selected' : '' ?>>Tray</option>
             </select>
           </div>
           <div>

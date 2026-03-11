@@ -9,7 +9,7 @@ $cartTotal = array_sum(array_map(fn($i) => (float)($i['price'] ?? 0) * (float)($
 
 function _cart_fmt(string $u): string {
     return match($u) {
-        'piece' => 'pcs', 'kilogram' => 'kg', 'gram' => 'g', 'liter' => 'L',
+        'piece' => 'pcs', 'kilogram' => 'kg', 'gram' => 'g', 'pack' => 'pk', 'tray' => 'tray', 'box' => 'box', 'banyera' => 'bny', 'sack' => 'sack',
         default => $u ?: 'pcs',
     };
 }

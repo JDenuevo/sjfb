@@ -103,50 +103,59 @@ $result = $stmt->get_result();
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
   <!-- CSS Files -->
-  <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
-
-  <!-- CSS Preline -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="../style.css" rel="stylesheet">
 </head>
 
+<style>
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; align-items: flex-start; justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    overflow-y: auto;
+    padding: 2rem 1rem;
+  }
+  .modal-overlay.hidden { display: none; }
 
+  .modal-box {
+    background: white;
+    width: 100%; max-width: 56rem;
+    border-radius: 1.25rem;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: #fafafa;
+  }
+  .modal-header h3 { font-size: 1.125rem; font-weight: 700; color: #111827; }
+  .modal-header p { font-size: 0.75rem; color: #6b7280; margin-top: 1px; }
+
+  .modal-close {
+    width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: #f3f4f6;
+    color: #6b7280; border: none; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .modal-close:hover { background: #fee2e2; color: #dc2626; }
+
+  .modal-body { padding: 1.5rem; max-height: 75vh; overflow-y: auto; }
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    background: #fafafa;
+    display: flex; justify-content: flex-end; gap: 0.625rem;
+  }
+</style>
 <body class="bg-gray-50">
   
   <!-- Header -->
   <?php include('./components/header.php'); ?>
-
-  <!-- ========== MAIN CONTENT ========== -->
-  <!-- Breadcrumb -->
-  <div class="sticky top-0 inset-x-0 z-20 bg-white border-y px-4 sm:px-6 lg:px-8 lg:hidden">
-    <div class="flex items-center py-2">
-      <!-- Navigation Toggle -->
-      <button type="button" class="size-8 flex justify-center items-center gap-x-2 border border-gray-200 text-gray-800 hover:text-gray-500 rounded-lg focus:outline-none focus:text-gray-500 disabled:opacity-50 disabled:pointer-events-none " aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-application-sidebar" aria-label="Toggle navigation" data-hs-overlay="#hs-application-sidebar">
-        <span class="sr-only">Toggle Navigation</span>
-        <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M15 3v18" />
-          <path d="m8 9 3 3-3 3" />
-        </svg>
-      </button>
-      <!-- End Navigation Toggle -->
-
-      <!-- Breadcrumb -->
-      <ol class="ms-3 flex items-center whitespace-nowrap">
-        <li class="flex items-center text-sm text-gray-800 ">
-          Application Layout
-          <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400 " width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-        </li>
-        <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
-          Payments
-        </li>
-      </ol>
-      <!-- End Breadcrumb -->
-    </div>
-  </div>
-  <!-- End Breadcrumb -->
 
   <!-- Sidebar -->
   <?php include('./components/sidebar.php'); ?>

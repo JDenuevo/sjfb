@@ -80,13 +80,15 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
-
+  
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
   </noscript>
@@ -433,15 +435,17 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
   <!-- /cta banner -->
 
   <?php include('./components/footer.php'); ?>
+  <?php include('live_chat.php'); ?>
 
   <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script>AOS.init({ once: true, easing: 'ease-out-cubic' });</script>
 
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
-  <script src="./assets/main.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
-  <script src="./functions/products_process.js"></script>
+  
+  <!-- ✅ products_process.js handles all product card JS (variant selection, add-to-cart, search, share) -->
+  <script src="./functions/product_process.js"></script>
 
 </body>
 </html>

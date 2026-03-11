@@ -87,8 +87,11 @@ while ($market = mysqli_fetch_assoc($markets_result)) {
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <link href="style.css" rel="stylesheet"><link href="output.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
+  
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="style.css" rel="stylesheet">
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 

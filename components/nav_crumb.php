@@ -26,7 +26,7 @@ $isProductPage = strpos($currentUri, '/item/') !== false || strpos($currentUri, 
 ?>
 
 <!-- Breadcrumb Navigation -->
-<div class="max-w-[85rem] pt-4 
+<div class="max-w-[85rem] pb-4 
      <?= ($isBlogListing || $isBlogPost || $isProductPage) 
           ? 'block' // Always show on blog pages AND product pages 
           : 'block sm:block md:hidden lg:hidden xl:hidden' // Show only on SM/XS for other pages

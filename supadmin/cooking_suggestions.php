@@ -82,9 +82,9 @@ while ($p = $productsResult->fetch_assoc()) {
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
-  <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
+  <!-- CSS Files -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="../style.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">

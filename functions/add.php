@@ -120,63 +120,113 @@ function validateCartItems(mysqli $conn, array $cart): array {
     return $errors;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // REGISTER
-    // ─────────────────────────────────────────────────────────────────────────
-    if (isset($_POST['register_account'])) {
+        // ─────────────────────────────────────────────────────────────────────────
+        // REGISTER
+        // ─────────────────────────────────────────────────────────────────────────
+        if (isset($_POST['register_account'])) {
+
+        // Already logged in? Just go to shop.
         if (isset($_SESSION['account_id'])) {
-            header("Location: ../user/orders.php");
+            header("Location: ../account/shop.php");
             exit();
         }
 
-        $email            = trim($_POST['email']);
-        $username         = trim($_POST['username']);
-        $password         = trim($_POST['password']);
-        $confirm_password = trim($_POST['confirm_password']);
+        $email            = trim($_POST['email']            ?? '');
+        $username         = trim($_POST['username']         ?? '');
+        $password         = trim($_POST['password']         ?? '');
+        $confirm_password = trim($_POST['confirm_password'] ?? '');
         $role             = 'customer';
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL))
-            redirectWithMessage('../register.php', "Invalid email format!");
+        // ── Field-level validation ────────────────────────────────────────────────
+        if (empty($email) || empty($username) || empty($password) || empty($confirm_password)) {
+            redirectWithMessage('../register.php', "All fields are required.");
+        }
 
-        if (strlen($password) < 8 ||
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            redirectWithMessage('../register.php', "Please enter a valid email address.");
+        }
+
+        if (!preg_match('/^[a-zA-Z0-9_]{5,}$/', $username)) {
+            redirectWithMessage('../register.php', "Username must be at least 5 characters and contain only letters, numbers, or underscores.");
+        }
+
+        if (
+            strlen($password) < 8          ||
             !preg_match('/[A-Z]/', $password) ||
             !preg_match('/[0-9]/', $password) ||
-            !preg_match('/[\W]/',  $password))
-            redirectWithMessage('../register.php', "Password must be at least 8 characters long, contain an uppercase letter, a number, and a special character!");
+            !preg_match('/[\W_]/',  $password)
+        ) {
+            redirectWithMessage('../register.php', "Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
+        }
 
-        if ($password !== $confirm_password)
-            redirectWithMessage('../register.php', "Passwords do not match!");
+        if ($password !== $confirm_password) {
+            redirectWithMessage('../register.php', "Passwords do not match.");
+        }
 
-        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE email = ?");
-        $stmt->bind_param("s", $email); $stmt->execute();
-        if ($stmt->get_result()->num_rows > 0)
-            redirectWithMessage('../register.php', "Email is already registered!");
+        // ── Duplicate checks ──────────────────────────────────────────────────────
+        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? LIMIT 1");
+        if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        if ($stmt->get_result()->num_rows > 0) {
+            $stmt->close();
+            redirectWithMessage('../register.php', "That email address is already registered.");
+        }
+        $stmt->close();
 
-        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE username = ?");
-        $stmt->bind_param("s", $username); $stmt->execute();
-        if ($stmt->get_result()->num_rows > 0)
-            redirectWithMessage('../register.php', "Username is already taken!");
+        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? LIMIT 1");
+        if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        if ($stmt->get_result()->num_rows > 0) {
+            $stmt->close();
+            redirectWithMessage('../register.php', "That username is already taken.");
+        }
+        $stmt->close();
 
+        // ── Insert new account ────────────────────────────────────────────────────
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt   = $conn->prepare("INSERT INTO accounts (email, username, password_hash, role) VALUES (?, ?, ?, ?)");
+
+        $stmt = $conn->prepare("
+            INSERT INTO accounts (email, username, password_hash, role)
+            VALUES (?, ?, ?, ?)
+        ");
+        if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
         $stmt->bind_param("ssss", $email, $username, $hashed, $role);
+
         if (!$stmt->execute()) {
-            error_log("MySQL Error: " . $stmt->error);
-            redirectWithMessage('../register.php', "Database error: Please try again later!");
+            error_log("Register error: " . $stmt->error);
+            $stmt->close();
+            redirectWithMessage('../register.php', "Registration failed. Please try again.");
         }
 
         $newAccountId = $stmt->insert_id;
-        $_SESSION['account_id'] = $newAccountId;
-
-        logActivity($conn, 'account', $newAccountId, 'Account registered', null, null,
-            "New customer account created. Username: {$username} | Email: {$email}",
-            $newAccountId, 'customer');
-
         $stmt->close();
+
+        // ── Activity log (only if helper exists) ─────────────────────────────────
+        if (function_exists('logActivity')) {
+            logActivity(
+                $conn, 'account', $newAccountId,
+                'Account registered', null, null,
+                "New customer account. Username: {$username} | Email: {$email}",
+                $newAccountId, 'customer'
+            );
+        }
+
+        // ── Auto-login: set session immediately ───────────────────────────────────
+        session_regenerate_id(true); // prevent session fixation
+
+        $_SESSION['account_id']      = $newAccountId;
+        $_SESSION['username']        = $username;
+        $_SESSION['role']            = 'customer';
+        $_SESSION['loggedinasuser']  = true;
+
         $conn->close();
-        redirectWithMessage('../details.php', "Registration successful! Please enter your details.", 'success');
+
+        // ── Redirect to shop (no details step required) ───────────────────────────
+        redirectWithMessage('../account/shop.php', "Welcome aboard, {$username}! Your account has been created.", 'success');
     }
 
     // ─────────────────────────────────────────────────────────────────────────

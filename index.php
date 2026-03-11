@@ -59,29 +59,30 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
   <meta name="twitter:description" content="The largest fish brokerage in the Philippines, offering professional seafood trading and brokerage services nationwide.">
   <meta name="twitter:image" content="https://fishbrokers.net/assets/icons/logo.svg">
   
-  <link rel="canonical" href="https://fishbrokers.net/">
   <link rel="shortcut icon" href="./assets/icons/logo.ico">
   <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
   <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
-
+    
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
 
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
   </noscript>
-
   <style>
     /* ── Core tokens (mirrors sustainability.php) ── */
     body { font-family: 'Lexend', sans-serif; }
@@ -450,36 +451,6 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
         <p class="mt-2 text-gray-500">Check back soon for updates from St. Joseph Fish Brokerage Inc.</p>
       </div>
       <?php endif; ?>
-    </div>
-  </section>
-
-  <!-- ══════════════════════════════════════════════
-       CTA SECTION — full gradient (sustainability style)
-  ══════════════════════════════════════════════ -->
-  <section class="relative py-24 overflow-hidden" data-aos="fade-up">
-    <div class="absolute inset-0 gradient-orange opacity-95"></div>
-    <div class="absolute inset-0" style="background-image:radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px);background-size:28px 28px"></div>
-
-    <div class="relative z-10 max-w-3xl mx-auto px-6 text-center text-white">
-      <span class="text-xs font-bold tracking-widest uppercase text-emerald-300 block mb-4">Ready to Order?</span>
-      <h2 class="font-display text-3xl md:text-5xl font-bold mb-6">
-        Fresh Seafood,<br>Delivered to Your Business
-      </h2>
-      <p class="text-lg text-white/75 mb-10 leading-relaxed">
-        Whether you're a restaurant, retailer, or household — St. Joseph has the freshest catch waiting for you.
-      </p>
-      <div class="flex flex-col sm:flex-row gap-4 justify-center mt-5">
-        <a href="./shop.php"
-          class="py-3.5 px-8 inline-flex items-center justify-center gap-2 rounded-xl bg-white text-orange-600 font-semibold hover:bg-orange-50 transition-all hover:-translate-y-0.5 shadow-md">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          Shop Seafood
-        </a>
-        <a href="./contact.php"
-          class="py-3.5 px-8 inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 text-white font-semibold hover:bg-white/10 transition-all hover:-translate-y-0.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-          Contact Us Today
-        </a>
-      </div>
     </div>
   </section>
 

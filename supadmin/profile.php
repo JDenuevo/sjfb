@@ -42,11 +42,9 @@ $row = $result->fetch_assoc();
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
-  <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
-
-  <!-- CSS Preline -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="../style.css" rel="stylesheet">
+
 </head>
 
 

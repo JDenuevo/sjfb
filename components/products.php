@@ -1,50 +1,231 @@
 <!-- components/products.php -->
-<!-- JS handled by: cart_core.js (cart ops) + products_patch.js (variants, search, add-to-cart, share) -->
-<div class="px-4 sm:px-6 lg:px-8 mx-auto">
+<!-- JS handled by: cart_process.js (cart ops) + product_process.js (variants, search, add-to-cart, share) -->
+<div class="mx-auto">
 
-  <form method="GET" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>">
-    <div class="flex items-center justify-between my-5 gap-2">
-      <div class="flex-grow"></div>
-      
-      <div class="relative w-full">
-        <?php 
-          $preservedParams = ['page'];
-          foreach ($preservedParams as $param) {
-            if (isset($_GET[$param]) && !empty($_GET[$param])) {
-              echo '<input type="hidden" name="' . $param . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-            }
-          }
-        ?>
-        <div class="relative">
-          <input type="text" name="search" id="searchInput"
-            value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>"
-            class="py-3 pl-10 pr-12 px-4 block w-full rounded-full text-sm border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
-            placeholder="What would you like?" autocomplete="off"/>
-          <button type="button" id="clearSearch"
-            class="absolute inset-y-0 right-0 flex items-center pr-3 hover:text-gray-700 transition-colors <?php echo !isset($_GET['search']) || empty($_GET['search']) ? 'hidden' : ''; ?>">
-            <span class="text-lg font-semibold me-3 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
-            </span>
-          </button>
-        </div>
-        <button type="submit" class="hidden"></button>
-        <div id="autocompleteResults" class="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-100 hidden"></div>
-      </div>
-      <button type="submit" class="cursor-pointer p-3 rounded-3xl justify-center items-center inline-flex bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 focus:outline-none ml-2 flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" />
-        </svg>
+  <div class="flex items-center my-5 gap-2">
+
+    <!-- Mobile Filter Button -->
+    <button type="button" id="openFilterCanvas"
+      class="md:hidden flex-shrink-0 flex items-center gap-2 py-3 px-4 rounded-full bg-white border border-gray-200 text-gray-600 text-sm font-medium shadow-sm hover:border-orange-400 hover:text-orange-600 transition-all duration-200">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+      <?php
+        // Count active filters for badge (slug-based now)
+        $activeSlugs = array_filter(
+          isset($_GET['category']) ? explode(',', $_GET['category']) : [],
+          fn($c) => $c !== 'all' && $c !== ''
+        );
+        $activeBadge = count($activeSlugs) + (!empty($_GET['price']) ? 1 : 0);
+      ?>
+      <?php if ($activeBadge > 0): ?>
+      <span class="bg-orange-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none"><?= $activeBadge ?></span>
+      <?php endif; ?>
+    </button>
+
+    <!-- Search input (plain div, no form — search is AJAX only) -->
+    <div class="relative flex-1 min-w-0">
+      <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-4 text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+      </span>
+      <input type="text" id="searchInput"
+        value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>"
+        class="py-3 ps-10 pe-10 block w-full rounded-full text-sm border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
+        placeholder="What would you like?" autocomplete="off"/>
+      <button type="button" id="clearSearch"
+        class="absolute inset-y-0 right-0 flex items-center pe-4 text-gray-400 hover:text-gray-600 transition-colors <?= empty($_GET['search']) ? 'hidden' : '' ?>">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
       </button>
+      <div id="autocompleteResults" class="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-100 hidden"></div>
     </div>
-  </form>
+
+    <!-- Search AJAX trigger button -->
+    <button type="button" id="searchSubmitBtn"
+      class="cursor-pointer flex-shrink-0 p-3 rounded-3xl inline-flex items-center justify-center bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 focus:outline-none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+    </button>
+  </div>
 
 </div>
 
+<?php
+// ─── Shared sidebar data ──────────────────────────────────────────────────────
+// Selected slugs (not IDs) from URL
+$selected_slugs = isset($_GET['category']) ? array_filter(explode(',', $_GET['category']), fn($c) => $c !== 'all' && $c !== '') : [];
+$selected_price = isset($_GET['price']) ? $_GET['price'] : '';
+
+$priceOptions = [
+  'under200' => 'Under ₱200',
+  '200-400'  => '₱200 - ₱400',
+  '400-600'  => '₱400 - ₱600',
+  'over600'  => 'Over ₱600',
+];
+
+// Total product count
+$total_query  = "SELECT COUNT(DISTINCT p.product_id) as total 
+                 FROM products p 
+                 JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0
+                 WHERE p.is_deleted = 0 AND pv.stock_quantity > 0";
+$total_result = $conn->query($total_query);
+$total_count  = $total_result ? $total_result->fetch_assoc()['total'] : 0;
+
+// Fetch all parent categories + their subcategories
+$categories = [];
+$cat_res = $conn->query(
+  "SELECT pc.category_id, pc.category_name, pc.category_slug,
+          COUNT(DISTINCT pcl.product_id) AS product_count
+   FROM product_categories pc
+   LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
+   LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
+   LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.stock_quantity > 0
+   WHERE pc.parent_id IS NULL AND pc.is_active = 1
+   GROUP BY pc.category_id
+   ORDER BY pc.sort_order ASC, pc.category_name ASC"
+);
+if ($cat_res) {
+  while ($row = $cat_res->fetch_assoc()) {
+    $row['subs'] = [];
+    $sub_stmt = $conn->prepare(
+      "SELECT pc.category_id, pc.category_name, pc.category_slug,
+              COUNT(DISTINCT pcl.product_id) AS product_count
+       FROM product_categories pc
+       LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
+       LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
+       LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.stock_quantity > 0
+       WHERE pc.parent_id = ? AND pc.is_active = 1
+       GROUP BY pc.category_id ORDER BY pc.sort_order ASC, pc.category_name ASC"
+    );
+    $sub_stmt->bind_param('i', $row['category_id']);
+    $sub_stmt->execute();
+    $sub_res = $sub_stmt->get_result();
+    if ($sub_res) while ($s = $sub_res->fetch_assoc()) $row['subs'][] = $s;
+    $sub_stmt->close();
+    $categories[] = $row;
+  }
+}
+
+// Helper: is a category slug currently selected?
+function isCatSlugSelected(string $slug, array $selectedSlugs): bool {
+  return in_array($slug, $selectedSlugs);
+}
+?>
+
+<!-- ═══════════════════════════════════════════
+     MOBILE FILTER OFFCANVAS
+════════════════════════════════════════════ -->
+<div id="fcBackdrop" onclick="closeFilterCanvas()"
+  style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9998;"></div>
+
+<div id="filterCanvas"
+  style="display:none; position:fixed; top:0; left:0; width:300px; max-width:85vw; height:100dvh;
+         background:#fff; z-index:9999; flex-direction:column;
+         box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+         transform:translateX(-100%); transition:transform 0.3s ease;"
+  class="flex md:hidden">
+
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <div class="flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+      <h2 class="text-base font-semibold text-gray-900">Filters</h2>
+    </div>
+    <button type="button" onclick="closeFilterCanvas()" class="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 transition">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+    <!-- Offcanvas Categories -->
+    <div>
+      <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Categories
+      </h3>
+      <div class="space-y-1">
+        <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+          <span class="cat-cb-wrap">
+            <input type="checkbox" class="fc-cat" value="all" data-category-slug="all"
+                   <?= empty($selected_slugs) ? 'checked' : '' ?>>
+            <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+          </span>
+          <span class="text-sm text-gray-700 flex-1">All Products</span>
+          <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $total_count ?></span>
+        </label>
+        <?php foreach ($categories as $cat): ?>
+        <div>
+          <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+            <span class="cat-cb-wrap">
+              <input type="checkbox" class="fc-cat" value="<?= htmlspecialchars($cat['category_slug']) ?>"
+                     data-category-slug="<?= htmlspecialchars($cat['category_slug']) ?>"
+                     <?= isCatSlugSelected($cat['category_slug'], $selected_slugs) ? 'checked' : '' ?>>
+              <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+            </span>
+            <span class="text-sm text-gray-700 flex-1"><?= htmlspecialchars($cat['category_name']) ?></span>
+            <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $cat['product_count'] ?></span>
+          </label>
+          <?php if (!empty($cat['subs'])): ?>
+          <div class="cat-subs-group space-y-1">
+            <?php foreach ($cat['subs'] as $sub): ?>
+            <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+              <span class="cat-cb-wrap">
+                <input type="checkbox" class="fc-cat" value="<?= htmlspecialchars($sub['category_slug']) ?>"
+                       data-category-slug="<?= htmlspecialchars($sub['category_slug']) ?>"
+                       data-parent-slug="<?= htmlspecialchars($cat['category_slug']) ?>"
+                       <?= isCatSlugSelected($sub['category_slug'], $selected_slugs) ? 'checked' : '' ?>>
+                <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+              </span>
+              <span class="text-sm text-gray-600 flex-1"><?= htmlspecialchars($sub['category_name']) ?></span>
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $sub['product_count'] ?></span>
+            </label>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <!-- Offcanvas Price Range -->
+    <div>
+      <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Price Range
+      </h3>
+      <div class="space-y-1">
+        <?php foreach ($priceOptions as $val => $label): ?>
+        <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+          <span class="cat-radio-wrap">
+            <input type="radio" name="fc_price" value="<?= $val ?>" class="fc-price"
+                   <?= $selected_price === $val ? 'checked' : '' ?>>
+            <span class="cat-radio-box"></span>
+          </span>
+          <span class="text-sm text-gray-700"><?= $label ?></span>
+        </label>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-shrink-0 px-5 py-4 border-t border-gray-100 flex gap-3">
+    <button type="button" id="fcClear"
+      class="flex-1 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition flex items-center justify-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Clear
+    </button>
+    <button type="button" id="fcApply"
+      class="flex-1 py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl transition flex items-center justify-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11l3 3l8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+      Apply
+    </button>
+  </div>
+</div>
+<!-- END OFFCANVAS -->
+
+
 <!-- Main Content Grid: Sidebar + Products -->
 <div class="grid md:grid-cols-4 gap-8">
-  <!-- Sidebar Filters -->
-  <div class="md:col-span-1 relative">
-    <aside class="space-y-6">
+
+  <!-- ── Desktop Sidebar ── -->
+  <div class="md:col-span-1 hidden md:block">
+    <aside class="space-y-6 sticky top-4">
+
       <!-- Categories -->
       <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -53,91 +234,50 @@
           </svg>
           Categories
         </h3>
-        
-        <?php
-        $cat_query = "SELECT 
-                        pc.category_id, 
-                        pc.category_name, 
-                        pc.category_slug,
-                        COUNT(DISTINCT pcl.product_id) as product_count
-                      FROM product_categories pc
-                      LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
-                      LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
-                      LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.stock_status = 'In Stock'
-                      WHERE pc.parent_id IS NULL AND pc.is_active = 1
-                      GROUP BY pc.category_id
-                      ORDER BY pc.sort_order ASC, pc.category_name ASC";
-        $cat_result = $conn->query($cat_query);
-        $selected_cats = isset($_GET['category']) ? explode(',', $_GET['category']) : [];
-        ?>
-        
         <div class="space-y-2">
+          <!-- All Products -->
           <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
-            <input type="checkbox" class="category-filter w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
-                   value="all" data-category-id="all"
-                   <?php echo empty($selected_cats) || in_array('all', $selected_cats) ? 'checked' : ''; ?>
-                   onchange="handleCategoryChange(this)">
+            <span class="cat-cb-wrap">
+              <input type="checkbox" class="category-filter" value="all" data-category-slug="all"
+                     <?= empty($selected_slugs) ? 'checked' : '' ?> onchange="handleCategoryChange(this)">
+              <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+            </span>
             <span class="text-sm text-gray-700 flex-1">All Products</span>
-            <?php
-            $total_query = "SELECT COUNT(DISTINCT p.product_id) as total FROM products p 
-                            JOIN product_variants pv ON p.product_id = pv.product_id 
-                            WHERE p.is_deleted = 0 AND pv.stock_status = 'In Stock'";
-            $total_result = $conn->query($total_query);
-            $total_count = $total_result->fetch_assoc()['total'];
-            ?>
             <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $total_count ?></span>
           </label>
 
-          <?php 
-          if ($cat_result && $cat_result->num_rows > 0):
-            while ($category = $cat_result->fetch_assoc()): 
-              $sub_query = "SELECT pc.category_id, pc.category_name, pc.category_slug,
-                                    COUNT(DISTINCT pcl.product_id) as product_count
-                            FROM product_categories pc
-                            LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
-                            LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
-                            LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.stock_status = 'In Stock'
-                            WHERE pc.parent_id = ? AND pc.is_active = 1
-                            GROUP BY pc.category_id ORDER BY pc.sort_order ASC, pc.category_name ASC";
-              $sub_stmt = $conn->prepare($sub_query);
-              $sub_stmt->bind_param("i", $category['category_id']);
-              $sub_stmt->execute();
-              $sub_result = $sub_stmt->get_result();
-          ?>
+          <?php foreach ($categories as $cat): ?>
           <div class="category-group">
             <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
-              <input type="checkbox" class="category-filter w-4 h-4 text-orange-600 rounded border border-gray-300 focus:ring-orange-500"
-                     value="<?= $category['category_id'] ?>"
-                     data-category-id="<?= $category['category_id'] ?>"
-                     data-category-slug="<?= $category['category_slug'] ?>"
-                     <?php echo in_array($category['category_id'], $selected_cats) ? 'checked' : ''; ?>
-                     onchange="handleCategoryChange(this)">
-              <span class="text-sm text-gray-700 flex-1"><?= htmlspecialchars($category['category_name']) ?></span>
-              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $category['product_count'] ?></span>
+              <span class="cat-cb-wrap">
+                <input type="checkbox" class="category-filter" value="<?= htmlspecialchars($cat['category_slug']) ?>"
+                       data-category-slug="<?= htmlspecialchars($cat['category_slug']) ?>"
+                       <?= isCatSlugSelected($cat['category_slug'], $selected_slugs) ? 'checked' : '' ?> onchange="handleCategoryChange(this)">
+                <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+              </span>
+              <span class="text-sm text-gray-700 flex-1"><?= htmlspecialchars($cat['category_name']) ?></span>
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $cat['product_count'] ?></span>
             </label>
-            <?php if ($sub_result && $sub_result->num_rows > 0): ?>
-            <div class="ml-6 mt-1 space-y-1">
-              <?php while ($subcat = $sub_result->fetch_assoc()): ?>
+
+            <?php if (!empty($cat['subs'])): ?>
+            <div class="cat-subs-group space-y-1">
+              <?php foreach ($cat['subs'] as $sub): ?>
               <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
-                <input type="checkbox" class="category-filter w-4 h-4 text-orange-600 rounded border border-gray-300 focus:ring-orange-500"
-                       value="<?= $subcat['category_id'] ?>"
-                       data-category-id="<?= $subcat['category_id'] ?>"
-                       data-category-slug="<?= $subcat['category_slug'] ?>"
-                       data-parent-id="<?= $category['category_id'] ?>"
-                       <?php echo in_array($subcat['category_id'], $selected_cats) ? 'checked' : ''; ?>
-                       onchange="handleCategoryChange(this)">
-                <span class="text-sm text-gray-600 flex-1"><?= htmlspecialchars($subcat['category_name']) ?></span>
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $subcat['product_count'] ?></span>
+                <span class="cat-cb-wrap">
+                  <input type="checkbox" class="category-filter" value="<?= htmlspecialchars($sub['category_slug']) ?>"
+                         data-category-slug="<?= htmlspecialchars($sub['category_slug']) ?>"
+                         data-parent-slug="<?= htmlspecialchars($cat['category_slug']) ?>"
+                         <?= isCatSlugSelected($sub['category_slug'], $selected_slugs) ? 'checked' : '' ?> onchange="handleCategoryChange(this)">
+                  <span class="cat-cb-box"><svg viewBox="0 0 12 12"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg></span>
+                </span>
+                <span class="text-sm text-gray-600 flex-1"><?= htmlspecialchars($sub['category_name']) ?></span>
+                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"><?= $sub['product_count'] ?></span>
               </label>
-              <?php endwhile; ?>
+              <?php endforeach; ?>
             </div>
             <?php endif; ?>
-            <?php $sub_stmt->close(); ?>
           </div>
-          <?php 
-            endwhile;
-          endif; 
-          ?>
+          <?php endforeach; ?>
         </div>
       </div>
 
@@ -149,20 +289,14 @@
           </svg>
           Price Range
         </h3>
-        <?php $selected_price = isset($_GET['price']) ? $_GET['price'] : ''; ?>
         <div class="space-y-2">
-          <?php 
-          $priceOptions = [
-            'under200' => 'Under ₱200',
-            '200-400'  => '₱200 - ₱400',
-            '400-600'  => '₱400 - ₱600',
-            'over600'  => 'Over ₱600',
-          ];
-          foreach ($priceOptions as $val => $label): ?>
+          <?php foreach ($priceOptions as $val => $label): ?>
           <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
-            <input type="radio" name="price" value="<?= $val ?>"
-                   class="price-filter w-4 h-4 text-orange-600 border border-gray-300 focus:ring-orange-500"
-                   <?php echo $selected_price == $val ? 'checked' : ''; ?>>
+            <span class="cat-radio-wrap">
+              <input type="radio" name="price" value="<?= $val ?>" class="price-filter"
+                     <?= $selected_price === $val ? 'checked' : '' ?>>
+              <span class="cat-radio-box"></span>
+            </span>
             <span class="text-sm text-gray-700"><?= $label ?></span>
           </label>
           <?php endforeach; ?>
@@ -172,455 +306,225 @@
       <!-- Clear Filters -->
       <button type="button" onclick="clearAllFilters()"
               class="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Clear All Filters
       </button>
     </aside>
   </div>
 
-  <!-- Products Grid -->
+  <!-- ── Products Grid ── -->
   <div class="md:col-span-3">
     <div id="productsContainer" class="relative min-h-[500px]">
-      <div id="productsLoading" class="hidden">
-        <div class="flex flex-col items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
-          <p class="text-gray-600">Loading products...</p>
-        </div>
+
+      <!-- Loading spinner (hidden by default) -->
+      <div id="productsLoading" class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 rounded-xl">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
+        <p class="text-gray-600 text-sm font-medium">Loading products...</p>
       </div>
-      
+
+      <!-- Products are rendered here on first load AND replaced by AJAX -->
       <div id="productsContent">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <?php
-          if ($productsResult && $productsResult->num_rows > 0) {
-            $products = [];
-            while ($row = $productsResult->fetch_assoc()) {
-              $pid = $row['product_id'];
-              if (!isset($products[$pid])) {
-                $products[$pid] = [
-                  'product_name'     => $row['product_name'],
-                  'product_unit'     => $row['product_unit'],
-                  'product_nickname' => $row['product_nickname'],
-                  'image_url'        => !empty($row['image_path'])
-                    ? 'http://localhost/sjfbi-js/uploads/products/' . $row['image_path']
-                    : 'http://localhost/sjfbi-js/uploads/products/default.png',
-                  'category_name'    => $row['category_name'],
-                  'variants'         => [],
-                  'has_stock'        => false,
-                  'total_stock'      => 0,
-                ];
-              }
-              if (!empty($row['variant_name'])) {
-                $stockQty  = intval($row['stock_quantity'] ?? 0);
-                $hasStk    = $stockQty > 0;
-                $products[$pid]['variants'][] = [
-                  'variant_id'      => $row['variant_id'],
-                  'variant_name'    => $row['variant_name'],
-                  'variant_price'   => $row['variant_price'],
-                  'discount_price'  => $row['discount_price'],
-                  'unit_type'       => $row['unit_type'] ?? 'piece',
-                  'minimum_order'   => $row['minimum_order'] ?? 1,
-                  'order_increment' => $row['order_increment'] ?? 1,
-                  'stock_quantity'  => $stockQty,
-                  'has_stock'       => $hasStk,
-                ];
-                if ($hasStk) $products[$pid]['has_stock'] = true;
-                $products[$pid]['total_stock'] += $stockQty;
-              }
+        <?php
+        // ── Initial server-side render ──────────────────────────────────────
+        // Re-use the same fetch_products.php logic via include so the
+        // first paint is identical to what AJAX returns.
+        //
+        // We need $conn available (it is, from the parent page).
+        // We temporarily set $_GET so fetch_products can read filters.
+        // fetch_products.php outputs only the grid HTML, so we capture it.
+
+        // Build the same URL params that AJAX would send
+        $fp_get_backup = $_GET;
+
+        // Category: if selected_slugs exist, pass them; otherwise clear
+        if (!empty($selected_slugs)) {
+            $_GET['category'] = implode(',', $selected_slugs);
+        } else {
+            unset($_GET['category']);
+        }
+
+        // Capture output of fetch_products (it echoes the grid)
+        ob_start();
+        // We inline the query logic here so we don't need a separate HTTP call
+        // and so $conn is available. This mirrors fetch_products.php exactly.
+
+        $fp_search = isset($_GET['search']) ? trim($_GET['search']) : '';
+        $fp_query = "SELECT 
+                p.product_id, p.product_name, p.product_unit, p.product_nickname,
+                pi.image_path, 
+                v.variant_id, v.variant_name, v.variant_price, v.discount_price,
+                v.unit_type, v.minimum_order, v.order_increment, v.stock_quantity,
+                GROUP_CONCAT(DISTINCT c.category_name ORDER BY c.category_name SEPARATOR ', ') AS category_names
+              FROM products p
+              LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
+              LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.is_deleted = 0
+              LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
+              LEFT JOIN product_categories c ON pcl.category_id = c.category_id AND c.is_active = 1
+              WHERE p.is_deleted = 0";
+
+        $fp_params = []; $fp_types = '';
+
+        if (!empty($selected_slugs)) {
+            $fp_slugStr = implode(',', array_fill(0, count($selected_slugs), '?'));
+            $fp_idQuery = "SELECT category_id FROM product_categories WHERE category_slug IN ($fp_slugStr) AND is_active = 1
+                           UNION
+                           SELECT pc2.category_id FROM product_categories pc2
+                           INNER JOIN product_categories pc1 ON pc2.parent_id = pc1.category_id
+                           WHERE pc1.category_slug IN ($fp_slugStr) AND pc2.is_active = 1";
+            $fp_idStmt = $conn->prepare($fp_idQuery);
+            $fp_allSlugs = array_merge($selected_slugs, $selected_slugs);
+            $fp_idStmt->bind_param(str_repeat('s', count($fp_allSlugs)), ...$fp_allSlugs);
+            $fp_idStmt->execute();
+            $fp_idRes = $fp_idStmt->get_result();
+            $fp_catIds = [];
+            while ($r = $fp_idRes->fetch_assoc()) $fp_catIds[] = intval($r['category_id']);
+            $fp_idStmt->close();
+
+            if (!empty($fp_catIds)) {
+                $fp_idPH = implode(',', array_fill(0, count($fp_catIds), '?'));
+                $fp_query .= " AND p.product_id IN (SELECT product_id FROM product_category_links WHERE category_id IN ($fp_idPH))";
+                $fp_types .= str_repeat('i', count($fp_catIds));
+                $fp_params = array_merge($fp_params, $fp_catIds);
+            } else {
+                $fp_query .= " AND 1=0";
             }
+        }
 
-            foreach ($products as $product_id => $product):
-              $product_name     = $product['product_name'];
-              $product_unit     = $product['product_unit'];
-              $product_nickname = $product['product_nickname'];
-              $image_url        = $product['image_url'];
-              $variants         = $product['variants'];
-              $category_name    = $product['category_name'];
-              $hasStock         = $product['has_stock'];
+        if (!empty($selected_price)) {
+            switch ($selected_price) {
+                case 'under200': $fp_query .= " AND v.variant_price < 200"; break;
+                case '200-400':  $fp_query .= " AND v.variant_price BETWEEN 200 AND 400"; break;
+                case '400-600':  $fp_query .= " AND v.variant_price BETWEEN 400 AND 600"; break;
+                case 'over600':  $fp_query .= " AND v.variant_price > 600"; break;
+            }
+        }
 
-              $nicknames = [];
-              if (!empty($product_nickname)) {
-                $nd = json_decode($product_nickname, true);
-                if (is_array($nd)) $nicknames = array_slice($nd, 0, 3);
-              }
+        if (!empty($fp_search)) {
+            $fp_query .= " AND (p.product_name LIKE ? OR p.product_unit LIKE ? OR c.category_name LIKE ? OR v.variant_name LIKE ? OR JSON_SEARCH(LOWER(p.product_nickname), 'all', LOWER(?)) IS NOT NULL)";
+            $fp_st = '%' . $fp_search . '%';
+            $fp_types .= 'sssss';
+            $fp_params = array_merge($fp_params, [$fp_st, $fp_st, $fp_st, $fp_st, $fp_search]);
+        }
 
-              $shareUrlNew = $baseUrl . 'item/' . urlencode(strtolower(str_replace(' ', '-', $product_name)));
-              $shareTitle  = $product_name;
-              $shareText   = 'Check out this fresh seafood: ' . $product_name . ' from St. Joseph Fish Brokerage Inc.';
-          ?>
+        $fp_query .= " GROUP BY p.product_id, v.variant_id ORDER BY p.created_at DESC";
+        $fp_stmt = $conn->prepare($fp_query);
+        if (!empty($fp_params)) $fp_stmt->bind_param($fp_types, ...$fp_params);
+        $fp_stmt->execute();
+        $fp_result = $fp_stmt->get_result();
 
-          <div class="flex flex-col h-full bg-white shadow-lg rounded-lg p-5 relative group">
-            <div class="relative">
-              <a href="item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>" class="block">
-                <img src="<?= htmlspecialchars($image_url) ?>" 
-                     alt="<?= htmlspecialchars($product_name) ?>"
-                     class="w-full h-48 object-cover rounded-md mb-4 shadow-sm <?= !$hasStock ? 'opacity-60' : '' ?>">
-                <?php if (!$hasStock): ?>
-                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-md h-48">
-                  <span class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg transform -rotate-12 shadow-lg">OUT OF STOCK</span>
-                </div>
-                <?php endif; ?>
-              </a>
-            </div>
+        // ── Build products array ──
+        $fp_products = [];
+        while ($row = $fp_result->fetch_assoc()) {
+            $pid = $row['product_id'];
+            if (!isset($fp_products[$pid])) {
+                $fp_products[$pid] = [
+                    'product_name'     => $row['product_name'],
+                    'product_unit'     => $row['product_unit'],
+                    'product_nickname' => $row['product_nickname'],
+                    'image_url'        => !empty($row['image_path'])
+                        ? $baseUrl . 'uploads/products/' . $row['image_path']
+                        : $baseUrl . 'uploads/products/default.png',
+                    'category_names'   => $row['category_names'],
+                    'variants'         => [],
+                    'has_stock'        => false,
+                ];
+            }
+            if (!empty($row['variant_id'])) {
+                $sq  = intval($row['stock_quantity'] ?? 0);
+                $hsk = $sq > 0;
+                $fp_products[$pid]['variants'][] = [
+                    'variant_id'      => $row['variant_id'],
+                    'variant_name'    => $row['variant_name'],
+                    'variant_price'   => $row['variant_price'],
+                    'discount_price'  => $row['discount_price'],
+                    'unit_type'       => $row['unit_type'] ?? 'piece',
+                    'minimum_order'   => $row['minimum_order'] ?? 1,
+                    'order_increment' => $row['order_increment'] ?? 1,
+                    'stock_quantity'  => $sq,
+                    'has_stock'       => $hsk,
+                ];
+                if ($hsk) $fp_products[$pid]['has_stock'] = true;
+            }
+        }
+        $fp_stmt->close();
 
-            <h3 class="text-xl font-semibold text-gray-800 mb-1"><?= htmlspecialchars($product_name) ?></h3>
-            <p class="text-md text-gray-500 mb-4"><?= htmlspecialchars($product_unit) ?></p>
+        // ── Render product cards — same grid wrapper as fetch_products.php output ──
+        echo '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">';
+        include __DIR__ . '/products_card.php'; // components/ folder — same dir as products.php
+        echo '</div>';
 
-            <?php if (!empty($nicknames)): ?>
-            <div class="flex flex-wrap gap-1 mb-3">
-              <?php foreach ($nicknames as $nickname): ?>
-              <span class="px-2 py-1 bg-orange-50 text-orange-700 text-xs rounded-full border border-orange-200">
-                #<?= htmlspecialchars($nickname) ?>
-              </span>
-              <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
+        $fp_html = ob_get_clean();
+        echo $fp_html;
 
-            <?php if (!empty($category_name)): ?>
-            <div class="mb-3">
-              <span class="text-xs text-gray-500">Categories: </span>
-              <span class="text-xs font-medium text-gray-700"><?= htmlspecialchars($category_name) ?></span>
-            </div>
-            <?php endif; ?>
-
-            <?php if ($hasStock): ?>
-            <form class="add-to-cart-form flex flex-col flex-grow" method="POST" action="javascript:void(0)" data-product-id="<?= $product_id ?>">
-              <input type="hidden" name="add_to_cart"      value="1">
-              <input type="hidden" name="product_id"       value="<?= $product_id ?>">
-              <input type="hidden" name="variant_id"       value="">
-              <input type="hidden" name="product_name"     value="<?= htmlspecialchars($product_name) ?>">
-              <input type="hidden" name="variant_name"     value="">
-              <input type="hidden" name="price"            value="">
-              <input type="hidden" name="image_url"        value="<?= htmlspecialchars($image_url) ?>">
-              <input type="hidden" name="quantity"         value="">
-              <input type="hidden" name="unit_type"        value="">
-              <input type="hidden" name="minimum_order"    value="">
-              <input type="hidden" name="order_increment"  value="">
-
-              <!-- Variant Buttons -->
-              <div class="min-h-[72px]">
-                <label class="block text-sm font-medium text-gray-700">Select Size:</label>
-                <div class="flex flex-wrap gap-2">
-                  <?php 
-                  $firstInStock = null;
-                  foreach ($variants as $v) { if ($v['has_stock']) { $firstInStock = $v; break; } }
-                  foreach ($variants as $v):
-                    $vHasStock    = $v['has_stock'];
-                    $isSelected   = ($firstInStock && $v === $firstInStock);
-                    $disabledAttr = $vHasStock ? '' : 'disabled';
-                    $disabledCls  = $vHasStock ? '' : 'opacity-50 cursor-not-allowed';
-                  ?>
-                  <button type="button" class="variant-button px-3 py-2 border rounded-lg text-sm font-medium hover:bg-gray-100 focus:bg-gray-200 transition-all duration-200
-                    <?= $isSelected ? 'selected-variant border-gray-400 bg-gray-100' : 'border-gray-300' ?> <?= $disabledCls ?>"
-                    data-product-id="<?= $product_id ?>"
-                    data-variant-id="<?= $v['variant_id'] ?>"
-                    data-variant-name="<?= htmlspecialchars($v['variant_name']) ?>"
-                    data-variant-price="<?= $v['variant_price'] ?>"
-                    data-discount-price="<?= $v['discount_price'] ?>"
-                    data-unit-type="<?= $v['unit_type'] ?>"
-                    data-minimum-order="<?= $v['minimum_order'] ?>"
-                    data-order-increment="<?= $v['order_increment'] ?>"
-                    data-stock-quantity="<?= $v['stock_quantity'] ?>"
-                    data-has-stock="<?= $vHasStock ? 'true' : 'false' ?>"
-                    <?= $disabledAttr ?>>
-                    <?= htmlspecialchars($v['variant_name']) ?>
-                    <?php if (!$vHasStock): ?><span class="ml-1 text-red-500">(No Stock)</span><?php endif; ?>
-                  </button>
-                  <?php endforeach; ?>
-                </div>
-              </div>
-
-              <!-- Qty Selector -->
-              <div class="mt-3">
-                <div class="flex items-center">
-                  <div class="flex items-center border border-gray-300 rounded">
-                    <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">-</button>
-                    <input type="number" class="quantity w-14 px-1 py-0.5 text-center text-sm border-0 focus:outline-none"
-                           value="" min="" step="">
-                    <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600 hover:text-white">+</button>
-                  </div>
-                  &nbsp;
-                  <span class="text-sm font-medium text-gray-600 unit-display"></span>
-                </div>
-                <p class="text-xs text-gray-500 mt-1 minimum-order-text"></p>
-              </div>
-
-              <div class="price-display mt-3"></div>
-              <div class="flex-grow"></div>
-
-              <div class="mt-4 pt-4 border-t border-gray-200">
-                <div class="flex gap-2">
-                  <button type="submit" name="add_to_cart"
-                          class="cursor-pointer w-full py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Add to Cart">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l14 1l-1 7h-13" /></svg>
-                    Add to Cart
-                  </button>
-                  <button type="button" onclick="shareToFacebook('<?= $shareUrlNew ?>')"
-                          class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-white font-medium transition-all duration-300 flex items-center justify-center" title="Share on Facebook">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="url(#fbg_<?= $product_id ?>)"/><path d="M21.2137 20.2816L21.8356 16.3301H17.9452V13.767C17.9452 12.6857 18.4877 11.6311 20.2302 11.6311H22V8.26699C22 8.26699 20.3945 8 18.8603 8C15.6548 8 13.5617 9.89294 13.5617 13.3184V16.3301H10V20.2816H13.5617V29.8345C14.2767 29.944 15.0082 29.994 15.7534 30C16.4986 30 17.2302 29.944 17.9452 29.8345V20.2816H21.2137Z" fill="white"/><defs><linearGradient id="fbg_<?= $product_id ?>" x1="16" y1="2" x2="16" y2="29.917" gradientUnits="userSpaceOnUse"><stop stop-color="#18ACFE"/><stop offset="1" stop-color="#0163E0"/></linearGradient></defs></svg>
-                  </button>
-                  <button type="button" onclick="shareProduct('<?= $shareTitle ?>', '<?= addslashes($shareText) ?>', '<?= $shareUrlNew ?>')"
-                          class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-dark font-medium transition-all duration-300 flex items-center justify-center" title="Share">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 9h-1a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-8a2 2 0 0 0 -2 -2h-1" /><path d="M12 14v-11" /><path d="M9 6l3 -3l3 3" /></svg>
-                  </button>
-                </div>
-              </div>
-
-              <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
-              <p class="text-red-500 text-sm mt-2 minimum-error-message hidden"></p>
-              <p class="text-red-500 text-sm mt-2 stock-error-message hidden"></p>
-            </form>
-            <?php else: ?>
-            <div class="flex-grow"></div>
-            <div class="mt-4 pt-4 border-t border-gray-200">
-              <div class="flex gap-2">
-                <a href="item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>"
-                   class="block w-full py-2 rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-medium transition-all duration-300 text-center">
-                  View Details
-                </a>
-                <button type="button" onclick="shareToFacebook('<?= $shareUrlNew ?>')"
-                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-white font-medium transition-all duration-300 flex items-center justify-center" title="Share on Facebook">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="url(#fbg2_<?= $product_id ?>)"/><path d="M21.2137 20.2816L21.8356 16.3301H17.9452V13.767C17.9452 12.6857 18.4877 11.6311 20.2302 11.6311H22V8.26699C22 8.26699 20.3945 8 18.8603 8C15.6548 8 13.5617 9.89294 13.5617 13.3184V16.3301H10V20.2816H13.5617V29.8345C14.2767 29.944 15.0082 29.994 15.7534 30C16.4986 30 17.2302 29.944 17.9452 29.8345V20.2816H21.2137Z" fill="white"/><defs><linearGradient id="fbg2_<?= $product_id ?>" x1="16" y1="2" x2="16" y2="29.917" gradientUnits="userSpaceOnUse"><stop stop-color="#18ACFE"/><stop offset="1" stop-color="#0163E0"/></linearGradient></defs></svg>
-                </button>
-                <button type="button" onclick="shareProduct('<?= $shareTitle ?>', '<?= addslashes($shareText) ?>', '<?= $shareUrlNew ?>')"
-                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-dark font-medium transition-all duration-300 flex items-center justify-center" title="Share">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 9h-1a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-8a2 2 0 0 0 -2 -2h-1" /><path d="M12 14v-11" /><path d="M9 6l3 -3l3 3" /></svg>
-                </button>
-              </div>
-            </div>
-            <?php endif; ?>
-          </div>
-
-          <?php
-            endforeach;
-          } else {
-          ?>
-          <div class="col-span-3">
-            <div class="flex flex-col items-center justify-center py-20 text-center">
-              <div class="flex items-center justify-center w-24 h-24 rounded-full bg-gray-100 mb-4">
-                <svg class="w-16 h-16 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.69 7.44a6.973 6.973 0 0 0 -1.69 4.56c0 1.747 .64 3.345 1.699 4.571" /><path d="M2 9.504c7.715 8.647 14.75 10.265 20 2.498c-5.25 -7.761 -12.285 -6.142 -20 2.504" /><path d="M18 11v.01" /><path d="M11.5 10.5c-.667 1 -.667 2 0 3" /></svg>
-              </div>
-              <h3 class="text-lg font-semibold text-gray-800">No products available</h3>
-              <p class="mt-2 text-gray-500 max-w-sm">We couldn't find any products at the moment. Please check back later or try browsing other categories.</p>
-            </div>
-          </div>
-          <?php } ?>
-        </div>
-      </div>
-    </div>
+        // Restore $_GET
+        $_GET = $fp_get_backup;
+        ?>
+      </div><!-- #productsContent -->
+    </div><!-- #productsContainer -->
   </div>
 </div>
 
 <style>
 .variant-button { background-color: white; border: 1px solid #d1d5db; color: #374151; transition: all 0.2s ease; }
 .variant-button.selected-variant { background-color: #f59e0b; border-color: #f59e0b; color: #fff; }
-button[name="add_to_cart"]:disabled { opacity: 0.5; cursor: not-allowed; }
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.add-to-cart-form input.quantity:focus { outline: 2px solid #f97316; outline-offset: 1px; border-radius: 2px; }
 #autocompleteResults { max-height: 400px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,.1); }
-.autocomplete-item { transition: all .15s ease; }
 .autocomplete-item:hover { background-color: #f3f5f6; transform: translateX(2px); }
 #productsContent { transition: opacity 0.3s ease; }
+#productsLoading { pointer-events: none; }
+
+/* Custom checkbox — identical on index.php & shop.php regardless of Preline */
+.cat-cb-wrap { position: relative; width: 1rem; height: 1rem; flex-shrink: 0; }
+.cat-cb-wrap input[type="checkbox"] {
+  position: absolute; opacity: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; cursor: pointer; z-index: 1;
+}
+.cat-cb-box {
+  display: flex; align-items: center; justify-content: center;
+  width: 1rem; height: 1rem; border-radius: 4px;
+  border: 1.5px solid #d1d5db; background: #fff;
+  transition: border-color .15s, background .15s; pointer-events: none;
+}
+.cat-cb-wrap input[type="checkbox"]:checked ~ .cat-cb-box {
+  background: #ea580c; border-color: #ea580c;
+}
+.cat-cb-box svg { display: none; width: 10px; height: 10px; stroke: white; stroke-width: 3; fill: none; }
+.cat-cb-wrap input[type="checkbox"]:checked ~ .cat-cb-box svg { display: block; }
+
+/* Subcategory tree line */
+.cat-subs-group {
+  margin-left: 1.25rem; margin-top: .25rem;
+  padding-left: .75rem; border-left: 2px solid #f3f4f6;
+}
+
+/* Custom radio button — matches checkbox style, immune to Preline */
+.cat-radio-wrap { position: relative; width: 1rem; height: 1rem; flex-shrink: 0; }
+.cat-radio-wrap input[type="radio"] {
+  position: absolute; opacity: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; cursor: pointer; z-index: 1;
+}
+.cat-radio-box {
+  display: flex; align-items: center; justify-content: center;
+  width: 1rem; height: 1rem; border-radius: 50%;
+  border: 1.5px solid #d1d5db; background: #fff;
+  transition: border-color .15s, background .15s; pointer-events: none;
+}
+.cat-radio-wrap input[type="radio"]:checked ~ .cat-radio-box {
+  border-color: #ea580c; border-width: 4px; background: #fff;
+}
+/* Hover state */
+label:hover .cat-radio-box { border-color: #f97316; }
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-
-      var itemForm = document.querySelector('.add-to-cart-form');
-
-      // ── Variant selection — MUST be defined before auto-select click below ─────
-      document.querySelectorAll('.variant-button').forEach(function (button) {
-          button.addEventListener('click', function () {
-              var form          = document.querySelector('.add-to-cart-form');
-              if (!form) return;
-              var variantPrice  = parseFloat(button.dataset.variantPrice);
-              var discountPrice = parseFloat(button.dataset.discountPrice);
-              var unitType      = button.dataset.unitType;
-              var minimumOrder  = parseFloat(button.dataset.minimumOrder);
-              var orderIncr     = parseFloat(button.dataset.orderIncrement);
-              var vHasStock     = button.dataset.hasStock === 'true';
-
-              form.querySelectorAll('.variant-button').forEach(function (b) { b.classList.remove('selected-variant'); });
-              button.classList.add('selected-variant');
-
-              form.querySelector('[name="variant_id"]').value      = button.dataset.variantId;
-              form.querySelector('[name="variant_name"]').value    = button.dataset.variantName;
-              form.querySelector('[name="price"]').value           = discountPrice > 0 ? discountPrice : variantPrice;
-              form.querySelector('[name="unit_type"]').value       = unitType;
-              form.querySelector('[name="minimum_order"]').value   = minimumOrder;
-              form.querySelector('[name="order_increment"]').value = orderIncr;
-
-              var qtyInput = form.querySelector('.quantity');
-              var dispQty  = unitType === 'piece' ? Math.round(minimumOrder) : minimumOrder;
-              qtyInput.value = dispQty;
-              qtyInput.min   = minimumOrder;
-              qtyInput.step  = orderIncr;
-              form.querySelector('[name="quantity"]').value = minimumOrder;
-
-              form.querySelector('.unit-display').textContent       = unitType === 'piece' ? 'pcs' : unitType;
-              form.querySelector('.minimum-order-text').textContent = 'Minimum: ' + minimumOrder + ' ' + (unitType === 'piece' ? 'pcs' : unitType);
-
-              _updatePriceDisplay(form, variantPrice, discountPrice, minimumOrder);
-
-              // Enable/disable submit based on stock
-              var submitBtn = form.querySelector('[name="add_to_cart"]');
-              if (submitBtn) submitBtn.disabled = !vHasStock;
-
-              form.querySelector('.variant-message')?.classList.add('hidden');
-              form.querySelector('.minimum-error-message')?.classList.add('hidden');
-              form.querySelector('.stock-error-message')?.classList.add('hidden');
-          });
-      });
-
-      if (itemForm) {
-          // ── Qty − button ──────────────────────────────────────────────────────
-          itemForm.querySelector('.decrease-quantity')?.addEventListener('click', function () {
-              var qtyInput  = itemForm.querySelector('.quantity');
-              var minOrder  = parseFloat(itemForm.querySelector('[name="minimum_order"]').value) || 1;
-              var orderIncr = parseFloat(itemForm.querySelector('[name="order_increment"]').value) || 1;
-              var newQty    = Math.max(minOrder, parseFloat(qtyInput.value) - orderIncr);
-              qtyInput.value = newQty;
-              itemForm.querySelector('[name="quantity"]').value = newQty;
-              _updateTotalPrice(itemForm);
-          });
-
-          // ── Qty + button ──────────────────────────────────────────────────────
-          itemForm.querySelector('.increase-quantity')?.addEventListener('click', function () {
-              var qtyInput  = itemForm.querySelector('.quantity');
-              var orderIncr = parseFloat(itemForm.querySelector('[name="order_increment"]').value) || 1;
-              var newQty    = parseFloat(qtyInput.value) + orderIncr;
-              qtyInput.value = newQty;
-              itemForm.querySelector('[name="quantity"]').value = newQty;
-              _updateTotalPrice(itemForm);
-          });
-
-          // ── Live price preview while typing ───────────────────────────────────
-          itemForm.querySelector('.quantity')?.addEventListener('input', function () {
-              itemForm.querySelector('[name="quantity"]').value = parseFloat(this.value) || 0;
-              _updateTotalPrice(itemForm);
-          });
-
-          // ── Snap to increment on blur ─────────────────────────────────────────
-          itemForm.querySelector('.quantity')?.addEventListener('change', function () {
-              var minOrder  = parseFloat(itemForm.querySelector('[name="minimum_order"]').value) || 1;
-              var orderIncr = parseFloat(itemForm.querySelector('[name="order_increment"]').value) || 1;
-              var val       = parseFloat(this.value);
-              if (isNaN(val) || val < minOrder) val = minOrder;
-              val = minOrder + Math.round((val - minOrder) / orderIncr) * orderIncr;
-              this.value = val;
-              itemForm.querySelector('[name="quantity"]').value = val;
-              _updateTotalPrice(itemForm);
-          });
-
-          itemForm.querySelector('.quantity')?.addEventListener('keydown', function (e) {
-              if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
-          });
-
-          // ── Add-to-cart submit ─────────────────────────────────────────────────
-          itemForm.addEventListener('submit', async function (e) {
-              e.preventDefault();
-              var variantId       = itemForm.querySelector('[name="variant_id"]').value;
-              var quantity        = parseFloat(itemForm.querySelector('[name="quantity"]').value);
-              var minimumOrder    = parseFloat(itemForm.querySelector('[name="minimum_order"]').value);
-              var unitType        = itemForm.querySelector('[name="unit_type"]').value;
-              var selectedVariant = itemForm.querySelector('.variant-button.selected-variant');
-              var stockQty        = selectedVariant ? parseInt(selectedVariant.dataset.stockQuantity) : 0;
-              var errMsg          = itemForm.querySelector('.minimum-error-message');
-              var stockErrMsg     = itemForm.querySelector('.stock-error-message');
-
-              if (!variantId) { itemForm.querySelector('.variant-message')?.classList.remove('hidden'); return; }
-              if (quantity < minimumOrder) {
-                  errMsg.textContent = 'Minimum order is ' + minimumOrder + ' ' + (unitType === 'piece' ? 'pcs' : unitType);
-                  errMsg.classList.remove('hidden');
-                  return;
-              }
-              if (quantity > stockQty) {
-                  stockErrMsg.textContent = 'Only ' + stockQty + ' ' + (unitType === 'piece' ? 'pcs' : unitType) + ' available';
-                  stockErrMsg.classList.remove('hidden');
-                  return;
-              }
-
-              try {
-                  var res  = await fetch((window.CART_BASE || '/sjfbi-js') + '/functions/add_to_cart.php', {
-                      method: 'POST',
-                      body:   new FormData(itemForm)
-                  });
-                  var data = await res.json();
-                  if (data.status === 'success') {
-                      showToast('Product added to cart!', 'success');
-                      await refreshCartFromServer();
-                      var first = document.querySelector('.variant-button[data-has-stock="true"]');
-                      if (first) first.click();
-                  } else {
-                      showToast(data.message || 'Failed to add product', 'error');
-                  }
-              } catch (err) {
-                  showToast('An error occurred. Please try again.', 'error');
-              }
-          });
-      }
-
-      // ── Auto-select first in-stock variant — LAST so all listeners are ready ──
-      var firstInStock = document.querySelector('.variant-button[data-has-stock="true"]');
-      if (firstInStock) firstInStock.click();
-
-      // ── Price helpers ─────────────────────────────────────────────────────────
-      function _updatePriceDisplay(form, variantPrice, discountPrice, quantity) {
-          var el = form.querySelector('.price-display');
-          if (!el) return;
-          var price = discountPrice > 0 ? discountPrice : variantPrice;
-          var total = price * quantity;
-          if (discountPrice > 0) {
-              el.innerHTML = '<span class="line-through text-gray-500 text-lg">₱' + (variantPrice * quantity).toFixed(2) + '</span>' +
-                            '<span class="text-red-600 font-bold text-2xl ml-2">₱' + total.toFixed(2) + '</span>';
-          } else {
-              el.innerHTML = '<span class="text-gray-800 font-bold text-2xl">₱' + total.toFixed(2) + '</span>';
-          }
-      }
-
-      function _updateTotalPrice(form) {
-          var selected = form.querySelector('.variant-button.selected-variant');
-          if (!selected) return;
-          var qty = parseFloat(form.querySelector('.quantity').value) || 0;
-          _updatePriceDisplay(form, parseFloat(selected.dataset.variantPrice), parseFloat(selected.dataset.discountPrice), qty);
-      }
-  });
-
-  // ── Image switcher ────────────────────────────────────────────────────────────
-  function changeImage(imageName) {
-      document.getElementById('mainImage').src = '<?= $baseUrl ?>uploads/products/' + imageName;
-  }
-
-  // ── Share helpers ─────────────────────────────────────────────────────────────
-  function shareToFacebook(url) {
-      window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), '_blank', 'width=600,height=400,noopener,noreferrer');
-  }
-
-  function shareProduct(title, text, url) {
-      if (navigator.share) {
-          navigator.share({ title: title, text: text, url: url })
-              .catch(function (err) { if (err.name !== 'AbortError') _copyShareLink(url); });
-      } else {
-          _copyShareLink(url);
-      }
-  }
-
-  function _copyShareLink(url) {
-      if (navigator.clipboard) {
-          navigator.clipboard.writeText(url)
-              .then(function () { showToast('Link copied to clipboard!', 'success'); })
-              .catch(function () { showToast('Failed to copy link', 'error'); });
-      } else {
-          var el = document.createElement('textarea');
-          el.value = url;
-          document.body.appendChild(el);
-          el.select();
-          document.execCommand('copy');
-          document.body.removeChild(el);
-          showToast('Link copied to clipboard!', 'success');
-      }
-  }
+// Wire up the search submit button to AJAX (not form submit)
+document.getElementById('searchSubmitBtn').addEventListener('click', function () {
+    var val = document.getElementById('searchInput').value.trim();
+    if (typeof fetchFilteredProducts === 'function') {
+        window._activeFilters = window._activeFilters || {};
+        window._activeFilters.search = val;
+        fetchFilteredProducts();
+    }
+});
 </script>

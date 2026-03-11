@@ -1,11 +1,8 @@
 <?php
 session_start();
 include '../conn.php';
-require_once '../functions/remember.php';
 
-// Logout and clear remember me token
-logoutAndClearRemember($conn);
-
+session_unset();
 // Redirect to homepage
 header("Location: ../index.php");
 exit();

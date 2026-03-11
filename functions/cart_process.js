@@ -1,9 +1,9 @@
 /**
- * cart_core.js
+ * cart_process.js
  * Single source of truth for ALL cart JS across every page.
  * Loaded by: checkout.php, index.php (shop), item.php, any page with cart.php component.
  *
- * PATHS: Always uses /sjfbi-js/functions/... (absolute from web root).
+ * PATHS: Always uses /functions/... (absolute from web root).
  *        Override by setting window.CART_BASE before loading this file.
  */
 

@@ -61,11 +61,9 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
-
+  
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
-
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
@@ -74,9 +72,29 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
   </noscript>
 
   <style>
+     /* ── Core tokens (mirrors sustainability.php) ── */
     body { font-family: 'Lexend', sans-serif; }
     .font-display { font-family: 'Playfair Display', serif; }
 
+    /* Eyebrow label — orange accent line matches sustainability */
+    .section-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: #fb923c;
+      margin-bottom: .75rem;
+    }
+    .section-eyebrow::before {
+      content: '';
+      display: block;
+      width: 2rem;
+      height: 2px;
+      background: #fb923c;
+    }
     .blog-card {
       transition: transform 0.3s ease;
     }
@@ -94,9 +112,10 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
   <!-- Blog Grid -->
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <?php include('../components/nav_crumb.php'); ?>
-    <div class="text-center mt-5">
-      <h1 class="text-3xl font-bold text-gray-900 sm:text-4xl lg:text-5xl">Our Blog</h1>
-      <p class="mt-4 text-lg text-gray-600">Latest news, updates, and insights from St. Joseph Fish Brokerage Inc.</p>
+    <div class="text-center mb-12" data-aos="fade-up">
+      <span class="section-eyebrow justify-center">Latest Insights</span>
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900">Blogs / News &amp; Updates</h2>
+      <p class="text-gray-500 mt-3 max-w-xl mx-auto">Stay informed with the latest news from St. Joseph and the Philippine fishing industry.</p>
     </div>
     
     <?php if (!empty($blogs)): ?>

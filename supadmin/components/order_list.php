@@ -44,7 +44,7 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
         <?php endforeach; ?>
       </select>
       <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order code, name…" class="text-sm px-3 py-2 focus:outline-none w-44">
+        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order code, name…" class="text-sm px-3 py-2 focus:outline-none w-44 border-none">
         <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         </button>

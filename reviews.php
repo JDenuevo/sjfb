@@ -143,10 +143,9 @@ if (empty($stats)) {
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
-  <link href="output.css" rel="stylesheet">
-
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 

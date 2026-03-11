@@ -169,10 +169,11 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="<?= $baseUrl ?>style.css" rel="stylesheet">
-  <link href="<?= $baseUrl ?>output.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
   <!-- ✅ UNIFIED CART CORE — provides showToast, refreshCartFromServer, recalcTotals, etc. -->
@@ -205,7 +206,7 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
 <section id="home-section">
   <?php include('./components/navigation.php'); ?>
 
-  <div class="max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto mt-10">
+  <div class="max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto mt-4">
 
     <?php include('./components/nav_crumb.php'); ?>
 
@@ -216,7 +217,7 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
         <div class="flex flex-col items-center">
           <div class="max-w-xl rounded-lg relative">
             <?php if (!$hasStock): ?>
-            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg z-10">
+            <div class="absolute inset-0 flex items-center justify-center bg-opacity-100 rounded-lg z-10">
               <span class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg transform -rotate-12 shadow-lg border-2 border-white text-base tracking-wide">OUT OF STOCK</span>
             </div>
             <?php endif; ?>
@@ -383,7 +384,7 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
 
     <!-- COOKING SUGGESTIONS -->
     <?php if (!empty($cookingSuggestions)): ?>
-    <div class="mt-16 mb-16">
+    <div class="my-10">
       <div class="text-center mb-10">
         <h2 class="text-3xl font-bold text-gray-800 mb-2">Cooking Suggestions</h2>
         <p class="text-gray-600">Delicious ways to prepare your <?= htmlspecialchars($product['product_name']) ?></p>
@@ -430,7 +431,7 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
 
     <!-- YOU MAY ALSO LIKE -->
     <?php if (!empty($relatedProducts)): ?>
-    <div class="mt-16 mb-16">
+    <div class="my-10">
       <div class="text-center mb-10">
         <h2 class="text-3xl font-bold text-gray-800 mb-2">You May Also Like</h2>
         <p class="text-gray-600">Discover other products you might enjoy</p>
@@ -446,7 +447,7 @@ $shareText     = 'Check out this fresh seafood: ' . $product['product_name'] . '
             <div class="relative">
               <img src="<?= htmlspecialchars($relImg) ?>" alt="<?= htmlspecialchars($related['product_name']) ?>" class="w-full h-48 object-cover">
               <?php if (!$relHasStock): ?>
-              <div class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+              <div class="absolute inset-0 bg-gray bg-opacity-100 flex items-center justify-center">
                 <span class="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">Out of Stock</span>
               </div>
               <?php endif; ?>

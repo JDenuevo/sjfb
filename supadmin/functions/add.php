@@ -4,6 +4,7 @@ session_start();
 require '../../conn.php';
 include 'slug_helper.php';
 require_once 'activity_log_helper.php'; // ← shared logger
+require_once 'review_helper.php'; // ← shared logger
 
 function redirectWithMessage($location, $message, $type) {
     $_SESSION['message'] = ['text' => $message, 'type' => $type];

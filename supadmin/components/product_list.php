@@ -65,12 +65,12 @@
               <td class="px-6 py-4">
                 <?php if ($row['stock_status'] > 0): ?>
                   <span class="badge badge-green">
-                    <svg class="mr-1" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+                    <svg class="me-1" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
                     In Stock
                   </span>
                 <?php else: ?>
                   <span class="badge badge-red">
-                    <svg class="mr-1" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+                    <svg class="me-1" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
                     Out of Stock
                   </span>
                 <?php endif; ?>

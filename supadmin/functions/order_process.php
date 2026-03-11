@@ -3,6 +3,8 @@
 <?php
 // Use absolute path instead of relative path
 require_once __DIR__ . '/../../conn.php';
+require_once 'activity_log_helper.php';
+require_once 'review_helper.php'; // ← add this
 
 // Set timezone
 date_default_timezone_set('Asia/Manila');
@@ -309,24 +311,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userType = 'rider';
     }
     
-    // Approve Order (Pending → Processing)
+    // Approve Order (Pending -> Processing)
     if (isset($_POST['approve_order'])) {
-        $orderId = (int)$_POST['order_id'];
-        $notes = trim($_POST['notes'] ?? 'Order approved by admin');
+        $orderId    = (int)$_POST['order_id'];
+        $notes      = trim($_POST['notes'] ?? 'Order approved by admin');
         $redirectTo = $_POST['redirect_to'] ?? 'referrer';
-        
+
         if (!validateUserPermission($userType, 'approve_order')) {
             $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
             header("Location: " . $_SERVER['HTTP_REFERER']);
             exit();
         }
-        
+
         $result = updateOrderStatus($conn, $orderId, 'Processing', $userId, $userType, $notes);
-        
+
         if ($result['success']) {
+            // Notify customer their order is being prepared
+            $notify = dispatchOrderApprovedNotification($conn, $orderId, $userId, $userType);
+            error_log("[order_process] Approved notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
+
             $_SESSION['message'] = ['text' => 'Order approved successfully!', 'type' => 'success'];
-            
-            // Redirect based on preference
             if ($redirectTo === 'order_manage') {
                 header("Location: ../order_manage.php?order_id=" . $orderId);
             } else {
@@ -338,12 +342,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit();
     }
-    
-    // Assign Rider (Processing → OutForDelivery)
+
+    // Assign Rider (Processing -> OutForDelivery)
     elseif (isset($_POST['assign_rider'])) {
         $orderId = (int)$_POST['order_id'];
         $riderId = (int)$_POST['rider_id'];
-        $notes = trim($_POST['notes'] ?? '');
+        $notes   = trim($_POST['notes'] ?? '');
 
         if (!validateUserPermission($userType, 'assign_rider')) {
             $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
@@ -351,23 +355,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        // Set rider as busy immediately when assigning new delivery
+        // Set rider as busy immediately
         $updateRiderStmt = $conn->prepare("UPDATE riders SET is_available = 0 WHERE rider_id = ?");
         $updateRiderStmt->bind_param("i", $riderId);
         $updateRiderStmt->execute();
         error_log("Rider {$riderId} set to busy (new delivery assigned)");
-        
+
         $result = assignRiderToOrder($conn, $orderId, $riderId, $userId, $userType, $notes);
+
+        if ($result['success']) {
+            // Notify customer their order is on the way (includes rider name)
+            $notify = dispatchOutForDeliveryNotification($conn, $orderId, $userId, $userType);
+            error_log("[order_process] OutForDelivery notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
+        }
+
         $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
         header("Location: ../order_manage.php?order_id=" . $orderId);
         exit();
     }
 
-    // Mark as Delivered (OutForDelivery → Delivered)
+    // Mark as Delivered (OutForDelivery -> Delivered)
     elseif (isset($_POST['mark_delivered'])) {
         $orderId = (int)$_POST['order_id'];
-        $notes = trim($_POST['notes'] ?? 'Order delivered successfully');
-        
+        $notes   = trim($_POST['notes'] ?? 'Order delivered successfully');
+
         if (!validateUserPermission($userType, 'mark_delivered')) {
             $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
             header("Location: " . $_SERVER['HTTP_REFERER']);
@@ -375,33 +386,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Get the rider ID for this order first
-        $riderId = null;
+        $riderId     = null;
         $riderIdStmt = $conn->prepare("SELECT assigned_rider_id FROM orders WHERE order_id = ?");
         $riderIdStmt->bind_param("i", $orderId);
         $riderIdStmt->execute();
         $riderResult = $riderIdStmt->get_result();
-        
         if ($riderResult->num_rows > 0) {
-            $riderData = $riderResult->fetch_assoc();
-            $riderId = $riderData['assigned_rider_id'];
+            $riderId = $riderResult->fetch_assoc()['assigned_rider_id'];
         }
 
-       // Update order status first
         $result = updateOrderStatus($conn, $orderId, 'Delivered', $userId, $userType, $notes);
 
         if ($result['success']) {
-            // Save delivery completion timestamp
+            // Save delivery timestamp
             $deliveredStmt = $conn->prepare("UPDATE orders SET delivered_at = NOW() WHERE order_id = ?");
             $deliveredStmt->bind_param("i", $orderId);
             $deliveredStmt->execute();
-            
+
             if ($riderId) {
-                // Update rider availability
                 updateRiderAvailability($conn, $riderId);
-                error_log("Rider {$riderId} availability updated after delivery completion");
             }
+
+            // Notify customer + send review invite link
+            $invite = dispatchReviewInvite($conn, $orderId, $userId, $userType);
+            error_log("[order_process] Review invite: " . $invite['message']);
         }
-        
+
+        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
+        header("Location: " . $_SERVER['HTTP_REFERER']);
+        exit();
+    }
+
+    // Cancel Order
+    elseif (isset($_POST['cancel_order'])) {
+        $orderId = (int)$_POST['order_id'];
+        $reason  = trim($_POST['reason'] ?? 'Order cancelled by user');
+
+        if (!validateUserPermission($userType, 'cancel_order')) {
+            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
+            header("Location: " . $_SERVER['HTTP_REFERER']);
+            exit();
+        }
+
+        $result = updateOrderStatus($conn, $orderId, 'Cancelled', $userId, $userType, $reason);
+
+        if ($result['success']) {
+            // Notify customer their order was cancelled (includes reason)
+            $notify = dispatchCancelledNotification($conn, $orderId, $reason, $userId, $userType);
+            error_log("[order_process] Cancelled notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
+        }
+
         $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
         header("Location: " . $_SERVER['HTTP_REFERER']);
         exit();
@@ -423,23 +457,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $_SESSION['message'] = ['text' => 'Thank you for confirming receipt!', 'type' => 'success'];
         header("Location: " . ($_SESSION['loggedinasuser'] ? '../user/orders.php' : $_SERVER['HTTP_REFERER']));
-        exit();
-    }
-    
-    // Cancel Order
-    elseif (isset($_POST['cancel_order'])) {
-        $orderId = (int)$_POST['order_id'];
-        $reason = trim($_POST['reason'] ?? 'Order cancelled by user');
-        
-        if (!validateUserPermission($userType, 'cancel_order')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
-        }
-        
-        $result = updateOrderStatus($conn, $orderId, 'Cancelled', $userId, $userType, $reason);
-        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
-        header("Location: " . $_SERVER['HTTP_REFERER']);
         exit();
     }
     

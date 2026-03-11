@@ -100,7 +100,7 @@
 
 <!-- Section Header -->
 <div class="relative">
-  <img src="./assets/images/wave-title.svg" alt="Wave Background" loading="lazy" class="w-full h-auto" data-aos="fade-zoom-in" data-aos-duration="1000">
+  <img src="./assets/backdrops/wave-title.svg" alt="Wave Background" loading="lazy" class="w-full h-auto" data-aos="fade-zoom-in" data-aos-duration="1000">
   <h1 class="absolute inset-0 flex items-center justify-center text-4xl font-bold text-white title">Company Events</h1>
 </div>
 
@@ -109,6 +109,28 @@
 
 <script>
   const eventsData = {
+      "2025": [
+      "./assets/images/Events2025/KO25_1.jpg",
+      "./assets/images/Events2025/KO25_2.jpg",
+      "./assets/images/Events2025/KO25_3.jpg",
+      "./assets/images/Events2025/KO25_4.jpg",
+      "./assets/images/Events2025/KO25_5.jpg",
+      "./assets/images/Events2025/VAL25_1.jpg",
+      "./assets/images/Events2025/HP25_1.jpg",
+      "./assets/images/Events2025/HP25_2.jpg",
+      "./assets/images/Events2025/HP25_3.jpg",
+      "./assets/images/Events2025/TB25_1.jpg",
+      "./assets/images/Events2025/TB25_2.jpg",
+      "./assets/images/Events2025/TB25_3.jpg",
+      "./assets/images/Events2025/TB25_4.jpg",
+      "./assets/images/Events2025/TB25_5.jpg",
+      "./assets/images/Events2025/TB25_6.jpg",
+      "./assets/images/Events2025/TB25_7.jpg",
+      "./assets/images/Events2025/TB25_8.jpg",
+      "./assets/images/Events2025/YE25_1.jpg",
+      "./assets/images/Events2025/YE25_2.jpg",
+      "./assets/images/Events2025/YE25_3.jpg",
+    ],
     "2024": [
       "./assets/images/Events2024/TB24_1.jpg",
       "./assets/images/Events2024/TB24_2.jpg",

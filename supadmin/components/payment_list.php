@@ -156,20 +156,26 @@ $methodIcons = ['gcash'=>'📱','paymaya'=>'💳','grab_pay'=>'🟢','qrph'=>'�
   </div>
 </div>
 
-<!-- Payment Detail Modal (AJAX) -->
-<div id="paymentDetailModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">
-  <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto p-6 flex flex-col">
-    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h3 class="text-lg font-semibold text-gray-800">Payment Details</h3>
-      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
-        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+<div id="paymentDetailModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>Payment Details</h3>
+        <p>Transaction Information</p>
+      </div>
+      <button onclick="closePaymentModal()" class="modal-close" aria-label="Close modal">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
       </button>
     </div>
-    <div id="paymentDetailContent" class="p-6">
+
+    <div id="paymentDetailContent" class="modal-body">
       <div class="flex items-center justify-center py-8">
         <div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     </div>
+
   </div>
 </div>
 

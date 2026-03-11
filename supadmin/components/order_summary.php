@@ -464,7 +464,7 @@ $connectorStyle = "width: calc({$fillPct}% * (100% - 40px) / 100% + 0px)";
                     <input type="hidden" id="send_rider_id_<?= $order['order_id'] ?>"
                            name="rider_id" value="<?= (int)($order['assigned_rider_id'] ?? 0) ?>">
                     <button type="submit" name="assign_rider"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-500 rounded-xl transition-colors">
+                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-colors">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                         Send Out for Delivery
                     </button>
@@ -475,7 +475,7 @@ $connectorStyle = "width: calc({$fillPct}% * (100% - 40px) / 100% + 0px)";
                     <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
                     <input type="hidden" name="notes"    value="Order delivered — marked by admin">
                     <button type="submit" name="mark_delivered"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-500 rounded-xl transition-colors">
+                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-500 rounded-xl transition-colors">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                         Mark as Delivered
                     </button>

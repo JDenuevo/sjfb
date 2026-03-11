@@ -57,11 +57,8 @@ $riders = $result->fetch_all(MYSQLI_ASSOC);
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
     <!-- CSS Files -->
-    <link href="../style.css" rel="stylesheet">
-    <link href="../output.css" rel="stylesheet">
-
-    <!-- CSS Preline -->
     <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+    <link href="../style.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">

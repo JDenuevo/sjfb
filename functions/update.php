@@ -6,123 +6,203 @@ require_once __DIR__ . '/mail_functions.php';
 
 date_default_timezone_set('Asia/Manila');
 
+// ── Helper ────────────────────────────────────────────────────────────────────
 function redirectWithMessage($location, $message, $type = 'error') {
     $_SESSION[$type] = $message;
     header("Location: $location");
     exit();
 }
 
-function sendOTP($email, $conn) {
-    $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+/**
+ * Generate + store a 6-digit OTP, then email it.
+ * Returns true on success, false on mail failure.
+ */
+function sendOTP(string $email, mysqli $conn): bool {
+    $otp        = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $otp_expiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-    
+
     $stmt = $conn->prepare("UPDATE accounts SET reset_otp = ?, otp_expiry = ? WHERE email = ?");
+    if (!$stmt) return false;
+
     $stmt->bind_param("sss", $otp, $otp_expiry, $email);
-    $stmt->execute();
-    
-    $subject = "Password Reset OTP";
-    $message = "Your OTP: $otp (Valid for 15 minutes)";
+    if (!$stmt->execute()) return false;
+    $stmt->close();
+
+    $subject = "Your Password Reset OTP – St. Joseph Fish Brokerage";
+    $message = "Hello,\n\nYour OTP for password reset is:\n\n  $otp\n\nThis code is valid for 15 minutes.\n\nIf you did not request this, please ignore this email — your account is safe.\n\nSt. Joseph Fish Brokerage Inc.";
+
     return sendEmail($email, $subject, $message);
 }
 
-// Handle POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// ── Only handle POST ──────────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: ../forgot_password.php");
+    exit();
+}
 
-    if (isset($_POST['send_otp'])) {
-        
-        $email = trim($_POST['email']);
-        
-        // Validate email format
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $_SESSION['error'] = "Invalid email format!";
-        } else {
-            // Check if email exists
-            $stmt = $conn->prepare("SELECT * FROM accounts WHERE email = ?");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows === 0) {
-                // Don't reveal if email exists for security
-                $_SESSION['success'] = "If your email exists in our system, you'll receive a password reset OTP.";
-            } else {
-                // Generate 6-digit OTP
-                $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-                $otp_expiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-                
-                // Store OTP in database
-                $update_stmt = $conn->prepare("UPDATE accounts SET reset_otp = ?, otp_expiry = ? WHERE email = ?");
-                $update_stmt->bind_param("sss", $otp, $otp_expiry, $email);
-                $update_stmt->execute();
-                
-                // Send OTP via email
-                $subject = "Your Password Reset OTP";
-                $message = "Your OTP for password reset is: $otp\n\nThis OTP is valid for 15 minutes.\n\nIf you didn't request this, please ignore this email.";
-                
-                if (sendEmail($email, $subject, $message)) {
-                    $_SESSION['email'] = $email;
-                    $_SESSION['otp_sent'] = true;
-                    header("Location: ../verify_otp.php");
-                    exit();
-                } else {
-                    $_SESSION['error'] = "Failed to send OTP. Please try again later.";
-                }
-            }
-        }
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. SEND OTP  (forgot_password.php form)
+// ─────────────────────────────────────────────────────────────────────────────
+if (isset($_POST['send_otp'])) {
+
+    $email = trim($_POST['email'] ?? '');
+
+    // Validate format first
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        redirectWithMessage('../forgot_password.php', "Please enter a valid email address.");
     }
 
-    // Verify OTP
-    elseif (isset($_POST['submit_otp'])) {
-        if (!isset($_SESSION['email'])) {
-            redirectWithMessage('../forgot_password.php', "Session expired");
-        }
+    // Check if account exists
+    $stmt = $conn->prepare("SELECT account_id, is_deleted FROM accounts WHERE email = ?");
+    if (!$stmt) {
+        redirectWithMessage('../forgot_password.php', "A system error occurred. Please try again.");
+    }
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
 
-        // Combine OTP digits
-        $otp = '';
+    if ($result->num_rows === 0) {
+        // Security: don't reveal whether the email exists
+        $_SESSION['success'] = "If your email is registered with us, you'll receive a reset code shortly.";
+        header("Location: ../forgot_password.php");
+        exit();
+    }
+
+    $account = $result->fetch_assoc();
+
+    // Soft-deleted account — still use generic message
+    if (!empty($account['is_deleted'])) {
+        $_SESSION['success'] = "If your email is registered with us, you'll receive a reset code shortly.";
+        header("Location: ../forgot_password.php");
+        exit();
+    }
+
+    // Send OTP
+    if (sendOTP($email, $conn)) {
+        $_SESSION['email']              = $email;
+        $_SESSION['otp_sent']           = true;
+        $_SESSION['last_otp_resend']    = time();
+        header("Location: ../verify_otp.php");
+        exit();
+    } else {
+        redirectWithMessage('../forgot_password.php', "Failed to send OTP. Please try again later.");
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. VERIFY OTP  (verify_otp.php form)
+// ─────────────────────────────────────────────────────────────────────────────
+elseif (isset($_POST['submit_otp'])) {
+
+    // Session guard
+    if (!isset($_SESSION['email'])) {
+        redirectWithMessage('../forgot_password.php', "Session expired. Please start over.");
+    }
+
+    // Combine the 6 individual digit fields OR accept full_otp hidden field
+    $otp = '';
+    if (!empty($_POST['full_otp']) && ctype_digit($_POST['full_otp']) && strlen($_POST['full_otp']) === 6) {
+        $otp = $_POST['full_otp'];
+    } else {
         for ($i = 1; $i <= 6; $i++) {
-            $otp .= $_POST["otp$i"] ?? '';
-        }
-
-        // Validate OTP format
-        if (strlen($otp) !== 6 || !ctype_digit($otp)) {
-            redirectWithMessage('../verify_otp.php', "Please enter a valid 6-digit OTP");
-        }
-
-        $email = $_SESSION['email'];
-        
-        // Check OTP against database
-        $stmt = $conn->prepare("SELECT * FROM accounts WHERE email = ? AND reset_otp = ? AND otp_expiry > NOW()");
-        $stmt->bind_param("ss", $email, $otp);
-        $stmt->execute();
-        
-        if ($stmt->get_result()->num_rows === 1) {
-            $_SESSION['otp_verified'] = true;
-            // Clear the OTP after successful verification
-            $conn->query("UPDATE accounts SET reset_otp = NULL, otp_expiry = NULL WHERE email = '$email'");
-            redirectWithMessage('../reset_password.php', "OTP verified!", 'success');
-        } else {
-            redirectWithMessage('../verify_otp.php', "Invalid or expired OTP");
+            $otp .= preg_replace('/\D/', '', $_POST["otp$i"] ?? '');
         }
     }
 
-    // Update Account Information
-    elseif (isset($_POST['update_new_account'])) {
-        $account_id = $_SESSION['account_id'];
-        $phone = trim($_POST['phone_number']);
-        $fname = trim($_POST['first_name']);
-        $lname = trim($_POST['last_name']);
-        $address = trim($_POST['address']);
-        $postal = trim($_POST['postal_code']);
-        $city = trim($_POST['city']);
-      
-        $stmt = $conn->prepare("UPDATE accounts SET phone_number = ?, first_name = ?, last_name = ?, address = ?, postal_code = ?, city = ? WHERE account_id = ?");
-        $stmt->bind_param("ssssssi", $phone, $fname, $lname, $address, $postal, $city, $account_id);
-      
-        if ($stmt->execute()) {
-            redirectWithMessage('../index.php', "Details updated!", 'success');
-        } else {
-            redirectWithMessage('../index.php', "Update failed");
-        }
+    if (strlen($otp) !== 6 || !ctype_digit($otp)) {
+        redirectWithMessage('../verify_otp.php', "Please enter a complete 6-digit OTP code.");
     }
+
+    $email = $_SESSION['email'];
+
+    // Validate against DB — must not be expired
+    $stmt = $conn->prepare("
+        SELECT account_id
+        FROM accounts
+        WHERE email = ?
+          AND reset_otp = ?
+          AND otp_expiry > NOW()
+        LIMIT 1
+    ");
+    if (!$stmt) {
+        redirectWithMessage('../verify_otp.php', "A system error occurred. Please try again.");
+    }
+    $stmt->bind_param("ss", $email, $otp);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $stmt->close();
+
+    if ($res->num_rows !== 1) {
+        redirectWithMessage('../verify_otp.php', "Invalid or expired OTP. Please try again or request a new code.");
+    }
+
+    // Mark verified & clear OTP so it can't be reused
+    $clear = $conn->prepare("UPDATE accounts SET reset_otp = NULL, otp_expiry = NULL WHERE email = ?");
+    $clear->bind_param("s", $email);
+    $clear->execute();
+    $clear->close();
+
+    $_SESSION['otp_verified'] = true;
+    redirectWithMessage('../reset_password.php', "OTP verified! Please set your new password.", 'success');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. UPDATE ACCOUNT DETAILS  (details.php / profile form)
+// ─────────────────────────────────────────────────────────────────────────────
+elseif (isset($_POST['update_new_account'])) {
+
+    if (!isset($_SESSION['account_id'])) {
+        redirectWithMessage('../index.php', "You must be logged in to update your details.");
+    }
+
+    $account_id = (int) $_SESSION['account_id'];
+    $phone      = trim($_POST['phone_number']   ?? '');
+    $fname      = trim($_POST['first_name']     ?? '');
+    $lname      = trim($_POST['last_name']      ?? '');
+    $address    = trim($_POST['address']        ?? '');
+    $postal     = trim($_POST['postal_code']    ?? '');
+    $city       = trim($_POST['city']           ?? '');
+
+    // Basic field guards
+    if (empty($fname) || empty($lname)) {
+        redirectWithMessage('../details.php', "First name and last name are required.");
+    }
+    if (strlen($fname) < 2 || strlen($lname) < 2) {
+        redirectWithMessage('../details.php', "Names must be at least 2 characters.");
+    }
+    if (!preg_match('/^[0-9+\-\s()]{10,}$/', $phone)) {
+        redirectWithMessage('../details.php', "Please enter a valid phone number.");
+    }
+    if (!preg_match('/^[0-9]{4,6}$/', $postal)) {
+        redirectWithMessage('../details.php', "Please enter a valid 4–6 digit postal code.");
+    }
+
+    $stmt = $conn->prepare("
+        UPDATE accounts
+        SET phone_number = ?, first_name = ?, last_name = ?,
+            address = ?, postal_code = ?, city = ?
+        WHERE account_id = ?
+    ");
+    if (!$stmt) {
+        redirectWithMessage('../details.php', "A system error occurred. Please try again.");
+    }
+    $stmt->bind_param("ssssssi", $phone, $fname, $lname, $address, $postal, $city, $account_id);
+
+    if ($stmt->execute()) {
+        $stmt->close();
+        redirectWithMessage('../account/shop.php', "Details saved successfully!", 'success');
+    } else {
+        $stmt->close();
+        redirectWithMessage('../details.php', "Update failed. Please try again.");
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback — unknown POST action
+// ─────────────────────────────────────────────────────────────────────────────
+else {
+    header("Location: ../index.php");
+    exit();
 }
 ?>
