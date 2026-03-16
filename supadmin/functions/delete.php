@@ -203,33 +203,45 @@ elseif (isset($_POST['delete_category'])) {
     }
 }
 
-// Delete Blog
 elseif (isset($_POST['delete_blog'])) {
-    $blog_id   = (int)$_POST['blog_id'];
-    $blog_image = $_POST['blog_image'] ?? '';
-    
-    $conn->begin_transaction();
-    
-    try {
-        // Get blog title for logging
-        $title_query = $conn->prepare("SELECT blog_title FROM blogs WHERE blog_id = ?");
-        $title_query->bind_param("i", $blog_id);
-        $title_query->execute();
-        $blog_title = $title_query->get_result()->fetch_assoc()['blog_title'];
-        $title_query->close();
+    $blog_id = (int)$_POST['blog_id'];
 
-        $query = "DELETE FROM blogs WHERE blog_id = ?";
-        $stmt  = $conn->prepare($query);
+    if ($blog_id <= 0) {
+        redirectWithMessage("../blogs.php", "Invalid blog ID.", "error");
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        // Fetch blog title AND image path from DB (don't trust POST for file path)
+        $fetch = $conn->prepare("SELECT blog_title, blog_featured_image FROM blogs WHERE blog_id = ?");
+        $fetch->bind_param("i", $blog_id);
+        $fetch->execute();
+        $blog = $fetch->get_result()->fetch_assoc();
+        $fetch->close();
+
+        if (!$blog) {
+            throw new Exception("Blog post not found.");
+        }
+
+        $blog_title = $blog['blog_title'];
+
+        // Delete the blog row
+        $stmt = $conn->prepare("DELETE FROM blogs WHERE blog_id = ?");
         $stmt->bind_param("i", $blog_id);
-        
         if (!$stmt->execute()) {
             throw new Exception("Failed to delete blog: " . $stmt->error);
         }
-        
-        if (!empty($blog_image)) {
-            $file_path = $_SERVER['DOCUMENT_ROOT'] . $blog_image;
-            if (file_exists($file_path)) {
-                unlink($file_path);
+        $stmt->close();
+
+        // Delete image file from uploads/blogs/ if it exists
+        if (!empty($blog['blog_featured_image'])) {
+            $stored    = ltrim($blog['blog_featured_image'], '/');
+            $stored    = preg_replace('#^\.\./+#', '', $stored);
+            $full_path = __DIR__ . '/../../' . $stored;
+
+            if (file_exists($full_path)) {
+                unlink($full_path);
             }
         }
 
@@ -240,14 +252,50 @@ elseif (isset($_POST['delete_blog'])) {
             "Blog '{$blog_title}' (ID: {$blog_id}) permanently deleted",
             $actorId, $actorType
         );
-        
+
         $conn->commit();
         redirectWithMessage("../blogs.php", "Blog post deleted successfully!", "success");
-        
+
     } catch (Exception $e) {
         $conn->rollback();
         redirectWithMessage("../blogs.php", "Error: " . $e->getMessage(), "error");
     }
+}
+
+elseif (isset($_POST['action']) && $_POST['action'] === 'delete_blog_image') {
+    header('Content-Type: application/json');
+    
+    $blog_id = (int)$_POST['blog_id'];
+    
+    // Get the image path
+    $query = $conn->prepare("SELECT blog_featured_image FROM blogs WHERE blog_id = ?");
+    $query->bind_param("i", $blog_id);
+    $query->execute();
+    $result = $query->get_result();
+    $blog = $result->fetch_assoc();
+    $query->close();
+    
+    if ($blog && !empty($blog['blog_featured_image'])) {
+        // Delete the file
+        $file_path = $_SERVER['DOCUMENT_ROOT'] . $blog['blog_featured_image'];
+        if (file_exists($file_path)) {
+            unlink($file_path);
+        }
+        
+        // Update database to remove image reference
+        $update = $conn->prepare("UPDATE blogs SET blog_featured_image = NULL WHERE blog_id = ?");
+        $update->bind_param("i", $blog_id);
+        
+        if ($update->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Image deleted successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update database']);
+        }
+        $update->close();
+    } else {
+        echo json_encode(['success' => false, 'message' => 'No image found']);
+    }
+    exit;
 }
 
 // Delete Cooking Suggestion
@@ -348,6 +396,68 @@ elseif (isset($_POST['delete_market'])) {
         $conn->rollback();
         error_log("Error deleting market: " . $e->getMessage());
         redirectWithMessage("../markets.php", "Failed to delete market: " . $e->getMessage(), "error");
+    }
+}
+
+elseif (isset($_POST['action']) && $_POST['action'] === 'delete_rider') {
+
+    $rider_id = (int)($_POST['rider_id'] ?? 0);
+    if (!$rider_id) {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Missing rider ID.'];
+        header('Location: ../riders.php');
+        exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        // Block removal if rider has active deliveries
+        $ca = $conn->prepare("SELECT COUNT(*) AS cnt FROM orders WHERE assigned_rider_id = ? AND order_status = 'OutForDelivery'");
+        $ca->bind_param('i', $rider_id);
+        $ca->execute();
+        if ((int)$ca->get_result()->fetch_assoc()['cnt'] > 0) {
+            throw new Exception('Cannot remove a rider with active deliveries. Reassign their orders first.');
+        }
+
+        // Get rider info for log + account role revert
+        $gi = $conn->prepare("
+            SELECT r.account_id, r.vehicle_type,
+                   COALESCE(r.full_name, CONCAT(a.first_name, ' ', a.last_name)) AS display_name
+            FROM riders r
+            JOIN accounts a ON a.account_id = r.account_id
+            WHERE r.rider_id = ? LIMIT 1
+        ");
+        $gi->bind_param('i', $rider_id);
+        $gi->execute();
+        $riderInfo = $gi->get_result()->fetch_assoc();
+        if (!$riderInfo) throw new Exception('Rider not found.');
+
+        // Soft-delete — preserves delivery history
+        $sd = $conn->prepare("UPDATE riders SET is_deleted = 1, is_available = 0, deleted_at = NOW(), updated_at = NOW() WHERE rider_id = ?");
+        $sd->bind_param('i', $rider_id);
+        if (!$sd->execute()) throw new Exception('Failed to remove rider.');
+
+        // Revert account role to guest
+        $ur = $conn->prepare("UPDATE accounts SET role = 'guest' WHERE account_id = ?");
+        $ur->bind_param('i', $riderInfo['account_id']);
+        if (!$ur->execute()) throw new Exception('Failed to revert account role.');
+
+        logActivity($conn, 'rider', $rider_id, 'Rider removed',
+            json_encode(['rider_id' => $rider_id, 'name' => $riderInfo['display_name'], 'vehicle' => $riderInfo['vehicle_type']]),
+            null,
+            "Rider ID {$rider_id} ({$riderInfo['display_name']}) removed. Account ID {$riderInfo['account_id']} role reverted to guest.",
+            $actorId, $actorType
+        );
+
+        $conn->commit();
+        $_SESSION['message'] = ['type' => 'success', 'text' => "Rider {$riderInfo['display_name']} removed. Account reverted to guest."];
+        header('Location: ../riders.php');
+        exit;
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
+        header('Location: ../riders.php');
+        exit;
     }
 }
 

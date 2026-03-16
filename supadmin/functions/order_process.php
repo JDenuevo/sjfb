@@ -1,510 +1,348 @@
- <!-- ==================== in functions folder the super admin the order_process functions that correlates the User, Guest, Rider, Admin and Super Admin to manage the whole order_process ==================== -->
-
 <?php
-// Use absolute path instead of relative path
+/**
+ * supadmin/functions/order_process.php
+ *
+ * Single AJAX endpoint for all order management actions.
+ * Always returns JSON.
+ *
+ * Actions (POST):
+ *   approve_order           Pending → Processing (with stock check + deduction)
+ *   assign_rider            Assign registered rider (creates deliveries row, pending_acceptance)
+ *   assign_third_party      Assign 3rd-party delivery (Lalamove etc.) → OutForDelivery immediately
+ *   send_out_for_delivery   Admin manually sends OutForDelivery for 3rd-party (redundant but explicit)
+ *   cancel_order            Any non-terminal → Cancelled (restores stock)
+ *   mark_delivered          OutForDelivery → Delivered (admin override or rider)
+ *   rider_accept            Rider accepts delivery → OutForDelivery
+ *   rider_pickup            Rider marks picked up
+ *   push_location           Rider pushes GPS coords (realtime tracking)
+ *   upload_proof            Upload delivery photo proof
+ *   mark_read               Mark notifications as read
+ *
+ * Actions (GET):
+ *   poll_orders             Realtime: returns orders changed since last_check
+ *   poll_notifications      Unread notification count + items
+ *   get_order_detail        Full order data for drawer/modal
+ *   get_riders              List of riders (available or all)
+ *   get_tracking            Latest GPS + breadcrumbs for a delivery
+ */
+
+session_start();
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
 require_once __DIR__ . '/../../conn.php';
-require_once 'activity_log_helper.php';
-require_once 'review_helper.php'; // ← add this
+require_once __DIR__ . '/order_helper.php';
 
-// Set timezone
-date_default_timezone_set('Asia/Manila');
-
-// Enhanced logging function for all activities
-function logActivity($conn, $entityType, $entityId, $action, $oldValue = null, $newValue = null, $details = null, $userId = null, $userType = 'system') {
-    // Get IP and User Agent for security tracking
-    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
-    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
-    
-    $stmt = $conn->prepare("
-        INSERT INTO activity_log (entity_type, entity_id, user_id, user_type, action, old_value, new_value, details, ip_address, user_agent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    
-    $stmt->bind_param("siisssssss", $entityType, $entityId, $userId, $userType, $action, $oldValue, $newValue, $details, $ipAddress, $userAgent);
-    $stmt->execute();
+// ── Auth ──────────────────────────────────────────────────────────────────
+// Supadmin uses $_SESSION['loggedinassupadmin'] and never sets $_SESSION['role'].
+// Rider uses $_SESSION['loggedinasrider'] + $_SESSION['role'] = 'rider'.
+// Regular admin/staff use $_SESSION['role'] directly.
+if (empty($_SESSION['account_id'])) {
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'msg' => 'Unauthorized.']);
+    exit;
 }
 
-// Enhanced order status update with history tracking
-function updateOrderStatus($conn, $orderId, $newStatus, $userId = null, $userType = 'system', $notes = '') {
-    // Get current order details
-    $stmt = $conn->prepare("SELECT order_status, payment_method, account_id FROM orders WHERE order_id = ?");
-    $stmt->bind_param("i", $orderId);
-    $stmt->execute();
-    $order = $stmt->get_result()->fetch_assoc();
-    
-    if (!$order) {
-        return ['success' => false, 'message' => 'Order not found'];
-    }
-    
-    $oldStatus = $order['order_status'];
-    $paymentMethod = strtolower($order['payment_method']);
-    $accountId = $order['account_id'];
-    
-    // Validate status transition
-    $validTransitions = [
-        'Pending' => ['Processing', 'Cancelled'],
-        'Processing' => ['OutForDelivery', 'Cancelled'],
-        'OutForDelivery' => ['Delivered', 'Cancelled'],
-        'Delivered' => [], // Final status
-        'Cancelled' => [] // Final status
-    ];
-    
-    if (!isset($validTransitions[$oldStatus]) || !in_array($newStatus, $validTransitions[$oldStatus])) {
-        return ['success' => false, 'message' => "Invalid status transition from {$oldStatus} to {$newStatus}"];
-    }
-    
-    // Begin transaction
-    $conn->begin_transaction();
-    
-    try {
-        // Update order status - handle case where updated_at might not exist
-        $updateQuery = "UPDATE orders SET order_status = ?";
-        
-        // Check if updated_at column exists
-        $columnCheck = $conn->query("SHOW COLUMNS FROM orders LIKE 'updated_at'");
-        if ($columnCheck->num_rows > 0) {
-            $updateQuery .= ", updated_at = NOW()";
+if (!empty($_SESSION['loggedinassupadmin']) && $_SESSION['loggedinassupadmin'] === true) {
+    $actor_role = $_SESSION['supadmin_role'] ?? 'super_admin';
+    $actor_id   = (int)$_SESSION['account_id'];
+} elseif (!empty($_SESSION['loggedinasrider']) && $_SESSION['loggedinasrider'] === true) {
+    $actor_role = 'rider';
+    $actor_id   = (int)$_SESSION['account_id'];
+} elseif (!empty($_SESSION['role']) && in_array($_SESSION['role'], ['super_admin', 'admin', 'rider'], true)) {
+    $actor_role = $_SESSION['role'];
+    $actor_id   = (int)$_SESSION['account_id'];
+} else {
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'msg' => 'Unauthorized.']);
+    exit;
+}
+$action     = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function isAdmin(string $role): bool { return in_array($role, ['super_admin', 'admin'], true); }
+function isRider(string $role): bool { return $role === 'rider'; }
+
+function respond(array $data): void { echo json_encode($data); exit; }
+
+// ── Router ────────────────────────────────────────────────────────────────
+switch ($action) {
+
+    /* ── APPROVE ORDER (Pending → Processing + stock check + deduction) ── */
+    case 'approve_order':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        respond(approveOrder($order_id, $actor_id, $actor_role, $conn));
+
+    /* ── ASSIGN REGISTERED RIDER (Processing → pending_acceptance) ──────── */
+    case 'assign_rider':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $rider_id = (int)($_POST['rider_id'] ?? 0);
+        $notes    = trim($_POST['notes'] ?? '');
+        if (!$order_id || !$rider_id) respond(['ok' => false, 'msg' => 'Missing order_id or rider_id.']);
+        respond(assignRegisteredRider($order_id, $rider_id, $actor_id, $actor_role, $notes, $conn));
+
+    /* ── ASSIGN 3RD-PARTY DELIVERY ──────────────────────────────────────── */
+    case 'assign_third_party':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id          = (int)($_POST['order_id'] ?? 0);
+        $third_party_name  = trim($_POST['third_party_name'] ?? '');
+        $delivery_link     = trim($_POST['delivery_link'] ?? '');
+        $notes             = trim($_POST['notes'] ?? '');
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        if (!$third_party_name) respond(['ok' => false, 'msg' => '3rd-party provider name is required.']);
+        respond(assignThirdPartyDelivery($order_id, $third_party_name, $delivery_link, $actor_id, $actor_role, $notes, $conn));
+
+    /* ── MARK AS OUT FOR DELIVERY (admin manual for 3rd-party) ─────────── */
+    case 'send_out_for_delivery':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $notes    = trim($_POST['notes'] ?? 'Dispatched for delivery.');
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        // This is only used when admin needs to manually push to OutForDelivery
+        // (e.g. registered rider was assigned but admin wants to force-advance)
+        $r = _updateOrderStatusRaw($order_id, 'Processing', 'OutForDelivery', $actor_id, $actor_role, $notes, $conn);
+        if ($r['ok']) {
+            $conn->query("UPDATE deliveries SET status='accepted', accepted_at=NOW() WHERE order_id={$order_id} AND status='pending_acceptance'");
+            $order = getOrderRow($order_id, $conn);
+            _broadcastNotif($order_id, "Order #{$order['order_code']} is now Out for Delivery.", $order['account_id'], $order['assigned_rider_id'], $conn);
         }
-        $updateQuery .= " WHERE order_id = ?";
-        
-        $updateStmt = $conn->prepare($updateQuery);
-        $updateStmt->bind_param("si", $newStatus, $orderId);
-        $updateStmt->execute();
-        
-        // Insert into status history
-        $historyStmt = $conn->prepare("
-            INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_user_id, changed_by_user_type, notes) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        $historyStmt->bind_param("issiis", $orderId, $oldStatus, $newStatus, $userId, $userType, $notes);
-        $historyStmt->execute();
-        
-        // Log activity
-        logActivity($conn, 'order', $orderId, "Status changed", $oldStatus, $newStatus, $notes, $userId, $userType);
-        
-        // Special handling for different statuses
-        switch ($newStatus) {
-            case 'Processing':
-                logActivity($conn, 'order', $orderId, "Order approved for processing", null, null, "Order moved to processing queue", $userId, $userType);
-                break;
-                
-            case 'OutForDelivery':
-                logActivity($conn, 'delivery', $orderId, "Order out for delivery", null, null, "Order dispatched for delivery", $userId, $userType);
-                break;
-                
-            case 'Delivered':
-                // Handle COD payment completion
-                if ($paymentMethod === 'cod') {
-                    updatePaymentStatus($conn, $orderId, 'Paid', $userId, $userType, "COD payment collected upon delivery");
-                }
-                logActivity($conn, 'order', $orderId, "Order delivered", null, null, "Order successfully delivered to customer", $userId, $userType);
-                break;
-                
-            case 'Cancelled':
-                // Handle automatic refund for paid online orders
-                if ($paymentMethod !== 'cod') {
-                    $payment = getOrderPayment($conn, $orderId);
-                    if ($payment && $payment['payment_status'] === 'Paid') {
-                        processRefund($conn, $orderId, $payment['amount'], "Order cancellation", $userId, $userType);
-                    }
-                }
-                logActivity($conn, 'order', $orderId, "Order cancelled", null, null, $notes, $userId, $userType);
-                break;
+        respond($r);
+
+    /* ── CANCEL ORDER ───────────────────────────────────────────────────── */
+    case 'cancel_order':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $reason   = trim($_POST['reason'] ?? '');
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        if (!$reason)   respond(['ok' => false, 'msg' => 'Cancellation reason is required.']);
+        respond(cancelOrder($order_id, $actor_id, $actor_role, $reason, $conn));
+
+    /* ── MARK DELIVERED (admin override) ───────────────────────────────── */
+    case 'mark_delivered':
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $notes    = trim($_POST['notes'] ?? '');
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        // Riders can only mark their assigned order
+        if (isRider($actor_role)) {
+            $check = $conn->prepare("SELECT o.order_id FROM orders o JOIN riders r ON r.rider_id=o.assigned_rider_id WHERE o.order_id=? AND r.account_id=?");
+            $check->bind_param('ii', $order_id, $actor_id);
+            $check->execute();
+            if (!$check->get_result()->fetch_assoc()) respond(['ok' => false, 'msg' => 'This order is not assigned to you.']);
         }
-        
-        $conn->commit();
-        return ['success' => true, 'message' => "Order status updated to {$newStatus}"];
-        
-    } catch (Exception $e) {
-        $conn->rollback();
-        return ['success' => false, 'message' => 'Failed to update order status: ' . $e->getMessage()];
-    }
-}
+        respond(markDelivered($order_id, $actor_id, $actor_role, $notes, $conn));
 
-// Function to update rider availability based on active deliveries
-function updateRiderAvailability($conn, $riderId) {
-    // Count active deliveries for this rider
-    $activeStmt = $conn->prepare("
-        SELECT COUNT(*) as active_count 
-        FROM orders 
-        WHERE assigned_rider_id = ? AND order_status = 'OutForDelivery'
-    ");
-    $activeStmt->bind_param("i", $riderId);
-    $activeStmt->execute();
-    $activeResult = $activeStmt->get_result();
-    $activeCount = $activeResult->fetch_assoc()['active_count'];
-    
-    // Get current availability for logging
-    $currentStmt = $conn->prepare("SELECT is_available FROM riders WHERE rider_id = ?");
-    $currentStmt->bind_param("i", $riderId);
-    $currentStmt->execute();
-    $currentResult = $currentStmt->get_result();
-    $currentAvailability = $currentResult->fetch_assoc()['is_available'];
-    
-    // Set availability based on active delivery count
-    $newAvailability = ($activeCount == 0) ? 1 : 0;
-    
-    // Only update if there's a change
-    if ($currentAvailability != $newAvailability) {
-        $updateStmt = $conn->prepare("UPDATE riders SET is_available = ?, updated_at = NOW() WHERE rider_id = ?");
-        $updateStmt->bind_param("ii", $newAvailability, $riderId);
-        $updateStmt->execute();
-        
-        error_log("Rider {$riderId} availability changed from {$currentAvailability} to {$newAvailability} (active deliveries: {$activeCount})");
-    } else {
-        error_log("Rider {$riderId} availability unchanged at {$currentAvailability} (active deliveries: {$activeCount})");
-    }
-    
-    return $newAvailability;
-}
+    /* ── RIDER ACCEPTS DELIVERY ─────────────────────────────────────────── */
+    case 'rider_accept':
+        if (!isRider($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $delivery_id = (int)($_POST['delivery_id'] ?? 0);
+        if (!$delivery_id) respond(['ok' => false, 'msg' => 'Missing delivery_id.']);
+        respond(riderAcceptDelivery($delivery_id, $actor_id, $conn));
 
-// Enhanced payment status update
-function updatePaymentStatus($conn, $orderId, $newStatus, $userId = null, $userType = 'system', $notes = '') {
-    $payment = getOrderPayment($conn, $orderId);
-    if (!$payment) {
-        return ['success' => false, 'message' => 'Payment record not found'];
-    }
-    
-    $oldStatus = $payment['payment_status'];
-    
-    $stmt = $conn->prepare("UPDATE payments SET payment_status = ?, updated_at = NOW() WHERE order_id = ?");
-    $stmt->bind_param("si", $newStatus, $orderId);
-    
-    if ($stmt->execute()) {
-        // Log payment status change
-        logActivity($conn, 'payment', $payment['payment_id'], "Payment status changed", $oldStatus, $newStatus, $notes, $userId, $userType);
-        return ['success' => true, 'message' => "Payment status updated to {$newStatus}"];
-    }
-    
-    return ['success' => false, 'message' => 'Failed to update payment status'];
-}
+    /* ── RIDER PICKS UP ORDER ───────────────────────────────────────────── */
+    case 'rider_pickup':
+        if (!isRider($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $delivery_id = (int)($_POST['delivery_id'] ?? 0);
+        if (!$delivery_id) respond(['ok' => false, 'msg' => 'Missing delivery_id.']);
+        respond(riderPickUp($delivery_id, $actor_id, $conn));
 
-// Get payment record for an order
-function getOrderPayment($conn, $orderId) {
-    $stmt = $conn->prepare("SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC LIMIT 1");
-    $stmt->bind_param("i", $orderId);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
-}
+    /* ── PUSH GPS LOCATION (rider dashboard, every ~15s) ────────────────── */
+    case 'push_location':
+        if (!isRider($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $lat         = (float)($_POST['lat'] ?? 0);
+        $lng         = (float)($_POST['lng'] ?? 0);
+        $delivery_id = (int)($_POST['delivery_id'] ?? 0);
+        $status      = trim($_POST['status'] ?? 'en_route');
+        $notes       = trim($_POST['notes'] ?? '');
+        if (!$lat || !$lng || !$delivery_id) respond(['ok' => false, 'msg' => 'Missing lat/lng/delivery_id.']);
 
-// Enhanced refund processing
-function processRefund($conn, $orderId, $refundAmount, $refundReason, $userId = null, $userType = 'system') {
-    $order = getOrderDetails($conn, $orderId);
-    $payment = getOrderPayment($conn, $orderId);
-    
-    if (!$payment || $payment['payment_status'] !== 'Paid') {
-        return ['success' => false, 'message' => 'Cannot refund unpaid order'];
-    }
-    
-    $refundAmount = ($refundAmount === 'full') ? $order['total_price'] : floatval($refundAmount);
-    
-    if ($refundAmount <= 0 || $refundAmount > $order['total_price']) {
-        return ['success' => false, 'message' => 'Invalid refund amount'];
-    }
-    
-    $conn->begin_transaction();
-    
-    try {
-        // Update payment with refund information
-        $stmt = $conn->prepare("
-            UPDATE payments 
-            SET refunded_amount = ?, payment_status = 'Refunded', refund_reason = ?, refund_processed_at = NOW(), updated_at = NOW() 
-            WHERE order_id = ?
-        ");
-        $stmt->bind_param("dsi", $refundAmount, $refundReason, $orderId);
-        $stmt->execute();
-        
-        // Update order status to cancelled if not already
-        if ($order['order_status'] !== 'Cancelled') {
-            updateOrderStatus($conn, $orderId, 'Cancelled', $userId, $userType, "Order cancelled due to refund: {$refundReason}");
-        }
-        
-        // Log refund activity
-        logActivity($conn, 'refund', $payment['payment_id'], "Refund processed", null, $refundAmount, 
-                   "Amount: ₱" . number_format($refundAmount, 2) . " | Reason: " . $refundReason, $userId, $userType);
-        
-        $conn->commit();
-        return ['success' => true, 'message' => 'Refund processed successfully'];
-        
-    } catch (Exception $e) {
-        $conn->rollback();
-        return ['success' => false, 'message' => 'Failed to process refund: ' . $e->getMessage()];
-    }
-}
+        // Get rider_id from account_id
+        $rq = $conn->prepare("SELECT rider_id FROM riders WHERE account_id=? LIMIT 1");
+        $rq->bind_param('i', $actor_id);
+        $rq->execute();
+        $rrow = $rq->get_result()->fetch_assoc();
+        if (!$rrow) respond(['ok' => false, 'msg' => 'Rider profile not found.']);
 
-// Get order details
-function getOrderDetails($conn, $orderId) {
-    $stmt = $conn->prepare("SELECT * FROM orders WHERE order_id = ?");
-    $stmt->bind_param("i", $orderId);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
-}
+        respond(pushRiderLocation((int)$rrow['rider_id'], $lat, $lng, $delivery_id, $status, $notes, $conn));
 
-// Get all riders (no status check)
-function getAvailableRiders($conn) {
-    $stmt = $conn->prepare("
-        SELECT r.*, a.first_name, a.last_name, a.email 
-        FROM riders r 
-        JOIN accounts a ON r.account_id = a.account_id 
-        ORDER BY a.first_name ASC
-    ");
-    $stmt->execute();
-    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-}
+    /* ── UPLOAD DELIVERY PROOF ──────────────────────────────────────────── */
+    case 'upload_proof':
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $caption  = trim($_POST['caption'] ?? '');
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        if (empty($_FILES['proof_file']['tmp_name'])) respond(['ok' => false, 'msg' => 'No file received.']);
 
-// Assign rider to order (no rider status logic)
-function assignRiderToOrder($conn, $orderId, $riderId, $userId = null, $userType = 'super_admin', $notes = '') {
-    $conn->begin_transaction();
-    
-    try {
-        // Update order with rider assignment
-        $stmt = $conn->prepare("UPDATE orders SET assigned_rider_id = ?, updated_at = NOW() WHERE order_id = ?");
-        $stmt->bind_param("ii", $riderId, $orderId);
-        $stmt->execute();
-        
-        // Get rider details for logging
-        $riderDetails = $conn->prepare("SELECT a.first_name, a.last_name FROM riders r JOIN accounts a ON r.account_id = a.account_id WHERE r.rider_id = ?");
-        $riderDetails->bind_param("i", $riderId);
-        $riderDetails->execute();
-        $rider = $riderDetails->get_result()->fetch_assoc();
-        
-        // Log assignment
-        logActivity($conn, 'delivery', $orderId, "Rider assigned", null, $riderId, "Assigned to: {$rider['first_name']} {$rider['last_name']} | Notes: {$notes}", $userId, $userType);
-        
-        // Update order status to OutForDelivery
-        updateOrderStatus($conn, $orderId, 'OutForDelivery', $userId, $userType, "Assigned to rider for delivery");
-        
-        $conn->commit();
-        return ['success' => true, 'message' => 'Rider assigned successfully'];
-        
-    } catch (Exception $e) {
-        $conn->rollback();
-        return ['success' => false, 'message' => 'Failed to assign rider: ' . $e->getMessage()];
-    }
-}
+        $file = $_FILES['proof_file'];
+        $mime = mime_content_type($file['tmp_name']);
+        if (!in_array($mime, ['image/jpeg','image/png','image/webp'], true)) respond(['ok' => false, 'msg' => 'Only JPEG, PNG, WEBP allowed.']);
+        if ($file['size'] > 8 * 1024 * 1024) respond(['ok' => false, 'msg' => 'File too large. Max 8MB.']);
 
-// Validate user permissions
-function validateUserPermission($userType, $action) {
-    $permissions = [
-        'super_admin' => ['approve_order', 'assign_rider', 'cancel_order', 'process_refund', 'mark_delivered'],
-        'rider' => ['mark_delivered', 'update_location'],
-        'customer' => ['cancel_order', 'confirm_receipt', 'request_refund'],
-        'admin' => ['approve_order', 'assign_rider', 'cancel_order', 'process_refund'] // Add admin permissions if needed
-    ];
-    
-    return isset($permissions[$userType]) && in_array($action, $permissions[$userType]);
-}
-
-// Handle POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $userId = $_SESSION['account_id'] ?? null;
-    $userType = 'super_admin'; // Default for admin panel
-    
-    // Determine user type based on session
-    if (isset($_SESSION['loggedinassupadmin'])) {
-        $userType = 'super_admin';
-    } elseif (isset($_SESSION['loggedinasadmin'])) {
-        $userType = 'admin';
-    } elseif (isset($_SESSION['loggedinasuser'])) {
-        $userType = 'customer';
-    } elseif (isset($_SESSION['loggedinasrider'])) {
-        $userType = 'rider';
-    }
-    
-    // Approve Order (Pending -> Processing)
-    if (isset($_POST['approve_order'])) {
-        $orderId    = (int)$_POST['order_id'];
-        $notes      = trim($_POST['notes'] ?? 'Order approved by admin');
-        $redirectTo = $_POST['redirect_to'] ?? 'referrer';
-
-        if (!validateUserPermission($userType, 'approve_order')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
-        }
-
-        $result = updateOrderStatus($conn, $orderId, 'Processing', $userId, $userType, $notes);
-
-        if ($result['success']) {
-            // Notify customer their order is being prepared
-            $notify = dispatchOrderApprovedNotification($conn, $orderId, $userId, $userType);
-            error_log("[order_process] Approved notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
-
-            $_SESSION['message'] = ['text' => 'Order approved successfully!', 'type' => 'success'];
-            if ($redirectTo === 'order_manage') {
-                header("Location: ../order_manage.php?order_id=" . $orderId);
-            } else {
-                header("Location: " . $_SERVER['HTTP_REFERER']);
-            }
+        // Verify rider owns this order (if role=rider)
+        $rider_id = 0;
+        if (isRider($actor_role)) {
+            $chk = $conn->prepare("SELECT r.rider_id FROM riders r JOIN orders o ON o.assigned_rider_id=r.rider_id WHERE o.order_id=? AND r.account_id=? LIMIT 1");
+            $chk->bind_param('ii', $order_id, $actor_id);
+            $chk->execute();
+            $chkrow = $chk->get_result()->fetch_assoc();
+            if (!$chkrow) respond(['ok' => false, 'msg' => 'This order is not assigned to you.']);
+            $rider_id = (int)$chkrow['rider_id'];
         } else {
-            $_SESSION['message'] = ['text' => $result['message'], 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-        }
-        exit();
-    }
-
-    // Assign Rider (Processing -> OutForDelivery)
-    elseif (isset($_POST['assign_rider'])) {
-        $orderId = (int)$_POST['order_id'];
-        $riderId = (int)$_POST['rider_id'];
-        $notes   = trim($_POST['notes'] ?? '');
-
-        if (!validateUserPermission($userType, 'assign_rider')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
+            $rq = $conn->prepare("SELECT assigned_rider_id FROM orders WHERE order_id=? LIMIT 1");
+            $rq->bind_param('i', $order_id);
+            $rq->execute();
+            $rrow = $rq->get_result()->fetch_assoc();
+            $rider_id = (int)($rrow['assigned_rider_id'] ?? 0);
         }
 
-        // Set rider as busy immediately
-        $updateRiderStmt = $conn->prepare("UPDATE riders SET is_available = 0 WHERE rider_id = ?");
-        $updateRiderStmt->bind_param("i", $riderId);
-        $updateRiderStmt->execute();
-        error_log("Rider {$riderId} set to busy (new delivery assigned)");
+        $ext  = match($mime) { 'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg' };
+        $fname = 'proof_' . $order_id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $dir  = __DIR__ . '/../../uploads/delivery_proofs/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        if (!move_uploaded_file($file['tmp_name'], $dir . $fname)) respond(['ok' => false, 'msg' => 'File save failed.']);
 
-        $result = assignRiderToOrder($conn, $orderId, $riderId, $userId, $userType, $notes);
+        $result = saveDeliveryProof(
+            $order_id, $rider_id,
+            'uploads/delivery_proofs/' . $fname,
+            $file['name'],
+            (int)round($file['size'] / 1024),
+            $mime, $caption, $conn
+        );
+        if ($result['ok']) {
+            $order = getOrderRow($order_id, $conn);
+            _broadcastNotif($order_id, "Delivery proof uploaded for Order #{$order['order_code']}.", $order['account_id'], null, $conn);
+        }
+        respond($result);
 
-        if ($result['success']) {
-            // Notify customer their order is on the way (includes rider name)
-            $notify = dispatchOutForDeliveryNotification($conn, $orderId, $userId, $userType);
-            error_log("[order_process] OutForDelivery notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
+    /* ── MARK NOTIFICATIONS READ ─────────────────────────────────────────── */
+    case 'mark_read':
+        $order_id = isset($_POST['order_id']) ? (int)$_POST['order_id'] : null;
+        markNotificationsRead($actor_id, $actor_role, $conn, $order_id);
+        respond(['ok' => true]);
+
+    /* ── POLL ORDERS (realtime table updates) ────────────────────────────── */
+    case 'poll_orders':
+        $last = $_GET['last_check'] ?? date('Y-m-d H:i:s', strtotime('-5 minutes'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $last)) {
+            $last = date('Y-m-d H:i:s', strtotime('-5 minutes'));
+        }
+        $stmt = $conn->prepare("
+            SELECT o.order_id, o.order_code, o.first_name, o.last_name,
+                   o.order_status, o.updated_at, o.total_price,
+                   p.payment_status
+            FROM orders o LEFT JOIN payments p ON p.order_id=o.order_id
+            WHERE o.updated_at > ? AND o.is_deleted=0
+            ORDER BY o.updated_at DESC LIMIT 30
+        ");
+        $stmt->bind_param('s', $last);
+        $stmt->execute();
+        $changed = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $notifs  = getUnreadNotifications($actor_id, $actor_role, $conn, 5);
+        respond([
+            'ok'            => true,
+            'server_time'   => date('Y-m-d H:i:s'),
+            'changed'       => $changed,
+            'unread_count'  => count(getUnreadNotifications($actor_id, $actor_role, $conn)),
+            'notifications' => $notifs,
+        ]);
+
+    /* ── POLL NOTIFICATIONS ONLY ─────────────────────────────────────────── */
+    case 'poll_notifications':
+        $items = getUnreadNotifications($actor_id, $actor_role, $conn);
+        respond(['ok' => true, 'count' => count($items), 'items' => $items]);
+
+    /* ── FULL ORDER DETAIL (for drawer) ──────────────────────────────────── */
+    case 'get_order_detail':
+        $order_id = (int)($_GET['order_id'] ?? $_POST['order_id'] ?? 0);
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        $order   = getOrderFull($order_id, $conn);
+        if (!$order) respond(['ok' => false, 'msg' => 'Order not found.']);
+        $items   = getOrderItems($order_id, $conn);
+        $history = getOrderHistory($order_id, $conn);
+        $proofs  = getDeliveryProofs($order_id, $conn);
+        $riders  = isAdmin($actor_role) ? getRidersList($conn) : [];
+
+        // Allowed next transitions for this role
+        $transitions = ORDER_STATUS_FLOW[$order['order_status']] ?? [];
+        if (isRider($actor_role)) $transitions = array_values(array_intersect($transitions, ['Delivered']));
+
+        respond([
+            'ok'           => true,
+            'order'        => $order,
+            'items'        => $items,
+            'history'      => $history,
+            'proofs'       => $proofs,
+            'riders'       => $riders,
+            'transitions'  => $transitions,
+            'status_labels'=> STATUS_LABELS,
+            'delivery_labels' => DELIVERY_STATUS_LABELS,
+        ]);
+
+    /* ── GET RIDERS LIST ─────────────────────────────────────────────────── */
+    case 'get_riders':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $available_only = isset($_GET['available_only']) && $_GET['available_only'] === '1';
+        respond(['ok' => true, 'riders' => getRidersList($conn, $available_only)]);
+
+    /* ── GET TRACKING DATA (admin map view) ──────────────────────────────── */
+    case 'get_tracking':
+        $order_id = (int)($_GET['order_id'] ?? 0);
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+        $latest = getLatestLocation($order_id, $conn);
+
+        // Also get delivery_id to fetch breadcrumbs
+        $dstmt = $conn->prepare("SELECT delivery_id FROM deliveries WHERE order_id=? AND status IN ('accepted','picked_up','in_transit') ORDER BY assigned_at DESC LIMIT 1");
+        $dstmt->bind_param('i', $order_id);
+        $dstmt->execute();
+        $drow = $dstmt->get_result()->fetch_assoc();
+        $breadcrumbs = $drow ? getTrackingBreadcrumbs((int)$drow['delivery_id'], $conn) : [];
+
+        respond([
+            'ok'          => true,
+            'latest'      => $latest,
+            'breadcrumbs' => $breadcrumbs,
+            'delivery_id' => $drow['delivery_id'] ?? null,
+        ]);
+
+    /* ── GET RIDER PENDING DELIVERIES (rider dashboard) ─────────────────── */
+    case 'get_my_deliveries':
+        if (!isRider($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        respond(['ok' => true, 'deliveries' => getRiderPendingDeliveries($actor_id, $conn)]);
+
+    /* ── REGENERATE REVIEW INVITE LINK ──────────────────────────────────── */
+    case 'regenerate_review_link':
+        if (!isAdmin($actor_role)) respond(['ok' => false, 'msg' => 'Unauthorized.']);
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        if (!$order_id) respond(['ok' => false, 'msg' => 'Missing order_id.']);
+
+        // Confirm order is Delivered
+        $chk = $conn->prepare("SELECT order_status, order_code, email FROM orders WHERE order_id = ? LIMIT 1");
+        $chk->bind_param('i', $order_id);
+        $chk->execute();
+        $chkRow = $chk->get_result()->fetch_assoc();
+        if (!$chkRow || $chkRow['order_status'] !== 'Delivered') {
+            respond(['ok' => false, 'msg' => 'Order not found or not yet delivered.']);
         }
 
-        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
-        header("Location: ../order_manage.php?order_id=" . $orderId);
-        exit();
-    }
+        // Delete old invite
+        $del = $conn->prepare("DELETE FROM review_invites WHERE order_id = ?");
+        $del->bind_param('i', $order_id);
+        $del->execute();
 
-    // Mark as Delivered (OutForDelivery -> Delivered)
-    elseif (isset($_POST['mark_delivered'])) {
-        $orderId = (int)$_POST['order_id'];
-        $notes   = trim($_POST['notes'] ?? 'Order delivered successfully');
-
-        if (!validateUserPermission($userType, 'mark_delivered')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
+        // Insert new invite with fresh token
+        $token     = bin2hex(random_bytes(24));
+        $baseUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+                     . '://' . $_SERVER['HTTP_HOST'];
+        $reviewUrl = $baseUrl . '/sjfbi-js/review.php?token=' . $token . '&order=' . urlencode($chkRow['order_code']);
+        $ins = $conn->prepare("INSERT INTO review_invites (order_id, review_url, sent_at) VALUES (?, ?, NOW())");
+        $ins->bind_param('is', $order_id, $reviewUrl);
+        if ($ins->execute()) {
+            respond(['ok' => true, 'msg' => 'Review link regenerated.', 'review_url' => $reviewUrl]);
         }
+        respond(['ok' => false, 'msg' => 'Failed to regenerate link.']);
 
-        // Get the rider ID for this order first
-        $riderId     = null;
-        $riderIdStmt = $conn->prepare("SELECT assigned_rider_id FROM orders WHERE order_id = ?");
-        $riderIdStmt->bind_param("i", $orderId);
-        $riderIdStmt->execute();
-        $riderResult = $riderIdStmt->get_result();
-        if ($riderResult->num_rows > 0) {
-            $riderId = $riderResult->fetch_assoc()['assigned_rider_id'];
-        }
-
-        $result = updateOrderStatus($conn, $orderId, 'Delivered', $userId, $userType, $notes);
-
-        if ($result['success']) {
-            // Save delivery timestamp
-            $deliveredStmt = $conn->prepare("UPDATE orders SET delivered_at = NOW() WHERE order_id = ?");
-            $deliveredStmt->bind_param("i", $orderId);
-            $deliveredStmt->execute();
-
-            if ($riderId) {
-                updateRiderAvailability($conn, $riderId);
-            }
-
-            // Notify customer + send review invite link
-            $invite = dispatchReviewInvite($conn, $orderId, $userId, $userType);
-            error_log("[order_process] Review invite: " . $invite['message']);
-        }
-
-        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
-        header("Location: " . $_SERVER['HTTP_REFERER']);
-        exit();
-    }
-
-    // Cancel Order
-    elseif (isset($_POST['cancel_order'])) {
-        $orderId = (int)$_POST['order_id'];
-        $reason  = trim($_POST['reason'] ?? 'Order cancelled by user');
-
-        if (!validateUserPermission($userType, 'cancel_order')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
-        }
-
-        $result = updateOrderStatus($conn, $orderId, 'Cancelled', $userId, $userType, $reason);
-
-        if ($result['success']) {
-            // Notify customer their order was cancelled (includes reason)
-            $notify = dispatchCancelledNotification($conn, $orderId, $reason, $userId, $userType);
-            error_log("[order_process] Cancelled notification: SMS=" . ($notify['sms_sent'] ? 'OK' : 'fail') . " Email=" . ($notify['email_sent'] ? 'OK' : 'fail'));
-        }
-
-        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
-        header("Location: " . $_SERVER['HTTP_REFERER']);
-        exit();
-    }
-    
-    // Confirm Receipt (Customer confirmation)
-    elseif (isset($_POST['confirm_receipt'])) {
-        $orderId = (int)$_POST['order_id'];
-        $notes = 'Customer confirmed receipt of order';
-        
-        if (!validateUserPermission($userType, 'confirm_receipt')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
-        }
-        
-        // Log customer confirmation (order is already delivered)
-        logActivity($conn, 'order', $orderId, "Receipt confirmed by customer", null, null, $notes, $userId, $userType);
-        
-        $_SESSION['message'] = ['text' => 'Thank you for confirming receipt!', 'type' => 'success'];
-        header("Location: " . ($_SESSION['loggedinasuser'] ? '../user/orders.php' : $_SERVER['HTTP_REFERER']));
-        exit();
-    }
-    
-    // Process Refund
-    elseif (isset($_POST['process_refund'])) {
-        $orderId = (int)$_POST['order_id'];
-        $refundAmount = $_POST['refund_amount'] ?? 'full';
-        $refundReason = trim($_POST['refund_reason'] ?? 'Refund processed by admin');
-        
-        if (!validateUserPermission($userType, 'process_refund')) {
-            $_SESSION['message'] = ['text' => 'Insufficient permissions', 'type' => 'error'];
-            header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit();
-        }
-        
-        $result = processRefund($conn, $orderId, $refundAmount, $refundReason, $userId, $userType);
-        $_SESSION['message'] = ['text' => $result['message'], 'type' => $result['success'] ? 'success' : 'error'];
-        header("Location: " . $_SERVER['HTTP_REFERER']);
-        exit();
-    }
+    default:
+        http_response_code(400);
+        respond(['ok' => false, 'msg' => 'Unknown action: ' . htmlspecialchars($action)]);
 }
-
-// Get order timeline
-function getOrderTimeline($conn, $orderId) {
-    $stmt = $conn->prepare("
-        SELECT osh.*, a.first_name, a.last_name 
-        FROM order_status_history osh 
-        LEFT JOIN accounts a ON osh.changed_by_user_id = a.account_id 
-        WHERE osh.order_id = ? 
-        ORDER BY osh.created_at DESC
-    ");
-    $stmt->bind_param("i", $orderId);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-}
-
-// Get activity log for an entity
-function getActivityLog($conn, $entityType, $entityId, $limit = 50) {
-    $stmt = $conn->prepare("
-        SELECT al.*, a.first_name, a.last_name 
-        FROM activity_log al 
-        LEFT JOIN accounts a ON al.user_id = a.account_id 
-        WHERE al.entity_type = ? AND al.entity_id = ? 
-        ORDER BY al.created_at DESC 
-        LIMIT ?
-    ");
-    $stmt->bind_param("sii", $entityType, $entityId, $limit);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-}
-?>

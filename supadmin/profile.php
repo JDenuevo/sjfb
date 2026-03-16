@@ -45,45 +45,161 @@ $row = $result->fetch_assoc();
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="../style.css" rel="stylesheet">
 
-</head>
+  <style>
+    /* Import products.php design language */
+    .form-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 0.375rem;
+    }
 
+    .form-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      color: #111827;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+      background-color: white;
+    }
+
+    .form-input:focus {
+      border-color: #ea580c;
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+    }
+
+    .form-input[readonly] {
+      background-color: #f9fafb;
+      cursor: not-allowed;
+    }
+
+    .section-title {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: #111827;
+      border-left: 3px solid #ea580c;
+      padding-left: 0.625rem;
+      margin: 1.25rem 0 0.75rem;
+    }
+
+    .btn-primary {
+      padding: 0.5rem 1.25rem;
+      background: #ea580c;
+      color: white;
+      border-radius: 0.625rem;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary:hover {
+      background: #c2410c;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+
+    .btn-secondary {
+      padding: 0.5rem 1.25rem;
+      background: white;
+      color: #374151;
+      border-radius: 0.625rem;
+      border: 1px solid #e5e7eb;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-secondary:hover {
+      background: #f9fafb;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-green {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-yellow {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Profile card styles */
+    .profile-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 1rem;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .profile-card:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+      background-color: white;
+      border-color: #ea580c;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Alert styles */
+    .alert {
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .alert-success {
+      background-color: #14b8a6;
+      color: white;
+    }
+
+    .alert-error {
+      background-color: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
 
 <body class="bg-gray-50">
 
   <!-- Header -->
   <?php include('./components/header.php'); ?>
-
-  <!-- ========== MAIN CONTENT ========== -->
-  <!-- Breadcrumb -->
-  <div class="sticky top-0 inset-x-0 z-20 bg-white border-y border-gray-200 px-4 sm:px-6 lg:px-8 lg:hidden">
-    <div class="flex items-center py-2">
-      <!-- Navigation Toggle -->
-      <button type="button" class="size-8 flex justify-center items-center gap-x-2 border border-gray-200 text-gray-800 hover:text-gray-500 rounded-lg focus:outline-hidden focus:text-gray-500 disabled:opacity-50 disabled:pointer-events-none" aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-application-sidebar" aria-label="Toggle navigation" data-hs-overlay="#hs-application-sidebar">
-        <span class="sr-only">Toggle Navigation</span>
-        <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M15 3v18" />
-          <path d="m8 9 3 3-3 3" />
-        </svg>
-      </button>
-      <!-- End Navigation Toggle -->
-
-      <!-- Breadcrumb -->
-      <ol class="ms-3 flex items-center whitespace-nowrap">
-        <li class="flex items-center text-sm text-gray-800 ">
-          Application Layout
-          <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400 " width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-        </li>
-        <li class="text-sm font-semibold text-gray-800 truncate " aria-current="page">
-          Dashboard
-        </li>
-      </ol>
-      <!-- End Breadcrumb -->
-    </div>
-  </div>
-  <!-- End Breadcrumb -->
 
   <!-- Sidebar -->
   <?php include('./components/sidebar.php'); ?>
@@ -91,27 +207,33 @@ $row = $result->fetch_assoc();
   <!-- Content -->
   <div class="w-full lg:ps-64">
     <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
-
-      <!-- Monitoring Card Grid -->
       <?php include('./components/manage_profile.php'); ?>
-      <!-- Monitoring Card End -->
-        
-      <!-- Table Card -->
-      
-      <!-- Table End -->
-
     </div>
   </div>
   <!-- End Content -->
 
-
-   <!-- Required plugins -->
+  <!-- Required plugins -->
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
 
   <!-- jQuery -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
+  
+  <!-- Form validation script -->
+  <script>
+    // Password match validation
+    document.querySelector('form')?.addEventListener('submit', function(e) {
+      const password = document.querySelector('input[name="password"]').value;
+      const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+      
+      if (password || confirmPassword) {
+        if (password !== confirmPassword) {
+          e.preventDefault();
+          alert('Passwords do not match!');
+        }
+      }
+    });
+  </script>
 </body>
 </html>
-

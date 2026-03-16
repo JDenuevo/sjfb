@@ -26,6 +26,9 @@ $query = "SELECT
     p.*,
     GROUP_CONCAT(DISTINCT pc.category_name SEPARATOR ', ') AS category_names,
     GROUP_CONCAT(DISTINCT pc.category_id SEPARATOR ',') AS category_ids,
+    GROUP_CONCAT(DISTINCT 
+        CASE WHEN pcl.is_primary = 1 THEN pc.category_id END
+    ) AS primary_category_id,
     IFNULL(MAX(v.stock_status), 'Out of Stock') AS stock_status,
     GROUP_CONCAT(DISTINCT v.variant_name ORDER BY v.created_at DESC SEPARATOR ', ') AS variants,
     GROUP_CONCAT(DISTINCT v.variant_price ORDER BY v.created_at DESC SEPARATOR ', ') AS prices,
@@ -40,6 +43,7 @@ WHERE p.is_deleted = 0
 GROUP BY p.product_id, p.product_name, p.product_description
 ORDER BY last_updated DESC
 LIMIT $perPage OFFSET $offset";
+
 $result = $conn->query($query);
 
 // Fetch categories once for reuse
@@ -53,6 +57,18 @@ $category_options_html = '';
 foreach ($all_categories_arr as $cr) {
   $category_options_html .= '<option value="' . $cr['category_id'] . '">' . htmlspecialchars($cr['category_name']) . '</option>';
 }
+
+function getPrimaryCategoryId($product_id) {
+    global $conn;
+    $query = "SELECT category_id FROM product_category_links WHERE product_id = ? AND is_primary = 1 LIMIT 1";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    return $row['category_id'] ?? null;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -206,6 +222,7 @@ foreach ($all_categories_arr as $cr) {
     .badge-green { background: #dcfce7; color: #166534; }
     .badge-red { background: #fee2e2; color: #991b1b; }
     .badge-gray { background: #f3f4f6; color: #374151; }
+    .badge-primary {background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
   </style>
 </head>
 
@@ -345,8 +362,20 @@ foreach ($all_categories_arr as $cr) {
             </button>
           </div>
 
-          <p class="section-title">Categories</p>
-          <div class="grid gap-3">
+          <p class="section-title">Categories <span class="text-red-500">*</span></p>
+          <div class="space-y-3">
+            <div>
+              <label class="form-label">Select Categories (you can select multiple)</label>
+              <select name="product_categories[]" multiple class="form-input" size="5" required>
+                <?php
+                foreach ($all_categories_arr as $cr) {
+                  echo '<option value="' . $cr['category_id'] . '">' . htmlspecialchars($cr['category_name']) . '</option>';
+                }
+                ?>
+              </select>
+              <p class="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple categories</p>
+            </div>
+            
             <div>
               <label class="form-label">Primary Category</label>
               <select name="primary_category" class="form-input">
@@ -357,6 +386,7 @@ foreach ($all_categories_arr as $cr) {
                 }
                 ?>
               </select>
+              <p class="text-xs text-gray-400 mt-1">Optional: If not selected, first category will be primary</p>
             </div>
           </div>
 

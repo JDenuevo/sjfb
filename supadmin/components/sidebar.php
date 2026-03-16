@@ -1,5 +1,5 @@
 <?php
-// sidebar.php — improved
+// sidebar.php — with live notification badges
 $currentPage = basename($_SERVER['PHP_SELF']);
 
 $navItems = [
@@ -23,10 +23,68 @@ $navItems = [
 ];
 
 $groupedNav = [];
-
 foreach ($navItems as $item) {
     $groupedNav[$item['category']][] = $item;
 }
+
+// ── Notification badge counts ────────────────────────────────────────────
+// Each count represents items that need admin attention.
+// We only query if the $conn variable is available (it's included before this file).
+$badges = [];
+$badgeDetails = []; // Store more details for tooltips
+
+if (isset($conn) && $conn instanceof mysqli) {
+
+     // Orders: Paid orders (online payments) waiting to be approved
+    $r = $conn->query("SELECT COUNT(*) AS c FROM orders WHERE order_status = 'Paid' AND is_deleted = 0");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['orders.php'] = ($badges['orders.php'] ?? 0) + $count;
+        $badgeDetails['orders_paid'] = ['count' => $count, 'label' => 'paid orders awaiting approval'];
+    }
+
+    // Orders: Pending orders (COD) waiting to be approved
+    $r = $conn->query("SELECT COUNT(*) AS c FROM orders WHERE order_status = 'Pending' AND is_deleted = 0");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['orders.php'] = ($badges['orders.php'] ?? 0) + $count;
+        $badgeDetails['orders_pending'] = ['count' => $count, 'label' => 'COD orders awaiting approval'];
+    }
+
+    // Reviews: Pending moderation
+    $r = $conn->query("SELECT COUNT(*) AS c FROM reviews WHERE status = 'pending'");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['reviews.php'] = $count;
+        $badgeDetails['reviews.php'] = ['count' => $count, 'label' => 'reviews pending'];
+    }
+
+    // Accounts: New registrations in the last 48 hours (not guests, not deleted)
+    $r = $conn->query("SELECT COUNT(*) AS c FROM accounts WHERE role NOT IN ('guest','super_admin','admin') AND is_deleted = 0 AND created_at >= NOW() - INTERVAL 48 HOUR");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['accounts.php'] = $count;
+        $badgeDetails['accounts.php'] = ['count' => $count, 'label' => 'new accounts'];
+    }
+
+    // Riders: New rider profiles in the last 7 days
+    $r = $conn->query("SELECT COUNT(*) AS c FROM riders WHERE is_deleted = 0 AND created_at >= NOW() - INTERVAL 7 DAY");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['riders.php'] = $count;
+        $badgeDetails['riders.php'] = ['count' => $count, 'label' => 'new riders'];
+    }
+
+    // Inquiries: Received in the last 48 hours (no is_read flag on table)
+    $r = $conn->query("SELECT COUNT(*) AS c FROM contact_inquiries WHERE created_at >= NOW() - INTERVAL 48 HOUR");
+    if ($r) {
+        $count = (int)$r->fetch_assoc()['c'];
+        $badges['inquiries.php'] = $count;
+        $badgeDetails['inquiries.php'] = ['count' => $count, 'label' => 'new inquiries'];
+    }
+}
+
+// ── Icon paths ────────────────────────────────────────────────────────────
 $icons = [
   'dashboard' => '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   'orders'    => '<path d="M3.5 5.5l1.5 1.5l2.5-2.5"/><path d="M3.5 11.5l1.5 1.5l2.5-2.5"/><path d="M3.5 17.5l1.5 1.5l2.5-2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/>',
@@ -40,8 +98,65 @@ $icons = [
   'accounts'  => '<path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>',
   'riders'    => '<path d="M12 4a9 9 0 0 1 5.656 16h-11.312a9 9 0 0 1 5.656-16z"/><path d="M20 9h-8.8a1 1 0 0 0-.968 1.246c.507 2 1.596 3.418 3.268 4.254c2 1 4.333 1.5 7 1.5"/>',
   'inquiries' => '<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 19h-10a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5" /><path d="M19 22v.01" /><path d="M19 19a2.003 2.003 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483" />',
-  ];
+];
+
+// ── Badge color per page ──────────────────────────────────────────────────
+$badgeColor = [
+    'orders.php'    => 'bg-red-500',
+    'payments.php'  => 'bg-orange-500',
+    'reviews.php'   => 'bg-yellow-500',
+    'accounts.php'  => 'bg-blue-500',
+    'riders.php'    => 'bg-purple-500',
+    'inquiries.php' => 'bg-red-500',
+    'products.php'  => 'bg-amber-500',
+];
+
+// ── Helper: format badge number (cap at 99) ───────────────────────────────
+function fmtBadge(int $n): string {
+    return $n > 99 ? '99+' : (string)$n;
+}
 ?>
+
+<style>
+  /* pulse animation for sidebar badges */
+  @keyframes sb-pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .85; transform: scale(1.1); }
+  }
+  .sb-badge-pulse { animation: sb-pulse 2s ease-in-out infinite; }
+  
+  /* Tooltip styles */
+  .badge-tooltip {
+    position: relative;
+  }
+  .badge-tooltip:hover:after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0;
+    top: -25px;
+    background: #1f2937;
+    color: white;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+  
+  /* Category header with count */
+  .category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  /* Active item glow */
+  .nav-item-active {
+    box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
+  }
+</style>
 
 <!-- ========== SIDEBAR ========== -->
 <div id="hs-application-sidebar"
@@ -56,11 +171,17 @@ $icons = [
 
   <div class="flex flex-col h-full">
 
-    <!-- Logo area -->
-    <div class="h-14 flex items-center px-5 border-b border-gray-100 shrink-0">
+    <!-- Logo area with toggle for mobile -->
+    <div class="h-14 flex items-center justify-between px-5 border-b border-gray-100 shrink-0">
       <a href="dashboard.php" class="flex items-center focus:outline-none focus:opacity-80">
         <img src="../assets/icons/landscape-logo.svg" alt="St. Joseph Fish Brokerage Inc." class="h-8 w-auto">
       </a>
+      <!-- Mobile close button -->
+      <button type="button" class="lg:hidden text-gray-400 hover:text-gray-600" data-hs-overlay="#hs-application-sidebar">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
 
     <!-- Navigation -->
@@ -69,25 +190,49 @@ $icons = [
       [&::-webkit-scrollbar-thumb]:rounded-full
       [&::-webkit-scrollbar-track]:bg-transparent
       [&::-webkit-scrollbar-thumb]:bg-gray-200">
-      
+
       <ul class="space-y-0.5">
+        <?php 
+        $totalBadges = array_sum($badges);
+        ?>
+        
         <?php foreach ($groupedNav as $category => $items): ?>
-          <p class="px-3 mt-4 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-            <?= htmlspecialchars($category) ?>
-          </p>
+          <?php 
+          // Calculate category total badges
+          $catTotal = 0;
+          foreach ($items as $item) {
+              $catTotal += $badges[$item['href']] ?? 0;
+          }
+          ?>
+          <li class="px-3 mt-4 mb-1">
+            <div class="category-header">
+              <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                <?= htmlspecialchars($category) ?>
+              </p>
+              <?php if ($catTotal > 0): ?>
+                <span class="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                  <?= fmtBadge($catTotal) ?>
+                </span>
+              <?php endif; ?>
+            </div>
+          </li>
 
           <ul class="space-y-0.5">
             <?php foreach ($items as $item):
-              $isActive = ($currentPage === $item['href']);
-              $iconPath = $icons[$item['icon']] ?? '';
+              $isActive  = ($currentPage === $item['href']);
+              $iconPath  = $icons[$item['icon']] ?? '';
+              $badgeCnt  = $badges[$item['href']] ?? 0;
+              $badgeCls  = $badgeColor[$item['href']] ?? 'bg-red-500';
+              $tooltip   = $badgeDetails[$item['href']]['label'] ?? 'needs attention';
             ?>
               <li>
                 <a href="<?= $item['href'] ?>"
                   class="group flex items-center gap-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                     <?= $isActive
-                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-200'
+                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-200 nav-item-active'
                       : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600' ?>">
 
+                  <!-- Icon bubble -->
                   <span class="shrink-0 size-8 flex items-center justify-center rounded-lg
                     <?= $isActive ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-orange-100' ?>">
                     <svg class="size-4 <?= $isActive ? 'text-white' : 'text-gray-500 group-hover:text-orange-600' ?>"
@@ -98,11 +243,24 @@ $icons = [
                     </svg>
                   </span>
 
-                  <span class="truncate"><?= htmlspecialchars($item['label']) ?></span>
+                  <!-- Label with truncation -->
+                  <span class="truncate flex-1"><?= htmlspecialchars($item['label']) ?></span>
 
-                  <?php if ($isActive): ?>
+                  <!-- Notification badge with tooltip -->
+                  <?php if ($badgeCnt > 0): ?>
+                    <span class="badge-tooltip shrink-0 ms-auto inline-flex items-center justify-center
+                                 min-w-[20px] h-5 px-1.5
+                                 <?= $badgeCls ?> text-white
+                                 text-[10px] font-bold leading-none
+                                 rounded-full sb-badge-pulse"
+                          data-tooltip="<?= $badgeCnt ?> <?= $tooltip ?>"
+                          title="<?= $badgeCnt ?> <?= $tooltip ?>">
+                      <?= fmtBadge($badgeCnt) ?>
+                    </span>
+                  <?php elseif ($isActive): ?>
                     <span class="ms-auto size-1.5 rounded-full bg-white/70"></span>
                   <?php endif; ?>
+
                 </a>
               </li>
             <?php endforeach; ?>
@@ -112,9 +270,9 @@ $icons = [
 
     </div>
 
-    <!-- Footer: version / support -->
+    <!-- Footer with user info and quick actions -->
     <div class="shrink-0 px-4 py-4 border-t border-gray-100">
-      <div class="flex items-center gap-x-3 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-100">
+      <div class="flex items-center gap-x-3 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-100 relative group">
         <div class="size-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
           <svg class="size-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -124,6 +282,21 @@ $icons = [
           <p class="text-xs font-semibold text-gray-800 truncate">SJFBI Admin</p>
           <p class="text-xs text-gray-400">Super Admin Panel</p>
         </div>
+        
+        <!-- Quick logout button (optional) -->
+        <a href="logout.php" class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+           title="Logout">
+          <svg class="size-4 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </a>
+      </div>
+      
+      <!-- System status indicator (optional) -->
+      <div class="mt-2 flex items-center gap-1.5 px-3">
+        <span class="size-1.5 rounded-full bg-green-500 animate-pulse"></span>
+        <span class="text-[9px] text-gray-400">System online</span>
+        <span class="text-[9px] text-gray-300 ml-auto">v2.1.0</span>
       </div>
     </div>
 

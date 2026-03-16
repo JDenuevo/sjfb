@@ -13,6 +13,14 @@ function redirectWithMessage($location, $message, $type) {
 
 ['userId' => $actorId, 'userType' => $actorType] = getActorFromSession();
 
+// Function to clean content
+function cleanContent($content) {
+    if (empty($content)) return '';
+    // Remove excessive escaping
+    $content = stripslashes($content);
+    return $content;
+}
+
 // ── UPDATE ACCOUNT (admin panel) ──────────────────────────────────────────────
 if (isset($_POST['update_account'])) {
     $account_id  = intval($_POST['account_id']);
@@ -310,62 +318,145 @@ elseif (isset($_POST['update_category'])) {
 
 // ── UPDATE BLOG ───────────────────────────────────────────────────────────────
 elseif (isset($_POST['update_blog'])) {
-    $blog_id               = intval($_POST['blog_id']);
-    $blog_title            = mysqli_real_escape_string($conn, $_POST['blog_title']);
-    $blog_content          = mysqli_real_escape_string($conn, $_POST['blog_content']);
-    $blog_excerpt          = mysqli_real_escape_string($conn, $_POST['blog_excerpt']);
-    $blog_author           = mysqli_real_escape_string($conn, $_POST['blog_author']);
-    $blog_status           = mysqli_real_escape_string($conn, $_POST['blog_status']);
-    $blog_meta_title       = mysqli_real_escape_string($conn, $_POST['blog_meta_title']);
-    $blog_meta_description = mysqli_real_escape_string($conn, $_POST['blog_meta_description']);
-    $blog_meta_keywords    = mysqli_real_escape_string($conn, $_POST['blog_meta_keywords']);
-    $existing_image        = $_POST['existing_image'] ?? '';
-    $remove_current_image  = isset($_POST['remove_current_image']);
-
-    $cur = mysqli_query($conn, "SELECT blog_title, blog_slug, blog_status FROM blogs WHERE blog_id={$blog_id}");
-    $cur_blog = mysqli_fetch_assoc($cur);
-    $blog_slug = ($blog_title !== $cur_blog['blog_title']) ? getUniqueSlug($conn,$blog_title,'blogs',$blog_id) : $cur_blog['blog_slug'];
-
+    $blog_id = (int)$_POST['blog_id'];
+    $blog_title = trim($_POST['blog_title']);
+    $blog_content = cleanContent($_POST['blog_content']); // Clean the content
+    $blog_excerpt = trim($_POST['blog_excerpt']);
+    $blog_author = trim($_POST['blog_author']);
+    $blog_status = $_POST['blog_status'] ?? 'draft';
+    $blog_meta_title = trim($_POST['blog_meta_title'] ?? '');
+    $blog_meta_description = trim($_POST['blog_meta_description'] ?? '');
+    $blog_meta_keywords = trim($_POST['blog_meta_keywords'] ?? '');
+    
+    // Get current blog data to check for existing image and title
+    $current_query = $conn->prepare("SELECT blog_slug, blog_featured_image, blog_title FROM blogs WHERE blog_id = ?");
+    $current_query->bind_param("i", $blog_id);
+    $current_query->execute();
+    $current_result = $current_query->get_result();
+    $current_blog = $current_result->fetch_assoc();
+    $current_query->close();
+    
+    if (!$current_blog) {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Blog post not found.'];
+        header("Location: ../blogs.php");
+        exit;
+    }
+    
+    // Generate new slug if title changed
+    if ($current_blog['blog_title'] !== $blog_title) {
+        $blog_slug = getUniqueSlug($conn, $blog_title, 'blogs', $blog_id);
+    } else {
+        $blog_slug = $current_blog['blog_slug'];
+    }
+    
     $conn->begin_transaction();
+    
     try {
-        $blog_featured_image = $existing_image;
-        if ($remove_current_image && !empty($existing_image)) {
-            $fp = $_SERVER['DOCUMENT_ROOT'].$existing_image; if (file_exists($fp)) unlink($fp);
-            $blog_featured_image = '';
+        // Start with base update query (without image)
+        $query = "UPDATE blogs SET 
+            blog_title = ?, 
+            blog_slug = ?, 
+            blog_content = ?, 
+            blog_excerpt = ?, 
+            blog_author = ?, 
+            blog_status = ?, 
+            blog_meta_title = ?, 
+            blog_meta_description = ?, 
+            blog_meta_keywords = ?";
+        
+        $params = [$blog_title, $blog_slug, $blog_content, $blog_excerpt, $blog_author, 
+                   $blog_status, $blog_meta_title, $blog_meta_description, $blog_meta_keywords];
+        $types = "sssssssss";
+        
+        // Check if new image is uploaded
+        $new_image_uploaded = isset($_FILES['blog_featured_image']) && $_FILES['blog_featured_image']['error'] === UPLOAD_ERR_OK;
+        
+        if ($new_image_uploaded) {
+            $query .= ", blog_featured_image = ?";
         }
-        if (isset($_FILES['blog_featured_image']) && !empty($_FILES['blog_featured_image']['name'])) {
+        
+        $query .= " WHERE blog_id = ?";
+        
+        if ($new_image_uploaded) {
+            $types .= "si"; // Add string for image, int for blog_id
+        } else {
+            $types .= "i"; // Just int for blog_id
+        }
+        
+        $stmt = $conn->prepare($query);
+        
+        // Bind parameters dynamically
+        if ($new_image_uploaded) {
+            // Handle image upload first
             $target_dir = "../../uploads/blogs/";
-            if (!file_exists($target_dir)) mkdir($target_dir,0777,true);
-            $tmp = $_FILES['blog_featured_image']['tmp_name'];
-            $err = $_FILES['blog_featured_image']['error'];
-            if ($err === UPLOAD_ERR_OK) {
-                if (strpos(mime_content_type($tmp),'image')!==0) throw new Exception("Only image files are allowed");
-                if ($_FILES['blog_featured_image']['size'] > 5*1024*1024) throw new Exception("File must be < 5MB");
-                $ext = strtolower(pathinfo($_FILES['blog_featured_image']['name'],PATHINFO_EXTENSION));
-                $ufn = uniqid().'_'.time().'.'.$ext;
-                if (move_uploaded_file($tmp,$target_dir.$ufn)) {
-                    if (!empty($blog_featured_image) && !$remove_current_image) { $op = $_SERVER['DOCUMENT_ROOT'].$blog_featured_image; if (file_exists($op)) unlink($op); }
-                    $blog_featured_image = '/sjfbi-js/uploads/blogs/'.$ufn;
-                } else throw new Exception("Failed to move uploaded file");
+            if (!file_exists($target_dir)) {
+                mkdir($target_dir, 0777, true);
+            }
+            
+            $file_type = mime_content_type($_FILES['blog_featured_image']['tmp_name']);
+            if (strpos($file_type, 'image/') !== 0) {
+                throw new Exception("Only image files are allowed");
+            }
+            
+            if ($_FILES['blog_featured_image']['size'] > 5 * 1024 * 1024) {
+                throw new Exception("File size must be less than 5MB");
+            }
+            
+            $file_ext = strtolower(pathinfo($_FILES['blog_featured_image']['name'], PATHINFO_EXTENSION));
+            $filename = uniqid() . '_' . time() . '.' . $file_ext;
+            $target_path = $target_dir . $filename;
+            
+            if (move_uploaded_file($_FILES['blog_featured_image']['tmp_name'], $target_path)) {
+                $blog_featured_image = '/sjfbi-js/uploads/blogs/' . $filename;
+                
+                // Add image to params
+                $params[] = $blog_featured_image;
+            } else {
+                throw new Exception("Failed to upload image");
             }
         }
-        $stmt = $conn->prepare("UPDATE blogs SET blog_title=?,blog_slug=?,blog_content=?,blog_excerpt=?,blog_featured_image=?,blog_author=?,blog_status=?,blog_meta_title=?,blog_meta_description=?,blog_meta_keywords=? WHERE blog_id=?");
-        $stmt->bind_param("ssssssssssi",$blog_title,$blog_slug,$blog_content,$blog_excerpt,$blog_featured_image,$blog_author,$blog_status,$blog_meta_title,$blog_meta_description,$blog_meta_keywords,$blog_id);
-        if (!$stmt->execute()) throw new Exception("Failed to update blog: ".$stmt->error);
-
-        logActivity($conn,'blog',$blog_id,'Blog post updated',
-            json_encode(['title'=>$cur_blog['blog_title'],'status'=>$cur_blog['blog_status']]),
-            json_encode(['title'=>$blog_title,'slug'=>$blog_slug,'status'=>$blog_status]),
-            "Blog ID {$blog_id} updated. Old title: '{$cur_blog['blog_title']}' → '{$blog_title}'",
-            $actorId, $actorType
+        
+        // Add blog_id to params
+        $params[] = $blog_id;
+        
+        // Bind all parameters
+        $stmt->bind_param($types, ...$params);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Failed to update blog: " . $stmt->error);
+        }
+        
+        // If new image was uploaded successfully, delete the old one
+        if ($new_image_uploaded && !empty($current_blog['blog_featured_image'])) {
+            $old_image_path = $_SERVER['DOCUMENT_ROOT'] . $current_blog['blog_featured_image'];
+            if (file_exists($old_image_path)) {
+                unlink($old_image_path);
+            }
+        }
+        
+        // Log activity
+        $actorData = getActorFromSession();
+        logActivity($conn, 'blog', $blog_id, 'Blog updated',
+            json_encode(['old_title' => $current_blog['blog_title']]),
+            json_encode(['title' => $blog_title, 'status' => $blog_status]),
+            "Blog '{$blog_title}' updated. Status: {$blog_status}",
+            $actorData['userId'], $actorData['userType']
         );
-
+        
         $conn->commit();
-        redirectWithMessage("../blogs.php","Blog post updated successfully!","success");
+        $_SESSION['message'] = ['type' => 'success', 'text' => 'Blog post updated successfully!'];
+        
     } catch (Exception $e) {
         $conn->rollback();
-        redirectWithMessage("../blogs.php","Error: ".$e->getMessage(),"error");
+        // If new image was uploaded but transaction failed, delete the new image
+        if (isset($target_path) && file_exists($target_path)) {
+            unlink($target_path);
+        }
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Error: ' . $e->getMessage()];
     }
+    
+    header("Location: ../blogs.php");
+    exit;
 }
 
 // ── UPDATE SUGGESTION ─────────────────────────────────────────────────────────
@@ -659,5 +750,103 @@ elseif (isset($_POST['update_market'])) {
         error_log("Error updating market: " . $e->getMessage());
         redirectWithMessage("../markets.php", "Failed to update market: " . $e->getMessage(), "error");
     }
+}
+
+elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
+
+    $rider_id      = (int)($_POST['rider_id']            ?? 0);
+    $vehicle_type  = trim($_POST['vehicle_type']         ?? '');
+    $variant_color = trim($_POST['variant_color']        ?? '');
+    $plate         = trim($_POST['vehicle_plate_number'] ?? '');
+    $contact       = trim($_POST['contact_number']       ?? '');
+    $organization  = trim($_POST['organization']         ?? '');
+    $full_name     = trim($_POST['full_name']             ?? '');
+    $is_available  = (int)($_POST['is_available']        ?? 1);
+
+    // Validate
+    if (!$rider_id || !$vehicle_type || !$variant_color || !$plate || !$contact || !$organization) {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'All required fields must be filled.'];
+        header('Location: ../riders.php');
+        exit;
+    }
+
+    // Block offline if actively delivering
+    if ($is_available === 0) {
+        $ca = $conn->prepare("SELECT COUNT(*) AS cnt FROM orders WHERE assigned_rider_id = ? AND order_status = 'OutForDelivery'");
+        $ca->bind_param('i', $rider_id);
+        $ca->execute();
+        if ((int)$ca->get_result()->fetch_assoc()['cnt'] > 0) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Cannot mark rider as offline while they have active deliveries.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+    }
+
+    // Fetch current row for log + image fallback
+    $ov = $conn->prepare("SELECT * FROM riders WHERE rider_id = ? LIMIT 1");
+    $ov->bind_param('i', $rider_id);
+    $ov->execute();
+    $old = $ov->get_result()->fetch_assoc();
+    if (!$old) {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Rider not found.'];
+        header('Location: ../riders.php');
+        exit;
+    }
+
+    // Handle new photo (keep existing if none uploaded)
+    $image_path = $old['image'];
+    if (!empty($_FILES['image']['tmp_name'])) {
+        $mime = mime_content_type($_FILES['image']['tmp_name']);
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Photo must be JPEG, PNG or WEBP.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+        if ($_FILES['image']['size'] > 5 * 1024 * 1024) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Photo must be under 5MB.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+        $ext   = match($mime) { 'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg' };
+        $fname = 'rider_' . $old['account_id'] . '_' . time() . '.' . $ext;
+        $dir   = __DIR__ . '/../../uploads/riders/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
+            // Remove old photo file
+            if ($old['image'] && file_exists(__DIR__ . '/../../' . $old['image'])) {
+                unlink(__DIR__ . '/../../' . $old['image']);
+            }
+            $image_path = 'uploads/riders/' . $fname;
+        }
+    }
+
+    $fnVal = $full_name ?: null;
+    $stmt  = $conn->prepare("
+        UPDATE riders SET
+            image = ?, full_name = ?, vehicle_type = ?, vehicle_plate_number = ?,
+            variant_color = ?, contact_number = ?, organization = ?,
+            is_available = ?, updated_at = NOW()
+        WHERE rider_id = ?
+    ");
+    $stmt->bind_param('sssssssii',
+        $image_path, $fnVal,
+        $vehicle_type, $plate, $variant_color,
+        $contact, $organization,
+        $is_available, $rider_id
+    );
+
+    if ($stmt->execute()) {
+        logActivity($conn, 'rider', $rider_id, 'Rider updated',
+            json_encode(['vehicle_type' => $old['vehicle_type'], 'plate' => $old['vehicle_plate_number'], 'is_available' => $old['is_available']]),
+            json_encode(['vehicle_type' => $vehicle_type, 'plate' => $plate, 'is_available' => $is_available]),
+            "Rider ID {$rider_id} updated. Availability: " . ($is_available ? 'available' : 'offline') . " | Vehicle: {$vehicle_type} ({$plate}), Org: {$organization}",
+            $actorId, $actorType
+        );
+        $_SESSION['message'] = ['type' => 'success', 'text' => 'Rider updated successfully!'];
+    } else {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to update rider.'];
+    }
+    header('Location: ../riders.php');
+    exit;
 }
 ?>

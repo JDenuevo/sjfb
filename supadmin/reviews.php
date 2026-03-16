@@ -114,13 +114,16 @@ while ($p = $productsResult->fetch_assoc()) $allProducts[] = $p;
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reviews | St. Joseph Fish Brokerage Inc.</title>
+  <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="icon" href="../assets/icons/logo.svg" type="image/svg+xml">
   
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
@@ -274,20 +277,20 @@ while ($p = $productsResult->fetch_assoc()) $allProducts[] = $p;
             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
               placeholder="Search name, feedback, product..."
               class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-full sm:w-64">
-            <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-48">
               <option value="">All Status</option>
               <option value="pending"  <?= $filterStatus === 'pending'  ? 'selected' : '' ?>>Pending</option>
               <option value="approved" <?= $filterStatus === 'approved' ? 'selected' : '' ?>>Approved</option>
               <option value="rejected" <?= $filterStatus === 'rejected' ? 'selected' : '' ?>>Rejected</option>
               <option value="spam"     <?= $filterStatus === 'spam'     ? 'selected' : '' ?>>Spam</option>
             </select>
-            <select name="rating" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <select name="rating" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-48">
               <option value="">All Ratings</option>
               <?php for ($i = 5; $i >= 1; $i--): ?>
                 <option value="<?= $i ?>" <?= $filterRating === $i ? 'selected' : '' ?>><?= str_repeat('★', $i) ?></option>
               <?php endfor; ?>
             </select>
-            <select name="product_id" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <select name="product_id" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-48">
               <option value="">All Products</option>
               <?php foreach ($allProducts as $p): ?>
                 <option value="<?= $p['product_id'] ?>" <?= $filterProduct == $p['product_id'] ? 'selected' : '' ?>>

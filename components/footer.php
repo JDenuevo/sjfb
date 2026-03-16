@@ -123,7 +123,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
           <!-- Hours badge -->
           <div class="mt-1 inline-flex items-center gap-2 text-xs font-semibold text-white bg-white/5 border border-white/10 rounded-full px-3.5 py-1.5 w-fit">
             <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.2)] animate-pulse"></span>
-            Open Mon – Sat &nbsp;·&nbsp; 6:00 AM – 6:00 PM
+            Open Mon – Sat &nbsp;·&nbsp; 8:00 AM – 6:00 PM
           </div>
 
         </div>
@@ -137,9 +137,9 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
         © <?= date('Y') ?> St. Joseph Fish Brokerage Inc. All rights reserved.
       </p>
       <div class="flex items-center gap-2 text-xs white">
-        <a href="<?= $baseUrl ?>privacy.php" class="hover:text-orange-500 transition-colors duration-150">Privacy Policy</a>
+        <a href="<?= $baseUrl ?>#.php" class="hover:text-orange-500 transition-colors duration-150">Privacy Policy</a>
         <span class="text-gray-700">·</span>
-        <a href="<?= $baseUrl ?>terms.php" class="hover:text-orange-500 transition-colors duration-150">Terms of Use</a>
+        <a href="<?= $baseUrl ?>#.php" class="hover:text-orange-500 transition-colors duration-150">Terms of Use</a>
       </div>
     </div>
 

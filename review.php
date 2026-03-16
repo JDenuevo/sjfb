@@ -69,11 +69,12 @@ if (!$orderCode || !$token) {
 
 // ── Handle POST submission ────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error && !$alreadyReviewed && $order) {
-  $reviewedCount = 0;
-  $validationErrors = [];
+  // ── Read session flash (set by functions/add.php after redirect) ──────────────
+  $submitted        = isset($_SESSION['review_submitted']) && $_SESSION['review_submitted'];
+  $validationErrors = $_SESSION['review_errors'] ?? [];
+  unset($_SESSION['review_submitted'], $_SESSION['review_errors']);
 
-  // CSRF basic check
-  $postedOrder = $_POST['order_code'] ?? '';
+  $pageTitle = 'Leave a Review';
   $postedToken = $_POST['token'] ?? '';
   if ($postedOrder !== $orderCode || strtoupper($postedToken) !== strtoupper($token)) {
     $error = 'invalid_token';
@@ -159,8 +160,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error && !$alreadyReviewed && $or
   }
 }
 
-$pageTitle = 'Leave a Review';
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -501,7 +502,7 @@ $pageTitle = 'Leave a Review';
   </div>
   <?php endif; ?>
 
-  <form method="POST" enctype="multipart/form-data" id="reviewForm">
+  <form method="POST" action="functions/add.php" enctype="multipart/form-data" id="reviewForm">
     <input type="hidden" name="order_code" value="<?= htmlspecialchars($orderCode) ?>">
     <input type="hidden" name="token"      value="<?= htmlspecialchars($token) ?>">
 
@@ -594,15 +595,15 @@ $pageTitle = 'Leave a Review';
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem">
           <div>
             <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.375rem">Your Title / Role</label>
-            <input type="text" name="reviewer_position" placeholder="e.g. Restaurant Owner"
-                   value="<?= htmlspecialchars($_POST['reviewer_position'] ?? '') ?>"
+            <input type="text" name="position" placeholder="e.g. Restaurant Owner"
+                   value="<?= htmlspecialchars($_POST['position'] ?? '') ?>"
                    style="width:100%;padding:.625rem .875rem;border:1.5px solid #e5e7eb;border-radius:.75rem;font-family:'Lexend',sans-serif;font-size:.875rem;outline:none;transition:border-color .15s"
                    onfocus="this.style.borderColor='#ea580c'" onblur="this.style.borderColor='#e5e7eb'">
           </div>
           <div>
             <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.375rem">Company / Restaurant</label>
-            <input type="text" name="reviewer_company" placeholder="e.g. Dela Cruz Eatery"
-                   value="<?= htmlspecialchars($_POST['reviewer_company'] ?? '') ?>"
+            <input type="text" name="company" placeholder="e.g. Dela Cruz Eatery"
+                   value="<?= htmlspecialchars($_POST['company'] ?? '') ?>"
                    style="width:100%;padding:.625rem .875rem;border:1.5px solid #e5e7eb;border-radius:.75rem;font-family:'Lexend',sans-serif;font-size:.875rem;outline:none;transition:border-color .15s"
                    onfocus="this.style.borderColor='#ea580c'" onblur="this.style.borderColor='#e5e7eb'">
           </div>
@@ -616,7 +617,7 @@ $pageTitle = 'Leave a Review';
       Reviews are moderated before publishing.
     </p>
 
-    <button type="submit" class="submit-btn" id="submitBtn">
+    <button type="submit" name="submit_review" class="submit-btn" id="submitBtn">
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       Submit My Review
     </button>

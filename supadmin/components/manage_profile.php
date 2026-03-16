@@ -1,170 +1,169 @@
 <div class="max-w-4xl px-4 py-10 sm:px-6 lg:px-8 mx-auto">
-  <?php
-    if (!empty($_SESSION['message'])) {
-      $message = $_SESSION['message'];
-      $alertType = ($message['type'] === 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
   
-      echo '
-      <div class="mt-2 ' . $alertType . ' text-sm rounded-lg p-4" role="alert">
-          <span class="font-bold">' . ucfirst($message['type']) . '!</span> ' . $message['text'] . '
-      </div>';
-  
-      // Clear message after displaying it
-      unset($_SESSION['message']);
-    }
+  <?php if (!empty($_SESSION['message'])): 
+    $message = $_SESSION['message'];
+    $alertClass = ($message['type'] === 'success') ? 'alert-success' : 'alert-error';
+    unset($_SESSION['message']);
   ?>
-  <!-- Card -->
-  <div class="bg-white rounded-xl shadow-xs p-8 sm:p-7">
-    <div class="mb-8">
-      <h2 class="text-xl font-bold text-gray-800 ">
-        Profile
-      </h2>
-      <p class="text-sm text-gray-600 ">
-        Manage your name, password and account settings.
-      </p>
+  <div class="alert <?= $alertClass ?> mb-6" role="alert">
+    <span class="font-bold"><?= ucfirst($message['type']) ?>!</span> <?= htmlspecialchars($message['text']) ?>
+  </div>
+  <?php endif; ?>
+
+  <!-- Profile Card -->
+  <div class="profile-card">
+    
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">Profile Settings</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Manage your account information and security</p>
+        </div>
+      </div>
     </div>
 
-    <form action="./functions/update.php" method="POST">
-      <!-- Grid -->
-      <div class="grid sm:grid-cols-12 gap-2 sm:gap-6">
+    <div class="p-6">
+      <form action="./functions/update.php" method="POST">
         
-        <div class="sm:col-span-3">
-          <label for="af-account-username" class="inline-block text-sm text-gray-800 mt-2.5 ">
-            Username
-          </label>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <input id="af-account-email" type="text" name="username" value="<?php echo htmlspecialchars($row['username']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs sm:text-sm rounded-lg focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Username">
-        </div>
-        <!-- End Col -->
-
-        
-        <div class="sm:col-span-3">
-          <label for="af-account-password" class="inline-block text-sm text-gray-800 mt-2.5 ">
-            Password
-          </label>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <div class="space-y-2">
-            <input id="af-account-password" type="password" name="password" id="password" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs rounded-lg sm:text-sm focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Leave blank to keep current password">
-            <input type="password" name="confirm_password" id="confirm_password" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs rounded-lg sm:text-sm focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Confirm password">
-          </div>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <label for="af-account-full-name" class="inline-block text-sm text-gray-800 mt-2.5 ">
-            Full name
-          </label>
+        <!-- Account Information Section -->
+        <div class="mb-8">
+          <h3 class="section-title mb-4">Account Information</h3>
           
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <div class="sm:flex">
-            <input id="af-account-full-name" type="text" name="first_name" value="<?php echo htmlspecialchars($row['first_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="First name">
-            <input type="text" name="last_name" value="<?php echo htmlspecialchars($row['last_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="Last name">
-          </div>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <label for="af-account-email" class="inline-block text-sm text-gray-800 mt-2.5 ">
-            Email
-          </label>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <input id="af-account-email" type="email" name="email" value="<?php echo htmlspecialchars($row['email']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs sm:text-sm rounded-lg focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Email">
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <div class="inline-block">
-            <label for="af-account-phone" class="inline-block text-sm text-gray-800 mt-2.5 ">
-              Phone
-            </label>
-            <!-- <span class="text-sm text-gray-400 ">
-              (Optional)
-            </span> -->
-          </div>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <div class="sm:flex">
-            <input id="af-account-phone" type="number" name="phone_number" value="<?php echo htmlspecialchars($row['phone_number']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="+63-xxx-xxx-xx">
-          </div>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <label for="af-account-bio" class="inline-block text-sm text-gray-800 mt-2.5 ">
-            Address
-          </label>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <textarea id="af-account-bio" name="address" class=" py-2 px-3  block w-full border border-gray-300 rounded-lg sm:text-sm focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " rows="3" placeholder="Enter your full address"><?php echo htmlspecialchars($row['address']); ?></textarea>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <div class="inline-block">
-            <label for="af-account-phone" class="inline-block text-sm text-gray-800 mt-2.5 ">
-              City
-            </label>
-            <!-- <span class="text-sm text-gray-400 ">
-              (Optional)
-            </span> -->
-          </div>
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-9">
-          <div class="sm:flex">
-            <input id="af-account-phone" type="text" name="city" value="<?php echo htmlspecialchars($row['city']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="City">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Username -->
+            <div>
+              <label class="form-label">Username</label>
+              <input type="text" name="username" value="<?= htmlspecialchars($row['username']) ?>" 
+                     class="form-input" placeholder="Username">
+            </div>
             
+            <!-- Role (Read-only) -->
+            <div>
+              <label class="form-label">Role</label>
+              <input type="text" value="<?= ucfirst(str_replace('_',' ', $row['role'])) ?>" 
+                     class="form-input" readonly disabled>
+            </div>
           </div>
+        </div>
 
+        <!-- Password Change Section -->
+        <div class="mb-8">
+          <h3 class="section-title mb-4">Change Password</h3>
+          <p class="text-xs text-gray-400 mb-3">Leave blank to keep current password</p>
           
-        </div>
-        <!-- End Col -->
-
-        <div class="sm:col-span-3">
-          <div class="inline-block">
-            <label for="af-account-phone" class="inline-block text-sm text-gray-800 mt-2.5 ">
-              Postal Code
-            </label>
-            <!-- <span class="text-sm text-gray-400 ">
-              (Optional)
-            </span> -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="form-label">New Password</label>
+              <input type="password" name="password" class="form-input" placeholder="••••••••">
+            </div>
+            <div>
+              <label class="form-label">Confirm Password</label>
+              <input type="password" name="confirm_password" class="form-input" placeholder="••••••••">
+            </div>
           </div>
         </div>
-        <!-- End Col -->
 
-        <div class="sm:col-span-9">
-          <div class="sm:flex">
-            <input id="af-account-postal" type="number" name="postal_code" value="<?php echo htmlspecialchars($row['postal_code']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Postal Code">
+        <!-- Personal Information Section -->
+        <div class="mb-8">
+          <h3 class="section-title mb-4">Personal Information</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="form-label">First Name</label>
+              <input type="text" name="first_name" value="<?= htmlspecialchars($row['first_name']) ?>" 
+                     class="form-input" placeholder="First name">
+            </div>
+            <div>
+              <label class="form-label">Last Name</label>
+              <input type="text" name="last_name" value="<?= htmlspecialchars($row['last_name']) ?>" 
+                     class="form-input" placeholder="Last name">
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="form-label">Email</label>
+              <input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>" 
+                     class="form-input" placeholder="Email">
+            </div>
+            <div>
+              <label class="form-label">Phone Number</label>
+              <input type="text" name="phone_number" value="<?= htmlspecialchars($row['phone_number']) ?>" 
+                     class="form-input" placeholder="+63 xxx xxx xxxx">
+            </div>
           </div>
         </div>
-        <!-- End Col -->
-      </div>
-      <!-- End Grid -->
 
-      <div class="mt-5 flex justify-end gap-x-2">
-        <button type="submit" name="update_profile" class="py-2 px-3  inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg--700 focus:outline-hidden focus:bg-orange-700 disabled:opacity-50 disabled:pointer-events-none">
-          Save changes
-        </button>
-      </div>
-    </form>
+        <!-- Address Information Section -->
+        <div class="mb-8">
+          <h3 class="section-title mb-4">Address Information</h3>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="form-label">Address</label>
+              <textarea name="address" rows="3" class="form-input resize-none" 
+                        placeholder="Enter your full address"><?= htmlspecialchars($row['address']) ?></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="form-label">City</label>
+                <input type="text" name="city" value="<?= htmlspecialchars($row['city']) ?>" 
+                       class="form-input" placeholder="City">
+              </div>
+              <div>
+                <label class="form-label">Postal Code</label>
+                <input type="text" name="postal_code" value="<?= htmlspecialchars($row['postal_code']) ?>" 
+                       class="form-input" placeholder="Postal Code">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <button type="reset" class="btn-secondary">
+            Reset
+          </button>
+          <button type="submit" name="update_profile" class="btn-primary">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
-  <!-- End Card -->
+
+  <!-- Account Info Card -->
+  <div class="profile-card mt-6">
+    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+      <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/>
+        </svg>
+        Account Details
+      </h3>
+    </div>
+    
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Account ID -->
+      <div class="stat-card">
+        <div class="text-xs text-gray-500 mb-1">Account ID</div>
+        <div class="text-sm font-mono font-semibold text-gray-900">#<?= $row['account_id'] ?></div>
+      </div>
+      
+      <!-- Account Created -->
+      <div class="stat-card">
+        <div class="text-xs text-gray-500 mb-1">Member Since</div>
+        <div class="text-sm font-semibold text-gray-900"><?= date('F j, Y', strtotime($row['created_at'])) ?></div>
+      </div>
+
+    </div>
+  </div>
 </div>
-<!-- End Card Section -->

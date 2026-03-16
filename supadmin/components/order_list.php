@@ -1,23 +1,3 @@
-<?php
-// order_list.php — improved
-
-// Quick order stats for this page
-$oStats = [];
-$r = $conn->query("SELECT order_status, COUNT(*) as cnt FROM orders GROUP BY order_status");
-while ($row = $r->fetch_assoc()) $oStats[$row['order_status']] = (int)$row['cnt'];
-
-$statusConf = [
-  'Pending'       => ['bg-yellow-100 text-yellow-800','bg-yellow-50 border-yellow-200'],
-  'Processing'    => ['bg-blue-100 text-blue-800',   'bg-blue-50 border-blue-200'],
-  'OutForDelivery'=> ['bg-purple-100 text-purple-800','bg-purple-50 border-purple-200'],
-  'Delivered'     => ['bg-green-100 text-green-800', 'bg-green-50 border-green-200'],
-  'Cancelled'     => ['bg-red-100 text-red-800',     'bg-red-50 border-red-200'],
-];
-$statusLabels = ['Pending'=>'Pending','Processing'=>'Processing','OutForDelivery'=>'Out for Delivery','Delivered'=>'Delivered','Cancelled'=>'Cancelled'];
-$paymentConf = ['Paid'=>'bg-green-100 text-green-700','Pending'=>'bg-yellow-100 text-yellow-700','Failed'=>'bg-red-100 text-red-700','Refunded'=>'bg-blue-100 text-blue-700'];
-$methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qrph'=>'QR Ph','cod'=>'COD','card'=>'Card'];
-?>
-
 <!-- Stats strip -->
 <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
   <?php foreach ($statusConf as $status => [$badge, $card]): ?>
@@ -44,7 +24,7 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
         <?php endforeach; ?>
       </select>
       <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order code, name…" class="text-sm px-3 py-2 focus:outline-none w-44 border-none">
+        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order code, name…" class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
         <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         </button>

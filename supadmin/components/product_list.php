@@ -48,10 +48,23 @@
                 <div class="flex flex-wrap gap-1">
                   <?php
                   $cats = array_filter(explode(', ', $row['category_names'] ?? ''));
+                  $cat_ids = array_filter(explode(',', $row['category_ids'] ?? ''));
+                  
                   if (!empty($cats)):
-                    foreach ($cats as $cat):
+                    // You'll need to fetch which category is primary for this product
+                    // This assumes you have a way to get the primary category ID
+                    $primary_cat_id = getPrimaryCategoryId($row['product_id']); // You'll need to implement this
+                    
+                    foreach ($cats as $index => $cat):
+                      $is_primary = ($cat_ids[$index] ?? 0) == $primary_cat_id;
                   ?>
-                    <span class="badge badge-gray"><?= htmlspecialchars($cat) ?></span>
+                    <span class="badge <?= $is_primary ? 'badge-primary' : 'badge-gray' ?>" 
+                          <?= $is_primary ? 'title="Primary Category"' : '' ?>>
+                      <?= htmlspecialchars($cat) ?>
+                      <?php if ($is_primary): ?>
+                        <span class="ml-1">★</span>
+                      <?php endif; ?>
+                    </span>
                   <?php
                     endforeach;
                   else:
@@ -59,6 +72,11 @@
                     <span class="text-xs text-gray-400">—</span>
                   <?php endif; ?>
                 </div>
+                <p class="text-xs text-gray-400 mt-1">
+                  <?php if (!empty($cats) && count($cats) > 1): ?>
+                    <span class="italic">★ = Primary category</span>
+                  <?php endif; ?>
+                </p>
               </td>
 
               <!-- Stock Status -->

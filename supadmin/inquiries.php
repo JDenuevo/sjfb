@@ -128,12 +128,18 @@ while ($r = $mktRes->fetch_assoc()) $marketList[] = $r['market'];
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inquiries & Applications | St. Joseph Fish Brokerage Inc.</title>
 
+  <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="icon" href="../assets/icons/logo.svg" type="image/svg+xml">
-
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <!-- CSS Files -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">

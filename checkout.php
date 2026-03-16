@@ -2,8 +2,43 @@
 <?php
 session_start();
 include 'conn.php';
+require_once 'functions/cleanup_orders.php';
 
 $pageTitle = 'Checkout';
+
+// Handle cancelled payment return
+if (isset($_GET['cancel']) && $_GET['cancel'] == 1) {
+    // DO NOT unset pending_checkout - we want to keep the form data!
+    // Only clear the temporary references
+    unset($_SESSION['temp_checkout_ref']);
+    unset($_SESSION['paymongo_session_id']);
+    
+    // Show a message
+    $cancelMessage = "Payment was cancelled. You can try again with a different payment method.";
+}
+
+// Handle payment errors
+if (isset($_GET['error'])) {
+    $errorMessages = [
+        'invalid_session' => 'Invalid payment session. Please try again.',
+        'no_data' => 'Checkout data not found. Please try again.',
+        'payment_verification_failed' => 'Payment verification failed. Please try again.',
+        'order_creation_failed' => 'Payment successful but order creation failed. Please contact support.',
+        'payment_failed' => 'Payment failed. Please try again.'
+    ];
+    
+    $errorCode = $_GET['error'];
+    $errorMessage = $errorMessages[$errorCode] ?? 'An error occurred. Please try again.';
+}
+
+// Check if there's pending checkout data (user came back after cancellation)
+if (isset($_SESSION['pending_checkout']) && !empty($_SESSION['pending_checkout'])) {
+    // Auto-fill the form with their previous data
+    $savedData = $_SESSION['pending_checkout'];
+}
+
+// Run cleanup for abandoned checkouts (but don't delete if it's recent)
+cleanupAbandonedCheckouts();
 
 // Pre-fill form if user is logged in
 $userDetails = [];
@@ -16,8 +51,18 @@ if (isset($_SESSION['account_id'])) {
     $stmt->close();
 }
 
-// NOTE: $conn intentionally NOT closed here — to_checkout.php needs it to query stock quantities.
-// It will be closed after to_checkout.php finishes rendering.
+// If we have saved data from a cancelled payment, use that to OVERRIDE user details
+if (isset($savedData) && !empty($savedData)) {
+    $userDetails = [
+        'first_name' => $savedData['first_name'] ?? $userDetails['first_name'] ?? '',
+        'last_name' => $savedData['last_name'] ?? $userDetails['last_name'] ?? '',
+        'email' => $savedData['email'] ?? $userDetails['email'] ?? '',
+        'phone_number' => $savedData['phone_number'] ?? $userDetails['phone_number'] ?? '',
+        'address' => $savedData['address'] ?? $userDetails['address'] ?? '',
+        'city' => $savedData['city'] ?? $userDetails['city'] ?? '',
+        'postal_code' => $savedData['postal_code'] ?? $userDetails['postal_code'] ?? ''
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -86,6 +131,7 @@ if (isset($_SESSION['account_id'])) {
         : 'bg-red-50 border-red-300 text-red-800';
   unset($_SESSION['success'], $_SESSION['error']);
 ?>
+
 <div class="mx-auto max-w-6xl px-4 pt-4">
   <div class="flex items-center gap-3 <?= $cls ?> border rounded-xl px-4 py-3 text-sm font-medium">
     <?php if ($type === 'success'): ?>
@@ -94,6 +140,30 @@ if (isset($_SESSION['account_id'])) {
       <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <?php endif; ?>
     <?= htmlspecialchars($msg) ?>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Cancellation message -->
+<?php if (isset($cancelMessage)): ?>
+<div class="mx-auto max-w-6xl px-4 pt-4">
+  <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm font-medium text-amber-800">
+    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+    </svg>
+    <?= htmlspecialchars($cancelMessage) ?>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Error message -->
+<?php if (isset($errorMessage)): ?>
+<div class="mx-auto max-w-6xl px-4 pt-4">
+  <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium text-red-800">
+    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <?= htmlspecialchars($errorMessage) ?>
   </div>
 </div>
 <?php endif; ?>

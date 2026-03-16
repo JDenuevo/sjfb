@@ -137,11 +137,16 @@ class PayMongoHelper {
     
     public function retrieveCheckoutSession($sessionId) {
         try {
+            error_log("Retrieving session: $sessionId");
             $response = $this->client->get("checkout_sessions/{$sessionId}");
-            return json_decode($response->getBody(), true);
+            $body = json_decode($response->getBody(), true);
+            error_log("Retrieve response: " . print_r($body, true));
+            return $body;
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $response = $e->getResponse();
-            error_log("PayMongo API Error: HTTP " . $response->getStatusCode() . " - " . $response->getBody());
+            $body = $response ? json_decode($response->getBody(), true) : null;
+            error_log("PayMongo API Error: HTTP " . ($response ? $response->getStatusCode() : 'unknown'));
+            error_log("Error body: " . print_r($body, true));
             return null;
         }
     }

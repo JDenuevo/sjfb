@@ -1,98 +1,180 @@
 <?php
+/**
+ * rider/functions/update.php
+ *
+ * Handles self-profile update for the logged-in rider.
+ * Called via POST from rider/my-profile.php.
+ *
+ * Editable fields:
+ *   riders table  : full_name, vehicle_type, vehicle_plate_number, variant_color, contact_number, image
+ *   accounts table: first_name, last_name, phone_number
+ *   accounts table: password (optional — only if new_password is provided)
+ *
+ * NOT editable here: organization, is_available (admin-only)
+ *
+ * Upload path: sjfbi-js/uploads/riders/
+ * Stored DB path (no leading slash): uploads/riders/filename.ext
+ */
 session_start();
-require '../../conn.php';
+require_once '../../conn.php';
 
-function redirectWithMessage($location, $message, $type) {
-    $_SESSION['message'] = ['text' => $message, 'type' => $type];
-    header("Location: $location");
-    exit();
+// ── Auth ───────────────────────────────────────────────────────────────────
+if (!isset($_SESSION['loggedinasrider']) || $_SESSION['loggedinasrider'] !== true
+    || !isset($_SESSION['account_id']) || $_SESSION['role'] !== 'rider') {
+    header('Location: ../../sign_in.php');
+    exit;
 }
 
-if (isset($_POST['update_profile'])) {
-    $account_id = $_SESSION['account_id'];
-    $username = trim($_POST['username']);
-    $first_name = trim($_POST['first_name']);
-    $last_name = trim($_POST['last_name']);
-    $email = trim($_POST['email']);
-    $phone_number = trim($_POST['phone_number']);
-    $address = trim($_POST['address']);
-    $city = trim($_POST['city']);
-    $postal_code = trim($_POST['postal_code']);
+$rider_account_id = (int)$_SESSION['account_id'];
 
-    // Rider-specific fields
-    $vehicle_type = trim($_POST['vehicle_type']);
-    $vehicle_plate_number = trim($_POST['vehicle_plate_number'] ?? '');
-    $license_number = trim($_POST['license_number']);
-    $is_available = isset($_POST['is_available']) ? (int)$_POST['is_available'] : 1;
+// ── Only handle POST ───────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ../my-profile.php');
+    exit;
+}
 
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
+// ── Fetch rider + account rows (for fallbacks and checks) ─────────────────
+$fetchStmt = $conn->prepare("
+    SELECT r.rider_id, r.image, r.full_name, r.vehicle_type,
+           r.vehicle_plate_number, r.variant_color, r.contact_number,
+           r.organization, r.is_available,
+           a.first_name, a.last_name, a.email, a.phone_number, a.password_hash
+    FROM riders r
+    JOIN accounts a ON a.account_id = r.account_id
+    WHERE r.account_id = ? AND r.is_deleted = 0
+    LIMIT 1
+");
+$fetchStmt->bind_param('i', $rider_account_id);
+$fetchStmt->execute();
+$current = $fetchStmt->get_result()->fetch_assoc();
 
-    // ✅ Validate email
-    $checkEmail = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? AND account_id != ?");
-    $checkEmail->bind_param("si", $email, $account_id);
-    $checkEmail->execute();
-    $checkEmail->store_result();
-    if ($checkEmail->num_rows > 0) {
-        $checkEmail->close();
-        $conn->close();
-        redirectWithMessage('../profile.php', 'Email is already taken by another account.', 'error');
+if (!$current) {
+    $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Rider record not found.'];
+    header('Location: ../my-profile.php');
+    exit;
+}
+
+$rider_id = (int)$current['rider_id'];
+
+// ── Sanitize inputs ────────────────────────────────────────────────────────
+$first_name    = trim($_POST['first_name']           ?? '');
+$last_name     = trim($_POST['last_name']            ?? '');
+$phone_number  = trim($_POST['phone_number']         ?? '');
+$full_name     = trim($_POST['full_name']            ?? '');
+$vehicle_type  = trim($_POST['vehicle_type']         ?? '');
+$plate         = trim($_POST['vehicle_plate_number'] ?? '');
+$variant_color = trim($_POST['variant_color']        ?? '');
+$contact       = trim($_POST['contact_number']       ?? '');
+$new_password  = $_POST['new_password']              ?? '';
+$confirm_pw    = $_POST['confirm_password']          ?? '';
+
+// ── Validate required fields ───────────────────────────────────────────────
+if (!$first_name || !$last_name || !$vehicle_type || !$plate || !$contact) {
+    $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'First name, last name, vehicle type, plate number, and contact are required.'];
+    header('Location: ../my-profile.php');
+    exit;
+}
+
+// ── Password change (optional) ─────────────────────────────────────────────
+$newHashedPw = null;
+if ($new_password !== '') {
+    if (strlen($new_password) < 8) {
+        $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'New password must be at least 8 characters.'];
+        header('Location: ../my-profile.php');
+        exit;
     }
-    $checkEmail->close();
-
-    // ✅ Validate username
-    $checkUsername = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? AND account_id != ?");
-    $checkUsername->bind_param("si", $username, $account_id);
-    $checkUsername->execute();
-    $checkUsername->store_result();
-    if ($checkUsername->num_rows > 0) {
-        $checkUsername->close();
-        $conn->close();
-        redirectWithMessage('../profile.php', 'Username is already taken by another account.', 'error');
+    if ($new_password !== $confirm_pw) {
+        $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Passwords do not match.'];
+        header('Location: ../my-profile.php');
+        exit;
     }
-    $checkUsername->close();
+    $newHashedPw = password_hash($new_password, PASSWORD_DEFAULT);
+}
 
-    // ✅ Update account info
-    if (!empty($password) || !empty($confirm_password)) {
-        if ($password !== $confirm_password) {
-            redirectWithMessage('../profile.php', 'Password and Confirm Password do not match.', 'error');
+// ── Handle photo upload ────────────────────────────────────────────────────
+$image_path = $current['image']; // keep existing by default
+
+if (!empty($_FILES['image']['tmp_name'])) {
+    $mime = mime_content_type($_FILES['image']['tmp_name']);
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+        $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Photo must be JPEG, PNG, or WEBP.'];
+        header('Location: ../my-profile.php');
+        exit;
+    }
+    if ($_FILES['image']['size'] > 5 * 1024 * 1024) {
+        $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Photo must be under 5 MB.'];
+        header('Location: ../my-profile.php');
+        exit;
+    }
+
+    $ext   = match($mime) { 'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg' };
+    $fname = 'rider_' . $rider_account_id . '_' . time() . '.' . $ext;
+
+    // Path relative to sjfbi-js/: uploads/riders/
+    // __DIR__ is rider/functions/ → go up two levels to sjfbi-js/
+    $dir = __DIR__ . '/../../uploads/riders/';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
+        // Delete old photo if it exists and is not the default
+        if (!empty($current['image']) && file_exists(__DIR__ . '/../../' . $current['image'])) {
+            @unlink(__DIR__ . '/../../' . $current['image']);
         }
-
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "UPDATE accounts 
-                SET username = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, 
-                    address = ?, city = ?, postal_code = ?, password_hash = ?
-                WHERE account_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssssssssi", $username, $first_name, $last_name, $email, $phone_number, 
-                          $address, $city, $postal_code, $hashedPassword, $account_id);
+        $image_path = 'uploads/riders/' . $fname;
     } else {
-        $sql = "UPDATE accounts 
-                SET username = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?, 
-                    address = ?, city = ?, postal_code = ?
-                WHERE account_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssssssssi", $username, $first_name, $last_name, $email, $phone_number, 
-                          $address, $city, $postal_code, $account_id);
+        $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Failed to save photo. Check folder permissions.'];
+        header('Location: ../my-profile.php');
+        exit;
     }
-
-    if (!$stmt->execute()) {
-        redirectWithMessage('../profile.php', 'Failed to update account.', 'error');
-    }
-    $stmt->close();
-
-    $updateRider = $conn->prepare("UPDATE riders 
-                                SET license_number = ?, is_available = ?, updated_at = NOW()
-                                WHERE account_id = ?");
-    $updateRider->bind_param("sii", $license_number, $is_available, $account_id);
-
-    if ($updateRider->execute()) {
-        redirectWithMessage('../profile.php', 'Profile updated successfully.', 'success');
-    } else {
-        redirectWithMessage('../profile.php', 'Failed to update rider info.', 'error');
-    }
-
-    $updateRider->close();
-    $conn->close();
 }
-?>
+
+// ── Update riders table ────────────────────────────────────────────────────
+$fnVal = $full_name ?: null;
+
+$rStmt = $conn->prepare("
+    UPDATE riders
+    SET image = ?, full_name = ?, vehicle_type = ?,
+        vehicle_plate_number = ?, variant_color = ?,
+        contact_number = ?, updated_at = NOW()
+    WHERE rider_id = ?
+");
+$rStmt->bind_param('ssssssi',
+    $image_path, $fnVal,
+    $vehicle_type, $plate,
+    $variant_color, $contact,
+    $rider_id
+);
+
+if (!$rStmt->execute()) {
+    $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Failed to update rider details.'];
+    header('Location: ../my-profile.php');
+    exit;
+}
+
+// ── Update accounts table ──────────────────────────────────────────────────
+if ($newHashedPw) {
+    $aStmt = $conn->prepare("
+        UPDATE accounts
+        SET first_name = ?, last_name = ?, phone_number = ?, password_hash = ?
+        WHERE account_id = ?
+    ");
+    $aStmt->bind_param('ssssi', $first_name, $last_name, $phone_number, $newHashedPw, $rider_account_id);
+} else {
+    $aStmt = $conn->prepare("
+        UPDATE accounts
+        SET first_name = ?, last_name = ?, phone_number = ?
+        WHERE account_id = ?
+    ");
+    $aStmt->bind_param('sssi', $first_name, $last_name, $phone_number, $rider_account_id);
+}
+
+if (!$aStmt->execute()) {
+    $_SESSION['profile_msg'] = ['type' => 'error', 'text' => 'Failed to update account details.'];
+    header('Location: ../my-profile.php');
+    exit;
+}
+
+// ── Done ───────────────────────────────────────────────────────────────────
+$_SESSION['profile_msg'] = ['type' => 'success', 'text' => 'Profile updated successfully!'];
+header('Location: ../my-profile.php');
+exit;

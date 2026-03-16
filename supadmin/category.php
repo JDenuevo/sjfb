@@ -56,6 +56,160 @@ $result = $conn->query($query);
     <!-- CSS Files -->
     <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
     <link href="../style.css" rel="stylesheet">
+
+    <style>
+        /* Import products.php design language */
+        .category-row { transition: all 0.2s ease; border-left: 3px solid transparent; }
+        .category-row:hover { background-color: #fafafa; border-left-color: #ea580c; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 999;
+            display: flex; align-items: flex-start; justify-content: center;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 2rem 1rem;
+        }
+        .modal-overlay.hidden { display: none; }
+
+        .modal-box {
+            background: white;
+            width: 100%; max-width: 48rem;
+            border-radius: 1.25rem;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            background: #fafafa;
+        }
+        .modal-header h3 { font-size: 1.125rem; font-weight: 700; color: #111827; }
+        .modal-header p { font-size: 0.75rem; color: #6b7280; margin-top: 1px; }
+
+        .modal-close {
+            width: 2rem; height: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; background: #f3f4f6;
+            color: #6b7280; border: none; cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .modal-close:hover { background: #fee2e2; color: #dc2626; }
+
+        .modal-body { padding: 1.5rem; max-height: 75vh; overflow-y: auto; }
+        
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #f3f4f6;
+            background: #fafafa;
+            display: flex; justify-content: flex-end; gap: 0.625rem;
+        }
+
+        .form-label {
+            display: block; font-size: 0.8125rem; font-weight: 600; color: #374151;
+            margin-bottom: 0.375rem;
+        }
+        
+        .form-input {
+            width: 100%; padding: 0.5rem 0.75rem;
+            border: 1px solid #e5e7eb; border-radius: 0.5rem;
+            font-size: 0.875rem; color: #111827;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }
+        .form-input:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234,88,12,0.1); }
+
+        .section-title {
+            font-size: 0.9375rem; font-weight: 700; color: #111827;
+            border-left: 3px solid #ea580c;
+            padding-left: 0.625rem;
+            margin: 1.25rem 0 0.75rem;
+        }
+
+        .btn-primary {
+            padding: 0.5rem 1.25rem;
+            background: #ea580c; color: white;
+            border-radius: 0.625rem; border: none;
+            font-size: 0.875rem; font-weight: 600;
+            cursor: pointer; transition: background 0.15s, transform 0.1s;
+        }
+        .btn-primary:hover { background: #c2410c; }
+        .btn-primary:active { transform: scale(0.97); }
+
+        .btn-secondary {
+            padding: 0.5rem 1.25rem;
+            background: white; color: #374151;
+            border-radius: 0.625rem; border: 1px solid #e5e7eb;
+            font-size: 0.875rem; font-weight: 500;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .btn-secondary:hover { background: #f9fafb; }
+
+        .btn-success {
+            padding: 0.5rem 1rem;
+            background: #dcfce7; color: #16a34a;
+            border-radius: 0.5rem; border: none;
+            font-size: 0.8125rem; font-weight: 600;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .btn-success:hover { background: #bbf7d0; }
+
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-orange { background: #ffedd5; color: #9a3412; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-purple { background: #f3e8ff; color: #6b21a8; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
+
+        .stats-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            transition: all 0.2s ease;
+        }
+        .stats-card:hover {
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .image-thumb {
+            position: relative;
+            display: inline-block;
+        }
+        .image-thumb img {
+            width: 5rem;
+            height: 5rem;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        .image-thumb .del-btn {
+            position: absolute;
+            top: 0.25rem;
+            right: 0.25rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            background: #dc2626;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .image-thumb:hover .del-btn { opacity: 1; }
+    </style>
 </head>
 
 <body class="bg-gray-50">
@@ -75,267 +229,172 @@ $result = $conn->query($query);
                 $message = $_SESSION['message'];
                 $alertType = ($message['type'] === 'success') ? 'bg-teal-500 text-white' : 'bg-red-500 text-white';
                 echo '
-                <div class="mt-2 ' . htmlspecialchars($alertType) . ' text-sm rounded-lg p-4" role="alert">
+                <div class="mt-2 ' . htmlspecialchars($alertType) . ' text-sm rounded-xl p-4 flex items-center gap-2" role="alert">
                     <span class="font-bold">' . ucfirst(htmlspecialchars($message['type'])) . '!</span> ' . htmlspecialchars($message['text']) . '
                 </div>';
                 unset($_SESSION['message']);
             }
             ?>
 
-            <!-- Categories Table Card -->
-            <div class="flex flex-col">
-                <div class="-m-1.5 overflow-x-auto">
-                    <div class="p-1.5 min-w-full inline-block align-middle">
-                        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                            
-                            <!-- Header -->
-                            <div class="px-6 py-4 grid gap-3 md:flex md:items-center border-b border-gray-200">
-                                <div class="flex justify-between items-center w-full">
-                                    <div>
-                                        <h2 class="text-xl font-semibold text-gray-800">Categories</h2>
-                                        <p class="text-sm text-gray-600">Manage your product categories</p>
-                                    </div>
-                                    <div class="inline-flex gap-x-2">
-                                        <button class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700" 
-                                                data-modal-target="addCategoryModal">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M5 12h14" />
-                                                <path d="M12 5v14" />
-                                            </svg>
-                                            Add Category
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Table -->
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="ps-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Category Name</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Slug</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Parent Category</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Level</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Products</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-start">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Sort Order</span>
-                                        </th>
-                                        <th class="px-6 py-3 text-end">
-                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-800">Actions</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-200">
-                                    <?php while ($row = $result->fetch_assoc()): ?>
-                                    <tr class="hover:bg-gray-50 transition">
-                                        <td class="ps-6 py-3">
-                                            <div class="flex items-center gap-x-3">
-                                                <?php if ($row['category_image']): ?>
-                                                <img src="../uploads/categories/<?= htmlspecialchars($row['category_image']) ?>" 
-                                                     class="w-8 h-8 rounded-full object-cover" alt="">
-                                                <?php endif; ?>
-                                                <span class="block text-sm font-semibold text-gray-800">
-                                                    <?= htmlspecialchars($row['category_name']) ?>
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-3">
-                                            <span class="text-sm text-gray-600"><?= htmlspecialchars($row['category_slug']) ?></span>
-                                        </td>
-                                        <td class="px-6 py-3">
-                                            <span class="text-sm text-gray-600">
-                                                <?= $row['parent_name'] ? htmlspecialchars($row['parent_name']) : '<span class="text-gray-400">—</span>' ?>
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-3">
-                                            <span class="px-2 py-1 text-xs font-medium <?= $row['category_level'] == 1 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800' ?> rounded-full">
-                                                Level <?= $row['category_level'] ?>
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-3">
-                                            <span class="text-sm font-medium text-gray-900"><?= $row['product_count'] ?></span>
-                                            <span class="text-xs text-gray-500">(<?= $row['variant_count'] ?> variants)</span>
-                                        </td>
-                                        <td class="px-6 py-3">
-                                            <span class="text-sm text-gray-600"><?= $row['sort_order'] ?></span>
-                                        </td>
-                                        <td class="px-6 py-3 text-end">
-                                            <div class="inline-flex gap-1">
-                                                <button onclick="openEditCategoryModal(<?= $row['category_id'] ?>)" 
-                                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                                                        <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                                                        <path d="M16 5l3 3" />
-                                                    </svg>
-                                                </button>
-                                                <button onclick="openDeleteCategoryModal(<?= $row['category_id'] ?>, '<?= htmlspecialchars($row['category_name']) ?>')" 
-                                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M4 7l16 0" />
-                                                        <path d="M10 11l0 6" />
-                                                        <path d="M14 11l0 6" />
-                                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                </tbody>
-                            </table>
-                            
-                            <!-- Pagination -->
-                            <div class="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-                                <div>
-                                    <p class="text-sm text-gray-600">
-                                        <span class="font-semibold text-gray-800"><?= $totalItems ?></span> results
-                                    </p>
-                                </div>
-                                <div>
-                                    <div class="inline-flex gap-x-2">
-                                        <?php if ($page > 1): ?>
-                                            <a href="?page=<?= $page - 1 ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50">Prev</a>
-                                        <?php endif; ?>
-                                        
-                                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                                            <a href="?page=<?= $i ?>" class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border <?= $i == $page ? 'bg-blue-500 text-white' : 'bg-white text-gray-800' ?> shadow-sm hover:bg-gray-50">
-                                                <?= $i ?>
-                                            </a>
-                                        <?php endfor; ?>
-                                        
-                                        <?php if ($page < $totalPages): ?>
-                                            <a href="?page=<?= $page + 1 ?>" class="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50">Next</a>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
+            <!-- Categories Content -->
+            <?php include('./components/category_list.php'); ?>
+
+        </div>
+    </div>
+
+    <!-- Add Category Modal (Redesigned) -->
+    <div id="addCategoryModal" class="modal-overlay hidden">      
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <h3>Add New Category</h3>
+                    <p>Create a new product category</p>
+                </div>
+                <button class="modal-close" onclick="closeModal('addCategoryModal')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <form id="addCategoryForm" action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    
+                    <p class="section-title">Basic Information</p>
+                    
+                    <div>
+                        <label class="form-label">Category Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="category_name" required 
+                               class="form-input" placeholder="e.g., Fresh Fish">
+                    </div>
+                    
+                    <div>
+                        <label class="form-label">Slug (URL-friendly name)</label>
+                        <input type="text" name="category_slug" 
+                               class="form-input" placeholder="e.g., fresh-fish">
+                        <p class="text-xs text-gray-400 mt-1">Leave empty to auto-generate from name</p>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label">Description</label>
+                        <textarea name="category_description" rows="3" 
+                                  class="form-input" style="resize:none"
+                                  placeholder="Category description..."></textarea>
+                    </div>
+                    
+                    <p class="section-title">Category Settings</p>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label">Parent Category</label>
+                            <select name="parent_id" class="form-input">
+                                <option value="">— No Parent (Top Level) —</option>
+                                <?php
+                                $parentQuery = "SELECT category_id, category_name, category_level FROM product_categories WHERE is_active = 1 ORDER BY category_level, category_name";
+                                $parentResult = $conn->query($parentQuery);
+                                while ($parent = $parentResult->fetch_assoc()):
+                                    $indent = str_repeat('— ', $parent['category_level'] - 1);
+                                ?>
+                                    <option value="<?= $parent['category_id'] ?>">
+                                        <?= $indent . htmlspecialchars($parent['category_name']) ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Sort Order</label>
+                            <input type="number" name="sort_order" value="0" min="0"
+                                   class="form-input">
                         </div>
                     </div>
+                    
+                    <p class="section-title">Category Image</p>
+                    
+                    <div>
+                        <input type="file" id="addCategoryImage" name="category_image" accept="image/*" class="hidden">
+                        <button type="button" onclick="document.getElementById('addCategoryImage').click()"
+                                class="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-colors">
+                            📸 Click to upload category image
+                        </button>
+                        <div id="addCategoryImagePreview" class="hidden mt-3">
+                            <img src="" alt="Preview" class="w-24 h-24 object-cover rounded-lg border">
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal('addCategoryModal')" class="btn-secondary">Cancel</button>
+                <button type="submit" form="addCategoryForm" name="add_category" class="btn-primary">
+                    Add Category
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal (Redesigned) -->
+    <div id="editCategoryModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <h3>Edit Category</h3>
+                    <p>Update category details below</p>
+                </div>
+                <button class="modal-close" onclick="closeModal('editCategoryModal')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="editCategoryContent" class="modal-body">
+                <div class="flex items-center justify-center py-12 text-gray-400">
+                    <svg class="animate-spin mr-3" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    Loading category data...
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Category Modal -->
-    <div id="addCategoryModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-      <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Add New Category</h3>
+    <!-- Delete Category Modal (Redesigned) -->
+    <div id="deleteCategoryModal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:28rem">
+            <div class="modal-header">
+                <div>
+                    <h3>Delete Category</h3>
+                    <p>This action cannot be undone</p>
+                </div>
+                <button class="modal-close" onclick="closeModal('deleteCategoryModal')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
             
-            <form action="./functions/add.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700">Category Name *</label>
-                        <input type="text" name="category_name" required 
-                               class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                               placeholder="e.g., Fresh Fish">
-                    </div>
-                    
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700">Slug (URL-friendly name)</label>
-                        <input type="text" name="category_slug" 
-                               class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                               placeholder="e.g., fresh-fish">
-                        <p class="text-xs text-gray-500 mt-1">Leave empty to auto-generate from name</p>
-                    </div>
-                    
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700">Parent Category</label>
-                        <select name="parent_id" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                            <option value="">— No Parent (Top Level) —</option>
-                            <?php
-                            $parentQuery = "SELECT category_id, category_name, category_level FROM product_categories WHERE is_active = 1 ORDER BY category_level, category_name";
-                            $parentResult = $conn->query($parentQuery);
-                            while ($parent = $parentResult->fetch_assoc()):
-                                $indent = str_repeat('— ', $parent['category_level'] - 1);
-                            ?>
-                                <option value="<?= $parent['category_id'] ?>">
-                                    <?= $indent . htmlspecialchars($parent['category_name']) ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea name="category_description" rows="3" 
-                                  class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                  placeholder="Category description..."></textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Sort Order</label>
-                        <input type="number" name="sort_order" value="0" min="0"
-                               class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Category Image</label>
-                        <input type="file" name="category_image" accept="image/*" class="hidden" id="categoryImage">
-                        <button type="button" onclick="document.getElementById('categoryImage').click()"
-                                class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
-                            📸 Upload Image
-                        </button>
-                    </div>
+            <div class="modal-body text-center">
+                <div class="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
                 </div>
                 
-                <div id="categoryImagePreview" class="hidden mt-2">
-                    <img src="" alt="Preview" class="w-32 h-32 object-cover rounded-lg border">
-                </div>
-                
-                <div class="flex justify-end space-x-3 mt-6">
-                    <button type="submit" name="add_category" 
-                            class="py-2 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">
-                        Add Category
-                    </button>
-                    <button type="button" onclick="closeModal('addCategoryModal')" 
-                            class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Edit Category Modal -->
-    <div id="editCategoryModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-      <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
-            <div id="editCategoryContent"></div>
-        </div>
-    </div>
-
-    <!-- Delete Category Modal -->
-    <div id="deleteCategoryModal" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
-      <div class="bg-white w-96 p-6 rounded-2xl shadow-2xl flex flex-col">
-            <h3 class="text-lg font-semibold mb-4 text-gray-800">Delete Category</h3>
-            <form action="./functions/delete.php" method="POST">
-                <input type="hidden" name="category_id" id="deleteCategoryId">
-                <p id="deleteCategoryName" class="text-gray-600 mb-4"></p>
-                <p class="text-sm text-red-600 mb-4">
-                    ⚠️ This will remove the category from all products and variants. Products without categories will be uncategorized.
-                </p>
-                <div class="flex justify-end space-x-3">
-                    <button type="submit" name="delete_category" 
-                            class="py-2 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-600 transition">
-                        Delete Category
-                    </button>
-                    <button type="button" onclick="closeModal('deleteCategoryModal')" 
-                            class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
+                <form action="./functions/delete.php" method="POST" id="deleteCategoryForm">
+                    <input type="hidden" name="category_id" id="deleteCategoryId">
+                    <p id="deleteCategoryName" class="text-sm font-semibold text-gray-800 mb-1"></p>
+                    <p class="text-xs text-red-500 mb-5">
+                        This will remove the category from all products and variants.
+                    </p>
+                    <div class="flex gap-3 justify-center">
+                        <button type="button" onclick="closeModal('deleteCategoryModal')" class="btn-secondary">Cancel</button>
+                        <button type="submit" name="delete_category" class="btn-primary" style="background:#dc2626">Delete Permanently</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -343,6 +402,7 @@ $result = $conn->query($query);
         // Modal controls
         window.closeModal = function(modalId) {
             document.getElementById(modalId).classList.add('hidden');
+            document.body.style.overflow = '';
         };
 
         // Open modals
@@ -350,12 +410,20 @@ $result = $conn->query($query);
             button.addEventListener("click", function() {
                 const modalId = this.getAttribute("data-modal-target");
                 document.getElementById(modalId).classList.remove("hidden");
+                document.body.style.overflow = 'hidden';
             });
         });
 
-        // Category image preview
-        document.getElementById('categoryImage')?.addEventListener('change', function(e) {
-            const preview = document.getElementById('categoryImagePreview');
+        // Close on backdrop click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) closeModal(this.id);
+            });
+        });
+
+        // Add Category image preview
+        document.getElementById('addCategoryImage')?.addEventListener('change', function(e) {
+            const preview = document.getElementById('addCategoryImagePreview');
             const img = preview.querySelector('img');
             if (e.target.files[0]) {
                 const reader = new FileReader();
@@ -380,21 +448,80 @@ $result = $conn->query($query);
 
         // Edit category
         window.openEditCategoryModal = function(categoryId) {
+            const modal = document.getElementById('editCategoryModal');
+            const content = document.getElementById('editCategoryContent');
+            
+            content.innerHTML = `
+                <div class="flex items-center justify-center py-12 text-gray-400">
+                    <svg class="animate-spin mr-3" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    Loading category data...
+                </div>`;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
             fetch(`./functions/fetch_category.php?category_id=${categoryId}`)
                 .then(response => response.text())
                 .then(data => {
-                    document.getElementById('editCategoryContent').innerHTML = data;
-                    document.getElementById('editCategoryModal').classList.remove('hidden');
+                    content.innerHTML = data;
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    content.innerHTML = '<p class="text-red-500 p-4 text-center">Failed to load category.</p>';
+                    console.error('Error:', error);
+                });
         };
 
         // Delete category
         window.openDeleteCategoryModal = function(categoryId, categoryName) {
             document.getElementById('deleteCategoryId').value = categoryId;
-            document.getElementById('deleteCategoryName').innerText = `Delete "${categoryName}"?`;
+            document.getElementById('deleteCategoryName').innerHTML = `Are you sure you want to delete <strong>"${categoryName}"</strong>?`;
             document.getElementById('deleteCategoryModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         };
+
+        // Event delegation for dynamically loaded modal content
+        document.addEventListener('click', function(e) {
+            // Delete category image button
+            const delBtn = e.target.closest('[data-delete-category-image]');
+            if (delBtn) {
+                const categoryId = delBtn.dataset.deleteCategoryImage;
+                if (!confirm('Delete this image?')) return;
+
+                fetch('./functions/delete.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: 'action=delete_category_image&category_id=' + categoryId
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        delBtn.closest('div')?.remove();
+                    } else {
+                        alert('Failed to delete image: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(() => alert('Network error. Please try again.'));
+            }
+        });
+
+        // Edit category image preview (delegated — handles dynamically loaded input)
+        document.addEventListener('change', function(e) {
+            if (e.target.id !== 'editCategoryImage') return;
+            const preview = document.getElementById('editCategoryImagePreview');
+            const img = preview?.querySelector('img');
+            if (e.target.files[0] && img) {
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    img.src = ev.target.result;
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
     </script>
 
     <?php $conn->close(); ?>

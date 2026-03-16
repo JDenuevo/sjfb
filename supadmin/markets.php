@@ -41,16 +41,22 @@ while ($product = $products_result->fetch_assoc()) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Markets Management | St. Joseph Fish Brokerage Inc.</title>
 
+  <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">
   <link rel="icon" href="../assets/icons/logo.svg" type="image/svg+xml">
   
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
-  <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+
+  <!-- CSS Files -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="../style.css" rel="stylesheet">
 
   <style>
     select[multiple] { appearance: none; -webkit-appearance: none; background-image: none; }
@@ -775,23 +781,6 @@ while ($product = $products_result->fetch_assoc()) {
       });
     }
     
-    // Delete existing member
-    document.querySelectorAll('.delete-member-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const memberId = this.dataset.memberId;
-            const row = this.closest('.member-row');
-            deleteMarketMember(memberId, row);
-        });
-    });
-
-    // Delete existing product link
-    document.querySelectorAll('.delete-product-link-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const linkId = this.dataset.linkId;
-            const row = this.closest('.product-row');
-            deleteMarketProduct(linkId, row);
-        });
-    });
   }
 
   // Delete market modal
@@ -800,6 +789,108 @@ while ($product = $products_result->fetch_assoc()) {
     document.getElementById('deleteMarketName').textContent = `Are you sure you want to delete "${marketName}"?`;
     openModal('deleteMarketModal');
   };
+
+  // ── Delegated handlers for dynamically loaded edit modal content ──────────────
+
+  // Delete market image (main or gallery)
+  document.addEventListener('click', function(e) {
+      const btn = e.target.closest('[data-action="delete_market_image"]');
+      if (!btn) return;
+
+      const type     = btn.dataset.imageType;
+      const marketId = btn.dataset.marketId;
+      const label    = type === 'main' ? 'main image' : 'gallery image';
+      if (!confirm('Delete this ' + label + '? This cannot be undone.')) return;
+
+      const original    = btn.textContent;
+      btn.textContent   = '…';
+      btn.disabled      = true;
+
+      let body = 'action=delete_market_image&market_id=' + marketId + '&image_type=' + type;
+      if (type === 'gallery') body += '&image=' + encodeURIComponent(btn.dataset.image);
+
+      fetch('./functions/delete.php', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+          body
+      })
+      .then(r => r.json())
+      .then(d => {
+          if (d.success) {
+              if (type === 'main') {
+                  const wrapper = document.getElementById(btn.dataset.target);
+                  if (wrapper) { wrapper.style.opacity = '0'; setTimeout(() => wrapper.remove(), 200); }
+              } else {
+                  const thumb = btn.closest('.image-thumb');
+                  if (thumb) {
+                      thumb.style.opacity = '0';
+                      setTimeout(() => {
+                          thumb.remove();
+                          const grid = document.getElementById('currentGalleryGrid');
+                          if (grid && grid.children.length === 0) grid.closest('.mt-3')?.remove();
+                      }, 200);
+                  }
+              }
+          } else {
+              btn.textContent = original;
+              btn.disabled    = false;
+              alert('Failed: ' + (d.message || 'Unknown error'));
+          }
+      })
+      .catch(() => { btn.textContent = original; btn.disabled = false; alert('Request failed.'); });
+  });
+
+  // Delete existing team member
+  document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.delete-member-btn');
+      if (!btn) return;
+      if (!confirm('Delete this team member permanently?')) return;
+
+      const memberId = btn.dataset.memberId;
+      const row      = btn.closest('.member-row');
+
+      fetch('./functions/delete.php', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+          body   : 'action=delete_market_member&member_id=' + memberId
+      })
+      .then(r => r.json())
+      .then(d => {
+          if (d.success) {
+              row.style.opacity = '0';
+              setTimeout(() => row.remove(), 200);
+          } else {
+              alert('Failed: ' + (d.message || 'Unknown error'));
+          }
+      })
+      .catch(() => alert('Request failed.'));
+  });
+
+  // Delete existing product link
+  document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.delete-product-link-btn');
+      if (!btn) return;
+      if (!confirm('Remove this product from market?')) return;
+
+      const linkId = btn.dataset.linkId;
+      const row    = btn.closest('.product-row');
+
+      fetch('./functions/delete.php', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+          body   : 'action=delete_market_product&link_id=' + linkId
+      })
+      .then(r => r.json())
+      .then(d => {
+          if (d.success) {
+              row.style.opacity = '0';
+              setTimeout(() => row.remove(), 200);
+          } else {
+              alert('Failed: ' + (d.message || 'Unknown error'));
+          }
+      })
+      .catch(() => alert('Request failed.'));
+  });
   </script>
 
   <?php $conn->close(); ?>

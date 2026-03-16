@@ -397,7 +397,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_blog'])) {
         if (!empty($blog_featured_image)) { $fp = $_SERVER['DOCUMENT_ROOT'] . $blog_featured_image; if (file_exists($fp)) unlink($fp); }
         $_SESSION['message'] = ['type'=>'error','text'=>"Error: " . $e->getMessage()];
     }
-    header("Location: ../blogs.php"); exit;
+    header("Location: ../blogs.php"); 
+    exit;
 }
 
 // ── ADD SUGGESTION ────────────────────────────────────────────────────────────
@@ -571,4 +572,125 @@ elseif (isset($_POST['add_market'])) {
     }
 }
 
+elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
+ 
+    $account_id    = (int)($_POST['account_id']          ?? 0);
+    $vehicle_type  = trim($_POST['vehicle_type']         ?? '');
+    $variant_color = trim($_POST['variant_color']        ?? '');
+    $plate         = trim($_POST['vehicle_plate_number'] ?? '');
+    $contact       = trim($_POST['contact_number']       ?? '');
+    $organization  = trim($_POST['organization']         ?? '');
+    $full_name     = trim($_POST['full_name']             ?? '');
+ 
+    // Validate
+    $errors = [];
+    if ($account_id <= 0)      $errors[] = 'Please select a valid account.';
+    if (empty($vehicle_type))  $errors[] = 'Vehicle type is required.';
+    if (empty($variant_color)) $errors[] = 'Vehicle color is required.';
+    if (empty($plate))         $errors[] = 'Plate number is required.';
+    if (empty($contact))       $errors[] = 'Contact number is required.';
+    if (empty($organization))  $errors[] = 'Organization is required.';
+    if (!empty($errors)) {
+        $_SESSION['message'] = ['type' => 'error', 'text' => implode(' ', $errors)];
+        header('Location: ../riders.php');
+        exit;
+    }
+ 
+    // Image upload (required)
+    $image_path = null;
+    if (!empty($_FILES['image']['tmp_name'])) {
+        $mime = mime_content_type($_FILES['image']['tmp_name']);
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Photo must be JPEG, PNG or WEBP.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+        if ($_FILES['image']['size'] > 5 * 1024 * 1024) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Photo must be under 5MB.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+        $ext   = match($mime) { 'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg' };
+        $fname = 'rider_' . $account_id . '_' . time() . '.' . $ext;
+        $dir   = __DIR__ . '/../../uploads/riders/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        if (!move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to save rider photo.'];
+            header('Location: ../riders.php');
+            exit;
+        }
+        $image_path = 'uploads/riders/' . $fname;
+    } else {
+        $_SESSION['message'] = ['type' => 'error', 'text' => 'Rider photo is required.'];
+        header('Location: ../riders.php');
+        exit;
+    }
+ 
+    $conn->begin_transaction();
+    try {
+        // Check account exists and is eligible
+        $ck = $conn->prepare("SELECT role FROM accounts WHERE account_id = ? AND is_deleted = 0 LIMIT 1");
+        $ck->bind_param('i', $account_id);
+        $ck->execute();
+        $acc = $ck->get_result()->fetch_assoc();
+        if (!$acc) throw new Exception('Selected account does not exist.');
+        if (in_array($acc['role'], ['admin', 'super_admin'], true)) throw new Exception('Admin accounts cannot be made riders.');
+ 
+        // Not already a rider
+        $cr = $conn->prepare("SELECT rider_id FROM riders WHERE account_id = ? AND is_deleted = 0 LIMIT 1");
+        $cr->bind_param('i', $account_id);
+        $cr->execute();
+        if ($cr->get_result()->num_rows > 0) throw new Exception('This account is already registered as a rider.');
+ 
+        // Promote account role
+        $ur = $conn->prepare("UPDATE accounts SET role = 'rider' WHERE account_id = ?");
+        $ur->bind_param('i', $account_id);
+        if (!$ur->execute()) throw new Exception('Failed to update account role.');
+ 
+        // Insert rider row with all new columns
+        $ir = $conn->prepare("
+            INSERT INTO riders
+                (account_id, image, full_name, vehicle_type, vehicle_plate_number,
+                 variant_color, contact_number, organization, is_available, is_deleted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+        ");
+        $fnVal = $full_name ?: null;
+        $ir->bind_param('isssssss',
+            $account_id, $image_path, $fnVal,
+            $vehicle_type, $plate, $variant_color,
+            $contact, $organization
+        );
+        if (!$ir->execute()) throw new Exception('Failed to create rider record.');
+        $new_rider_id = (int)$conn->insert_id;
+ 
+        // Name for activity log
+        $na = $conn->prepare("SELECT first_name, last_name FROM accounts WHERE account_id = ?");
+        $na->bind_param('i', $account_id);
+        $na->execute();
+        $nameRow = $na->get_result()->fetch_assoc();
+        $nameStr = $nameRow ? "{$nameRow['first_name']} {$nameRow['last_name']}" : "Account #{$account_id}";
+ 
+        logActivity($conn, 'rider', $new_rider_id, 'Rider created',
+            null,
+            json_encode(['vehicle_type' => $vehicle_type, 'plate' => $plate, 'org' => $organization]),
+            "Rider created for {$nameStr}. Vehicle: {$vehicle_type} ({$plate}), Org: {$organization}",
+            $actorId, $actorType
+        );
+ 
+        $conn->commit();
+        $_SESSION['message'] = ['type' => 'success', 'text' => "Rider {$nameStr} added successfully!"];
+        header('Location: ../riders.php');
+        exit;
+ 
+    } catch (Exception $e) {
+        $conn->rollback();
+        // Remove uploaded image on DB failure
+        if ($image_path && file_exists(__DIR__ . '/../../' . $image_path)) {
+            unlink(__DIR__ . '/../../' . $image_path);
+        }
+        $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
+        header('Location: ../riders.php');
+        exit;
+    }
+}
 ?>

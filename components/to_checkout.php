@@ -15,6 +15,9 @@ unset($_SESSION['error']);
 $errorNames = array_column($cartErrors, 'product_name');
 $hasErrors  = !empty($cartErrors);
 
+// Get saved checkout data (from cancelled payment)
+$savedData = $_SESSION['pending_checkout'] ?? [];
+
 // ── Fetch live stock quantities for every variant in the cart ──────────────
 $stockMap = [];  // variant_id => stock_quantity
 if (!empty($cart)) {
@@ -48,6 +51,14 @@ foreach ($cart as $item) {
 }
 $hasStockIssues = !empty($stockExceeded);
 $blockCheckout  = $hasErrors || $hasStockIssues;
+
+// Helper function to get form value - checks saved data first, then user details
+function getFormValue($field, $userDetails, $savedData) {
+    if (isset($savedData[$field]) && !empty($savedData[$field])) {
+        return htmlspecialchars($savedData[$field]);
+    }
+    return isset($userDetails[$field]) ? htmlspecialchars($userDetails[$field]) : '';
+}
 ?>
 
 <?php if ($hasErrors): ?>
@@ -125,14 +136,14 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               <div>
                 <label for="First_name" class="block text-xs font-semibold text-gray-600 mb-1.5">First Name <span class="text-red-400">*</span></label>
                 <input type="text" id="First_name" name="first_name"
-                  value="<?= isset($userDetails['first_name']) ? htmlspecialchars($userDetails['first_name']) : '' ?>"
+                  value="<?= getFormValue('first_name', $userDetails, $savedData) ?>"
                   placeholder="Juan" class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="first_name-error">Enter your first name.</p>
               </div>
               <div>
                 <label for="Last_name" class="block text-xs font-semibold text-gray-600 mb-1.5">Last Name <span class="text-red-400">*</span></label>
                 <input type="text" id="Last_name" name="last_name"
-                  value="<?= isset($userDetails['last_name']) ? htmlspecialchars($userDetails['last_name']) : '' ?>"
+                  value="<?= getFormValue('last_name', $userDetails, $savedData) ?>"
                   placeholder="dela Cruz" class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="last_name-error">Enter your last name.</p>
               </div>
@@ -141,14 +152,14 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               <div>
                 <label for="Email" class="block text-xs font-semibold text-gray-600 mb-1.5">Email Address <span class="text-red-400">*</span></label>
                 <input type="email" id="Email" name="email"
-                  value="<?= isset($userDetails['email']) ? htmlspecialchars($userDetails['email']) : '' ?>"
+                  value="<?= getFormValue('email', $userDetails, $savedData) ?>"
                   placeholder="juan@email.com" class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="email-error">Enter a valid email.</p>
               </div>
               <div>
                 <label for="Phone_number" class="block text-xs font-semibold text-gray-600 mb-1.5">Phone Number <span class="text-red-400">*</span></label>
                 <input type="tel" id="Phone_number" name="phone_number"
-                  value="<?= isset($userDetails['phone_number']) ? htmlspecialchars($userDetails['phone_number']) : '' ?>"
+                  value="<?= getFormValue('phone_number', $userDetails, $savedData) ?>"
                   placeholder="09-XXXX-XXXX" maxlength="11"
                   class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="phone_number-error">Enter a valid phone number.</p>
@@ -174,7 +185,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
             <div>
               <label for="Address" class="block text-xs font-semibold text-gray-600 mb-1.5">Street Address <span class="text-red-400">*</span></label>
               <input type="text" id="Address" name="address"
-                value="<?= isset($userDetails['address']) ? htmlspecialchars($userDetails['address']) : '' ?>"
+                value="<?= getFormValue('address', $userDetails, $savedData) ?>"
                 placeholder="House no., Street, Barangay"
                 class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
               <p class="hidden text-xs text-red-500 mt-1" id="address-error">Enter your address.</p>
@@ -183,7 +194,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               <div>
                 <label for="City" class="block text-xs font-semibold text-gray-600 mb-1.5">City / Municipality <span class="text-red-400">*</span></label>
                 <input type="text" id="City" name="city"
-                  value="<?= isset($userDetails['city']) ? htmlspecialchars($userDetails['city']) : '' ?>"
+                  value="<?= getFormValue('city', $userDetails, $savedData) ?>"
                   placeholder="City / Municipality"
                   class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="city-error">Enter your city.</p>
@@ -191,7 +202,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               <div>
                 <label for="Postal_code" class="block text-xs font-semibold text-gray-600 mb-1.5">Postal Code <span class="text-red-400">*</span></label>
                 <input type="number" id="Postal_code" name="postal_code"
-                  value="<?= isset($userDetails['postal_code']) ? htmlspecialchars($userDetails['postal_code']) : '' ?>"
+                  value="<?= getFormValue('postal_code', $userDetails, $savedData) ?>"
                   placeholder="XXXX"
                   class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
                 <p class="hidden text-xs text-red-500 mt-1" id="postal_code-error">Enter your postal code.</p>
@@ -201,7 +212,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               <label for="delivery_notes" class="block text-xs font-semibold text-gray-600 mb-1.5">Delivery Notes <span class="text-gray-400 font-normal">(optional)</span></label>
               <textarea id="delivery_notes" name="delivery_notes" rows="2"
                 placeholder="e.g. Leave at the gate, ring the bell twice…"
-                class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+                class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none"><?= getFormValue('delivery_notes', $userDetails, $savedData) ?></textarea>
             </div>
           </div>
         </div>
@@ -223,7 +234,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <!-- COD -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="cod" value="cod" class="sr-only">
+                <input type="radio" name="payment_method" id="cod" value="cod" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'cod') ? 'checked' : '' ?>>
                 <label for="cod" class="payment-label">
                   <div class="payment-icon-wrap bg-green-100">
                     <svg class="size-5 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -238,7 +249,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               </div>
               <!-- GCash -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="gcash" value="gcash" class="sr-only">
+                <input type="radio" name="payment_method" id="gcash" value="gcash" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'gcash') ? 'checked' : '' ?>>
                 <label for="gcash" class="payment-label">
                   <div class="payment-icon-wrap bg-blue-100"><img src="./assets/icons/gcash.png" alt="GCash" class="size-5 object-contain"></div>
                   <div><span class="payment-name">GCash</span><span class="payment-sub">Mobile wallet</span></div>
@@ -247,7 +258,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               </div>
               <!-- Maya -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="maya" value="paymaya" class="sr-only">
+                <input type="radio" name="payment_method" id="maya" value="paymaya" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'paymaya') ? 'checked' : '' ?>>
                 <label for="maya" class="payment-label">
                   <div class="payment-icon-wrap bg-green-100"><img src="./assets/icons/maya.png" alt="Maya" class="size-5 object-contain"></div>
                   <div><span class="payment-name">Maya</span><span class="payment-sub">Mobile wallet</span></div>
@@ -256,7 +267,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               </div>
               <!-- QR Ph -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="qrph" value="qrph" class="sr-only">
+                <input type="radio" name="payment_method" id="qrph" value="qrph" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'qrph') ? 'checked' : '' ?>>
                 <label for="qrph" class="payment-label">
                   <div class="payment-icon-wrap bg-indigo-100"><img src="./assets/icons/qrph.png" alt="QR Ph" class="size-5 object-contain"></div>
                   <div><span class="payment-name">QR Ph</span><span class="payment-sub">Scan to pay</span></div>
@@ -265,7 +276,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               </div>
               <!-- GrabPay -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="grab_pay" value="grab_pay" class="sr-only">
+                <input type="radio" name="payment_method" id="grab_pay" value="grab_pay" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'grab_pay') ? 'checked' : '' ?>>
                 <label for="grab_pay" class="payment-label">
                   <div class="payment-icon-wrap bg-green-100"><img src="./assets/icons/grabpay.png" alt="GrabPay" class="size-5 object-contain"></div>
                   <div><span class="payment-name">GrabPay</span><span class="payment-sub">Grab wallet</span></div>
@@ -274,7 +285,7 @@ $blockCheckout  = $hasErrors || $hasStockIssues;
               </div>
               <!-- Card -->
               <div class="payment-option">
-                <input type="radio" name="payment_method" id="card" value="card" class="sr-only">
+                <input type="radio" name="payment_method" id="card" value="card" class="sr-only" <?= (isset($savedData['payment_method']) && $savedData['payment_method'] === 'card') ? 'checked' : '' ?>>
                 <label for="card" class="payment-label">
                   <div class="payment-icon-wrap bg-purple-100"><img src="./assets/icons/card.png" alt="Card" class="size-5 object-contain"></div>
                   <div><span class="payment-name">Credit / Debit Card</span><span class="payment-sub">Visa, Mastercard</span></div>

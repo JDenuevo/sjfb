@@ -1,5 +1,5 @@
 <?php
-// account_list.php — improved
+// components/account_list.php — improved
 // Helper: avatar color based on name
 function avatarColor($name) {
   $colors = [['bg-orange-100','text-orange-600'],['bg-blue-100','text-blue-600'],['bg-purple-100','text-purple-600'],

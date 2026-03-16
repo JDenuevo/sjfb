@@ -113,8 +113,21 @@ while ($c = $all_cats_result->fetch_assoc()) {
            value="<?= htmlspecialchars($product['product_nickname'] ?? '') ?>">
   </div>
 
-  <p class="section-title">Product Categories</p>
-  <div class="grid grid-cols-2 gap-3">
+  <p class="section-title">Product Categories <span class="text-red-500">*</span></p>
+  <div class="space-y-3">
+    <div>
+      <label class="form-label">Select Categories (you can select multiple)</label>
+      <select name="product_categories[]" multiple class="form-input" size="5" required>
+        <?php foreach ($all_cats as $c): ?>
+          <option value="<?= $c['category_id'] ?>" 
+            <?= in_array($c['category_id'], $selected_categories) ? 'selected' : '' ?>>
+            <?= htmlspecialchars($c['category_name']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+      <p class="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple categories</p>
+    </div>
+
     <div>
       <label class="form-label">Primary Category</label>
       <select name="primary_category" class="form-input">
@@ -125,17 +138,7 @@ while ($c = $all_cats_result->fetch_assoc()) {
           </option>
         <?php endforeach; ?>
       </select>
-    </div>
-    <div>
-      <label class="form-label">All Categories</label>
-      <select name="product_categories[]" multiple size="4" class="form-input">
-        <?php foreach ($all_cats as $c): ?>
-          <option value="<?= $c['category_id'] ?>" <?= in_array($c['category_id'], $selected_categories) ? 'selected' : '' ?>>
-            <?= htmlspecialchars($c['category_name']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-      <p class="text-xs text-gray-400 mt-1">Ctrl/Cmd + click to select multiple</p>
+      <p class="text-xs text-gray-400 mt-1">Optional: If not selected, first category will be primary</p>
     </div>
   </div>
 

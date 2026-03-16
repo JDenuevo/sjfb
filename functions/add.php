@@ -1,10 +1,10 @@
 <?php
-// ==================== ADD.PHP (home) — Register + Ordering ====================
 session_start();
 require_once '../conn.php';
 require_once '../vendor/autoload.php';
 require_once 'paymongo_helper.php';
 require_once '../functions/activity_log_helper.php';
+require_once '../functions/order_helper.php'; // Add this line
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
@@ -16,18 +16,6 @@ function redirectWithMessage($location, $message, $type = 'error') {
     header("Location: $location");
     exit();
 }
-
-function generateOrderCode() {
-    $prefix = "ORD";
-    $date   = date('ymd');
-    $chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    $random = '';
-    for ($i = 0; $i < 6; $i++) {
-        $random .= $chars[random_int(0, strlen($chars) - 1)];
-    }
-    return $prefix . $date . $random;
-}
-
 /**
  * Validate every cart item against current DB state.
  * Returns array of error objects: [['product_name'=>…, 'variant_name'=>…, 'message'=>…], …]
@@ -347,80 +335,77 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 " | Items: " . implode(', ', $itemSummary),
                 $accountId, 'customer');
 
-            // ── Online payment ─────────────────────────────────────────────
+            // ── Online payment ─────────────────────────────────────────────────────
             if (in_array($paymentMethod, ['gcash','paymaya','grab_pay','card','qrph'])) {
-                $paymongo  = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
-                $baseUrl   = 'http://localhost/sjfbi-js';
 
-                $customerInfo   = ['first_name'=>$firstName,'last_name'=>$lastName,'email'=>$email,'phone'=>$phoneNumber];
+                // Store checkout data in session temporarily (NO ORDER CREATED YET)
+                $_SESSION['pending_checkout'] = [
+                    'email' => $email,
+                    'phone_number' => $phoneNumber,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'address' => $address,
+                    'postal_code' => $postalCode,
+                    'city' => $city,
+                    'delivery_notes' => $deliveryNotes,
+                    'payment_method' => $paymentMethod,
+                    'total_amount' => $totalAmount,
+                    'cart' => $cart, // Store the cart items
+                    'account_id' => $accountId,
+                    'is_guest' => $isGuest,
+                    'created_at' => time()
+                ];
+                
+                $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
+                $baseUrl = 'http://localhost/sjfbi-js';
+                
+                $customerInfo = ['first_name'=>$firstName,'last_name'=>$lastName,'email'=>$email,'phone'=>$phoneNumber];
                 $billingAddress = ['line1'=>$address,'city'=>$city,'postal_code'=>$postalCode,'state'=>'','country'=>'PH'];
-
+                
+                // Generate a temporary reference for this checkout attempt
+                $tempReference = 'TMP_' . uniqid() . '_' . time();
+                $_SESSION['temp_checkout_ref'] = $tempReference;
+                
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
-                    "Order #$orderCode",
+                    "Order Payment",
                     [
                         'payment_method_types' => [$paymentMethod],
-                        'success_url'   => $baseUrl . '/order_review.php?session_id={CHECKOUT_SESSION_ID}&order_code='.$orderCode.'&status=success',
-                        'cancel_url'    => $baseUrl . '/order_review.php?session_id={CHECKOUT_SESSION_ID}&order_code='.$orderCode.'&status=cancelled',
+                        'success_url' => $baseUrl . '/payment_callback.php?ref=' . $tempReference . '&status=success',
+                        'cancel_url' => $baseUrl . '/checkout.php?cancel=1&ref=' . $tempReference,
                         'customer_info' => $customerInfo,
-                        'billing'       => [
+                        'billing' => [
                             'address' => $billingAddress,
-                            'email'   => $email,
-                            'name'    => "$firstName $lastName",
-                            'phone'   => $phoneNumber,
+                            'email' => $email,
+                            'name' => "$firstName $lastName",
+                            'phone' => $phoneNumber,
                         ],
-                        'metadata'      => [
-                            'order_id'             => $orderId,
-                            'order_code'           => $orderCode,
-                            'customer_email'       => $email,
-                            'customer_name'        => "$firstName $lastName",
-                            'customer_phone'       => $phoneNumber,
-                            'shipping_address'     => $address,
-                            'shipping_city'        => $city,
-                            'shipping_postal_code' => $postalCode,
-                            'payment_method'       => $paymentMethod,
+                        'metadata' => [
+                            'temp_reference' => $tempReference,
+                            'customer_email' => $email,
+                            'customer_name' => "$firstName $lastName",
+                            'payment_method' => $paymentMethod,
                         ],
                     ]
                 );
-
-                if (!isset($response['data']['attributes']['checkout_url']))
+                
+                if (!isset($response['data']['attributes']['checkout_url'])) {
+                    // If PayMongo fails, clear the pending checkout and show error
+                    unset($_SESSION['pending_checkout']);
+                    unset($_SESSION['temp_checkout_ref']);
                     throw new Exception("Checkout session creation failed. No checkout URL returned.");
-
+                }
+                
                 $checkoutSessionId = $response['data']['id'];
-
-                $paymentStmt = $conn->prepare("
-                    INSERT INTO payments (
-                        order_id, currency, gross_amount, payment_status,
-                        mode, billing_name, billing_email, billing_phone,
-                        billing_line1, billing_city, billing_postal_code, billing_country,
-                        source_type, provider_id, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                ");
-                $billingName    = "$firstName $lastName";
-                $currency       = 'PHP';
-                $payStatus      = 'Pending';
-                $mode           = 'live';
-                $billingCountry = 'PH';
-                $paymentStmt->bind_param("isdsssssssssss",
-                    $orderId, $currency, $totalAmount, $payStatus, $mode,
-                    $billingName, $email, $phoneNumber,
-                    $address, $city, $postalCode, $billingCountry,
-                    $paymentMethod, $checkoutSessionId);
-                if (!$paymentStmt->execute())
-                    error_log("Payment insert error: " . $paymentStmt->error);
-
-                logActivity($conn, 'payment', $orderId, 'Online payment initiated', null, 'Pending',
-                    "Checkout session created for order #{$orderCode} via {$paymentMethod}. Session: {$checkoutSessionId}",
-                    $accountId, 'customer');
-
-                $_SESSION['current_order_id']      = $orderId;
-                $_SESSION['current_order_code']    = $orderCode;
-                $_SESSION['pending_payment_order'] = $orderId;
-                $_SESSION['payment_method']        = $paymentMethod;
-                $_SESSION['checkout_session_id']   = $checkoutSessionId;
-
-                $conn->commit();
-                unset($_SESSION['cart'], $_SESSION['cart_errors']);
+                $_SESSION['paymongo_session_id'] = $checkoutSessionId;
+                
+                // Log the attempt (optional)
+                error_log("Payment initiated - Temp Ref: $tempReference, Method: $paymentMethod");
+                
+                // IMPORTANT: Rollback the transaction since we're not creating the order yet
+                $conn->rollback();
+                
+                // Redirect to PayMongo - NO ORDER CREATED YET
                 header("Location: " . $response['data']['attributes']['checkout_url']);
                 exit();
 
@@ -469,5 +454,187 @@ function validateCartItems(mysqli $conn, array $cart): array {
             header("Location: ../checkout.php");
             exit();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUBMIT REVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    elseif (isset($_POST['submit_review'])) {
+        $orderCode = trim($_POST['order_code'] ?? '');
+        $token     = trim($_POST['token']      ?? '');
+
+        function generateReviewToken(string $orderCode, string $email, string $salt = 'sjfbi_review_2025'): string {
+            return strtoupper(substr(hash('sha256', $orderCode . $email . $salt), 0, 12));
+        }
+
+        $redirectBase = "../review.php?order={$orderCode}&token={$token}";
+
+        // Fetch order
+        $stmt = $conn->prepare("
+            SELECT o.*
+            FROM orders o
+            WHERE o.order_code = ? AND o.order_status = 'Delivered'
+            LIMIT 1
+        ");
+        $stmt->bind_param('s', $orderCode);
+        $stmt->execute();
+        $order = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$order) {
+            redirectWithMessage($redirectBase, 'Order not found or not yet delivered.', 'error');
+        }
+
+        // Validate token
+        $expectedToken = generateReviewToken($orderCode, $order['email']);
+        if (!hash_equals($expectedToken, strtoupper($token))) {
+            redirectWithMessage($redirectBase, 'Invalid review token.', 'error');
+        }
+
+        // CSRF check
+        if (strtoupper($_POST['token']) !== strtoupper($token)) {
+            redirectWithMessage($redirectBase, 'Security check failed.', 'error');
+        }
+
+        // Fetch unreviewed items
+        $iStmt = $conn->prepare("
+            SELECT oi.*, p.product_name, p.product_id,
+                pv.variant_name, pv.variant_price
+            FROM order_items oi
+            LEFT JOIN products p  ON oi.product_id  = p.product_id
+            LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+            WHERE oi.order_id = ? AND oi.is_reviewed = 0
+        ");
+        $iStmt->bind_param('i', $order['order_id']);
+        $iStmt->execute();
+        $orderItems = $iStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $iStmt->close();
+
+        $validationErrors = [];
+        $reviewedCount    = 0;
+
+        // Optional context fields
+        $reviewerPosition = trim($_POST['position'] ?? '');
+        $reviewerCompany  = trim($_POST['company']  ?? '');
+
+        foreach ($orderItems as $item) {
+            $itemId    = $item['order_item_id'];
+            $productId = $item['product_id'];
+            $rating    = intval($_POST["rating_{$itemId}"] ?? 0);
+            $feedback  = trim($_POST["feedback_{$itemId}"] ?? '');
+
+            // Skip if user left this item blank (optional per-item)
+            if (!$rating && !$feedback) continue;
+
+            if ($rating < 1 || $rating > 5) {
+                $validationErrors[] = "Please select a star rating for " . htmlspecialchars($item['product_name']);
+                continue;
+            }
+            if (strlen($feedback) < 10) {
+                $validationErrors[] = "Review for \"" . htmlspecialchars($item['product_name']) . "\" must be at least 10 characters.";
+                continue;
+            }
+
+            $fullName = trim($order['first_name'] . ' ' . $order['last_name']);
+            $email    = $order['email'];
+            $ip       = $_SERVER['REMOTE_ADDR'] ?? null;
+            $ua       = $_SERVER['HTTP_USER_AGENT'] ?? null;
+
+            // INSERT — includes position and company
+            $rStmt = $conn->prepare("
+                INSERT INTO reviews
+                    (order_id, order_item_id, product_id,
+                    full_name, email, rating, feedback,
+                    position, company,
+                    is_verified_purchase, status,
+                    reviewer_ip, user_agent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?, ?)
+            ");
+            // i  i  i  s  s  i  s  s  s  s  s
+            $rStmt->bind_param('iiisissssss',
+                $order['order_id'], $itemId, $productId,
+                $fullName, $email, $rating, $feedback,
+                $reviewerPosition, $reviewerCompany,
+                $ip, $ua
+            );
+
+            if ($rStmt->execute()) {
+                $reviewId = $conn->insert_id;
+                $rStmt->close();
+
+                // Photo uploads
+                $photoKey = "photos_{$itemId}";
+                if (!empty($_FILES[$photoKey]['name'][0])) {
+                    $uploadDir = __DIR__ . '/../uploads/reviews/';
+                    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+                    $allowedMimes = ['image/jpeg','image/png','image/webp','image/gif'];
+                    foreach ($_FILES[$photoKey]['tmp_name'] as $idx => $tmpPath) {
+                        if (!is_uploaded_file($tmpPath)) continue;
+                        $mimeType = $_FILES[$photoKey]['type'][$idx];
+                        $fileSize = $_FILES[$photoKey]['size'][$idx];
+                        if ($fileSize > 5 * 1024 * 1024)       continue; // 5 MB max
+                        if (!in_array($mimeType, $allowedMimes)) continue;
+
+                        $origName = $_FILES[$photoKey]['name'][$idx];
+                        $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+                        $fileName = 'review_' . $reviewId . '_' . $idx . '_' . uniqid() . '.' . $ext;
+                        $destPath = $uploadDir . $fileName;
+
+                        if (move_uploaded_file($tmpPath, $destPath)) {
+                            $relPath   = 'uploads/reviews/' . $fileName;
+                            $uploadOrd = $idx + 1;
+                            $aStmt = $conn->prepare("
+                                INSERT INTO review_attachments
+                                    (review_id, file_path, file_name, file_size, mime_type, upload_order)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            ");
+                            $aStmt->bind_param('ississi',   // ← wait, review_id is int
+                                $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
+                            );
+                            // Correct: i s s i s i
+                            $aStmt = $conn->prepare("
+                                INSERT INTO review_attachments
+                                    (review_id, file_path, file_name, file_size, mime_type, upload_order)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            ");
+                            $aStmt->bind_param('issiis',
+                                $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
+                            );
+                            $aStmt->execute();
+                            $aStmt->close();
+                        }
+                    }
+                }
+
+                // Mark item as reviewed
+                $uStmt = $conn->prepare("
+                    UPDATE order_items SET is_reviewed = 1, review_id = ?
+                    WHERE order_item_id = ?
+                ");
+                $uStmt->bind_param('ii', $reviewId, $itemId);
+                $uStmt->execute();
+                $uStmt->close();
+
+                $reviewedCount++;
+            } else {
+                $rStmt->close();
+                $validationErrors[] = "Failed to save review for \"" . htmlspecialchars($item['product_name']) . "\".";
+            }
+        }
+
+        if (empty($validationErrors) && $reviewedCount > 0) {
+            $_SESSION['review_submitted'] = true;
+            header("Location: ../review.php?order={$orderCode}&token={$token}");
+            exit();
+        }
+
+        if (empty($validationErrors) && $reviewedCount === 0) {
+            $validationErrors[] = "Please fill in at least one product review before submitting.";
+        }
+
+        $_SESSION['review_errors'] = $validationErrors;
+        header("Location: ../review.php?order={$orderCode}&token={$token}");
+        exit();
     }
 }

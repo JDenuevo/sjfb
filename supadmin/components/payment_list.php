@@ -1,5 +1,5 @@
 <?php
-// payment_list.php — improved
+// payment_list.php - redesigned with products.php design language
 
 // Payment stats
 $pStats = [];
@@ -11,59 +11,107 @@ $totalRevenue = $pStats['Paid']['total'] ?? 0;
 $totalRefunded = $pStats['Refunded']['total'] ?? 0;
 $pendingAmt = $pStats['Pending']['total'] ?? 0;
 
-$paymentConf = [
-  'Paid'     => ['bg-green-100 text-green-700','bg-green-50 border-green-200'],
-  'Pending'  => ['bg-yellow-100 text-yellow-700','bg-yellow-50 border-yellow-200'],
-  'Failed'   => ['bg-red-100 text-red-700','bg-red-50 border-red-200'],
-  'Refunded' => ['bg-blue-100 text-blue-700','bg-blue-50 border-blue-200'],
+// Status badge configurations
+$statusConfig = [
+  'Paid'     => ['badge-green', 'bg-green-50 border-green-100', '💰'],
+  'Pending'  => ['badge-yellow', 'bg-yellow-50 border-yellow-100', '⏳'],
+  'Failed'   => ['badge-red', 'bg-red-50 border-red-100', '❌'],
+  'Refunded' => ['badge-blue', 'bg-blue-50 border-blue-100', '↩️'],
 ];
-$methodIcons = ['gcash'=>'📱','paymaya'=>'💳','grab_pay'=>'🟢','qrph'=>'📷','cod'=>'💵','card'=>'💳'];
+
+$methodIcons = [
+  'gcash' => '📱', 'paymaya' => '💳', 'grab_pay' => '🟢', 
+  'qrph' => '📷', 'cod' => '💵', 'card' => '💳'
+];
 ?>
 
-<!-- Revenue Stats Strip -->
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-  <div class="bg-green-50 border border-green-100 rounded-xl p-4">
-    <div class="text-xs text-green-600 font-medium mb-1">Total Collected</div>
-    <div class="text-xl font-bold text-green-700">₱<?= number_format($totalRevenue, 0) ?></div>
-    <div class="text-xs text-green-500"><?= $pStats['Paid']['count'] ?? 0 ?> paid</div>
+<!-- Stats Cards - redesigned to match products.php style -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <!-- Total Collected -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500 font-medium">Total Collected</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">₱<?= number_format($totalRevenue, 0) ?></p>
+        <p class="text-xs text-gray-400 mt-1"><?= $pStats['Paid']['count'] ?? 0 ?> transactions</p>
+      </div>
+      <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 text-xl">💰</div>
+    </div>
   </div>
-  <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-    <div class="text-xs text-yellow-600 font-medium mb-1">Pending Amount</div>
-    <div class="text-xl font-bold text-yellow-700">₱<?= number_format($pendingAmt, 0) ?></div>
-    <div class="text-xs text-yellow-500"><?= $pStats['Pending']['count'] ?? 0 ?> pending</div>
+  
+  <!-- Pending Amount -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500 font-medium">Pending Amount</p>
+        <p class="text-2xl font-bold text-yellow-600 mt-1">₱<?= number_format($pendingAmt, 0) ?></p>
+        <p class="text-xs text-gray-400 mt-1"><?= $pStats['Pending']['count'] ?? 0 ?> pending</p>
+      </div>
+      <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600 text-xl">⏳</div>
+    </div>
   </div>
-  <div class="bg-red-50 border border-red-100 rounded-xl p-4">
-    <div class="text-xs text-red-600 font-medium mb-1">Failed</div>
-    <div class="text-xl font-bold text-red-700"><?= $pStats['Failed']['count'] ?? 0 ?></div>
-    <div class="text-xs text-red-500">transactions failed</div>
+  
+  <!-- Failed -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500 font-medium">Failed</p>
+        <p class="text-2xl font-bold text-red-600 mt-1"><?= $pStats['Failed']['count'] ?? 0 ?></p>
+        <p class="text-xs text-gray-400 mt-1">transactions failed</p>
+      </div>
+      <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600 text-xl">❌</div>
+    </div>
   </div>
-  <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-    <div class="text-xs text-blue-600 font-medium mb-1">Total Refunded</div>
-    <div class="text-xl font-bold text-blue-700">₱<?= number_format($totalRefunded, 0) ?></div>
-    <div class="text-xs text-blue-500"><?= $pStats['Refunded']['count'] ?? 0 ?> refunded</div>
+  
+  <!-- Total Refunded -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500 font-medium">Total Refunded</p>
+        <p class="text-2xl font-bold text-blue-600 mt-1">₱<?= number_format($totalRefunded, 0) ?></p>
+        <p class="text-xs text-gray-400 mt-1"><?= $pStats['Refunded']['count'] ?? 0 ?> refunded</p>
+      </div>
+      <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 text-xl">↩️</div>
+    </div>
   </div>
 </div>
 
+<!-- Main Card -->
 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-  <!-- Header -->
-  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
-    <div class="flex-1">
-      <h2 class="text-lg font-semibold text-gray-800">Payments</h2>
-      <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> total records</p>
+  
+  <!-- Header with filters -->
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100">
+    <div>
+      <h2 class="text-xl font-bold text-gray-900">Payments</h2>
+      <p class="text-sm text-gray-500 mt-0.5">
+        <span class="font-semibold text-gray-800"><?= $totalItems ?></span> total records
+      </p>
     </div>
+    
     <form method="GET" class="flex flex-wrap gap-2">
-      <select name="payment_status" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400">
+      <select name="payment_status" onchange="this.form.submit()" 
+              class="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-48">
         <option value="">All Statuses</option>
         <?php foreach (['Paid','Pending','Failed','Refunded'] as $s): ?>
         <option value="<?= $s ?>" <?= ($_GET['payment_status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
         <?php endforeach; ?>
       </select>
-      <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" placeholder="Order, name, provider ID…" class="text-sm px-3 py-2 focus:outline-none w-48">
-        <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
-          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        </button>
+      
+      <div class="relative">
+        <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" 
+               placeholder="Search order, customer..." 
+               class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
+        <svg class="absolute ms-3 left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
       </div>
+      
+      <?php if (!empty($_GET['payment_status']) || !empty($_GET['search'])): ?>
+      <a href="?" class="px-3 py-2 text-sm text-gray-600 hover:text-orange-600 flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Clear
+      </a>
+      <?php endif; ?>
     </form>
   </div>
 
@@ -72,64 +120,93 @@ $methodIcons = ['gcash'=>'📱','paymaya'=>'💳','grab_pay'=>'🟢','qrph'=>'�
     <table class="min-w-full divide-y divide-gray-100">
       <thead class="bg-gray-50">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Method</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Gross</th>
-          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Net</th>
-          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Order</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Method</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Gross</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Net</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-50">
+      <tbody class="divide-y divide-gray-100 bg-white">
         <?php if ($result->num_rows === 0): ?>
-        <tr><td colspan="7" class="py-16 text-center text-gray-400 text-sm">No payments found.</td></tr>
+        <tr>
+          <td colspan="7" class="px-6 py-16 text-center">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 10H7M5 14L5 18M19 6V18C19 19.1046 18.1046 20 17 20H7C5.89543 20 5 19.1046 5 18V6C5 4.89543 5.89543 4 7 4H17C18.1046 4 19 4.89543 19 6Z"/>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-gray-700">No payments found</p>
+              <p class="text-xs text-gray-400">Try adjusting your filters</p>
+            </div>
+          </td>
+        </tr>
         <?php else: while ($row = $result->fetch_assoc()):
           $status = $row['payment_status'] ?? 'Pending';
-          [$badge, $card] = $paymentConf[$status] ?? ['bg-gray-100 text-gray-700','bg-gray-50 border-gray-200'];
+          [$badgeClass, $cardBg, $statusIcon] = $statusConfig[$status] ?? ['badge-gray', 'bg-gray-50 border-gray-200', '❓'];
           $methodDisplay = strtoupper($row['payment_method'] ?? '—');
           $methodIcon = $methodIcons[$row['payment_method'] ?? ''] ?? '💰';
         ?>
-        <tr class="payment-row hover:bg-orange-50/30 transition-colors">
+        <tr class="payment-row hover:bg-orange-50/40 transition-colors">
           <!-- Order -->
-          <td class="px-6 py-3">
-            <a href="order_manage.php?order_id=<?= $row['order_id'] ?>" class="text-sm font-bold text-orange-600 hover:text-orange-700"><?= htmlspecialchars($row['order_code']) ?></a>
-            <div class="text-xs text-gray-400 font-mono"><?= htmlspecialchars($row['provider_id'] ? substr($row['provider_id'],0,20).'…' : '—') ?></div>
+          <td class="px-6 py-4">
+            <a href="order_manage.php?order_id=<?= $row['order_id'] ?>" 
+               class="text-sm font-semibold text-orange-600 hover:text-orange-700 hover:underline">
+              <?= htmlspecialchars($row['order_code']) ?>
+            </a>
+            <div class="text-xs text-gray-400 font-mono mt-0.5">
+              <?= htmlspecialchars($row['provider_id'] ? substr($row['provider_id'],0,20).'…' : '—') ?>
+            </div>
           </td>
+          
           <!-- Customer -->
-          <td class="px-4 py-3">
-            <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
-            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['billing_email'] ?? $row['order_email'] ?? '—') ?></div>
+          <td class="px-4 py-4">
+            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['billing_email'] ?? '—') ?></div>
           </td>
+          
           <!-- Method -->
-          <td class="px-4 py-3">
-            <span class="text-sm"><?= $methodIcon ?></span>
-            <span class="text-xs text-gray-600 ml-1"><?= $methodDisplay ?></span>
-            <div class="text-xs text-gray-400"><?= $row['mode'] === 'live' ? '🟢 Live' : '🔵 Test' ?></div>
+          <td class="px-4 py-4">
+            <div class="flex items-center gap-1.5">
+              <span class="text-base"><?= $methodIcon ?></span>
+              <span class="text-xs font-medium text-gray-700"><?= $methodDisplay ?></span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5"><?= $row['mode'] === 'live' ? '🟢 Live' : '🔵 Test' ?></div>
           </td>
+          
           <!-- Status -->
-          <td class="px-4 py-3">
-            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $badge ?>"><?= $status ?></span>
+          <td class="px-4 py-4">
+            <span class="badge <?= $badgeClass ?> flex items-center gap-1 w-fit">
+              <?= $statusIcon ?> <?= $status ?>
+            </span>
             <?php if ($row['paid_at']): ?>
-            <div class="text-xs text-gray-400 mt-0.5"><?= date('M j, g:i A', strtotime($row['paid_at'])) ?></div>
+            <div class="text-xs text-gray-400 mt-1"><?= date('M j, g:i A', strtotime($row['paid_at'])) ?></div>
             <?php endif; ?>
           </td>
+          
           <!-- Gross -->
-          <td class="px-4 py-3 text-right">
-            <span class="text-sm font-bold text-gray-800">₱<?= number_format($row['gross_amount'], 2) ?></span>
+          <td class="px-4 py-4 text-right">
+            <span class="text-sm font-bold text-gray-900">₱<?= number_format($row['gross_amount'], 2) ?></span>
           </td>
+          
           <!-- Net -->
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-4 text-right">
             <span class="text-sm text-gray-600">₱<?= number_format($row['net_amount'] ?? $row['gross_amount'], 2) ?></span>
             <?php if ($row['refunded_amount'] > 0): ?>
-            <div class="text-xs text-red-500">-₱<?= number_format($row['refunded_amount'], 2) ?> refunded</div>
+            <div class="text-xs text-red-500 mt-0.5">-₱<?= number_format($row['refunded_amount'], 2) ?></div>
             <?php endif; ?>
           </td>
+          
           <!-- Actions -->
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-4 text-right">
             <button onclick="openPaymentModal(<?= $row['payment_id'] ?>)"
-              class="size-8 inline-flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors" title="View details">
-              <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View details">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
             </button>
           </td>
         </tr>
@@ -138,129 +215,62 @@ $methodIcons = ['gcash'=>'📱','paymaya'=>'💳','grab_pay'=>'🟢','qrph'=>'�
     </table>
   </div>
 
-  <!-- Pagination -->
-  <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-    <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> payments</p>
-    <div class="flex gap-1">
+  <!-- Pagination (matching products.php style) -->
+  <?php if ($totalPages > 1): ?>
+  <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-100">
+    <p class="text-sm text-gray-500">
+      Showing <span class="font-semibold text-gray-800"><?= $offset + 1 ?>–<?= min($offset + $itemsPerPage, $totalItems) ?></span> 
+      of <span class="font-semibold text-gray-800"><?= $totalItems ?></span> payments
+    </p>
+    
+    <div class="flex items-center gap-1.5">
       <?php if ($page > 1): ?>
-        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page-1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page-1])) ?>" 
+           class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>Prev
+        </a>
+      <?php else: ?>
+        <span class="px-3 py-1.5 text-sm text-gray-300 bg-gray-50 border border-gray-100 rounded-xl cursor-not-allowed flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>Prev
+        </span>
       <?php endif; ?>
-      <?php for ($i=max(1,$page-2); $i<=min($totalPages,$page+2); $i++): ?>
-        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$i])) ?>"
-           class="px-3 py-1.5 text-xs border rounded-lg <?= $i==$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>"><?= $i ?></a>
-      <?php endfor; ?>
-      <?php if ($page < $totalPages): ?>
-        <a href="?<?= http_build_query(array_merge($_GET,['page'=>$page+1])) ?>" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
-      <?php endif; ?>
-    </div>
-  </div>
-</div>
 
-<div id="paymentDetailModal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div>
-        <h3>Payment Details</h3>
-        <p>Transaction Information</p>
-      </div>
-      <button onclick="closePaymentModal()" class="modal-close" aria-label="Close modal">
-        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-        </svg>
-      </button>
-    </div>
-
-    <div id="paymentDetailContent" class="modal-body">
-      <div class="flex items-center justify-center py-8">
-        <div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<script>
-function openPaymentModal(paymentId) {
-  const modal = document.getElementById('paymentDetailModal');
-  const content = document.getElementById('paymentDetailContent');
-  modal.classList.remove('hidden');
-  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="size-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>';
-  
-  fetch('./functions/fetch_payments.php?payment_id=' + paymentId)
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) { content.innerHTML = '<p class="text-red-500 text-sm">Failed to load payment.</p>'; return; }
-      const p = data.payment;
-      const statusColors = {Paid:'bg-green-100 text-green-700',Pending:'bg-yellow-100 text-yellow-700',Failed:'bg-red-100 text-red-700',Refunded:'bg-blue-100 text-blue-700'};
-      const sClass = statusColors[p.payment_status] || 'bg-gray-100 text-gray-700';
+      <?php
+      $start = max(1, $page - 2);
+      $end = min($totalPages, $page + 2);
       
-      content.innerHTML = `
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-lg font-bold text-orange-600">${p.order_code}</div>
-              <div class="text-sm text-gray-500">${p.billing_name || (p.first_name + ' ' + p.last_name)}</div>
-            </div>
-            <span class="px-3 py-1 rounded-full text-sm font-semibold ${sClass}">${p.payment_status}</span>
-          </div>
-          
-          <div class="grid grid-cols-2 gap-3">
-            <div class="bg-gray-50 rounded-xl p-3">
-              <div class="text-xs text-gray-500 mb-1">Gross Amount</div>
-              <div class="text-lg font-bold text-gray-800">₱${parseFloat(p.gross_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
-            </div>
-            <div class="bg-gray-50 rounded-xl p-3">
-              <div class="text-xs text-gray-500 mb-1">Net Amount</div>
-              <div class="text-lg font-bold text-green-700">₱${parseFloat(p.net_amount||p.gross_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
-            </div>
-          </div>
-          
-          ${p.refunded_amount > 0 ? `<div class="bg-red-50 rounded-xl p-3">
-            <div class="text-xs text-red-500 mb-1">Refunded Amount</div>
-            <div class="text-lg font-bold text-red-700">₱${parseFloat(p.refunded_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
-          </div>` : ''}
-          
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Provider ID</span>
-              <span class="font-mono text-xs text-gray-700 max-w-[200px] truncate">${p.provider_id || '—'}</span>
-            </div>
-            <div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Payment Method</span>
-              <span class="font-medium text-gray-800">${p.payment_method || '—'}</span>
-            </div>
-            <div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Mode</span>
-              <span class="font-medium text-gray-800">${p.mode === 'live' ? '🟢 Live' : '🔵 Test'}</span>
-            </div>
-            <div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Currency</span>
-              <span class="font-medium text-gray-800">${p.currency || 'PHP'}</span>
-            </div>
-            <div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Billing Email</span>
-              <span class="font-medium text-gray-800 text-xs">${p.billing_email || p.order_email || '—'}</span>
-            </div>
-            ${p.paid_at ? `<div class="flex justify-between py-1.5 border-b border-gray-100">
-              <span class="text-gray-500">Paid At</span>
-              <span class="font-medium text-gray-800">${new Date(p.paid_at).toLocaleString('en-PH')}</span>
-            </div>` : ''}
-            ${p.failed_code ? `<div class="flex justify-between py-1.5">
-              <span class="text-gray-500">Failure Code</span>
-              <span class="font-mono text-xs text-red-600">${p.failed_code}</span>
-            </div>` : ''}
-          </div>
-          
-          <div class="flex gap-2 pt-2">
-            <a href="./order_manage.php?order_id=${p.order_id}" class="flex-1 px-4 py-2 text-sm text-center bg-orange-500 text-white rounded-lg hover:bg-orange-600">View Order</a>
-            <button onclick="closePaymentModal()" class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
-          </div>
-        </div>
-      `;
-    }).catch(() => { content.innerHTML = '<p class="text-red-500 text-sm text-center">Failed to load.</p>'; });
-}
-function closePaymentModal() { document.getElementById('paymentDetailModal').classList.add('hidden'); }
-document.getElementById('paymentDetailModal')?.addEventListener('click', function(e) {
-  if (e.target === this) closePaymentModal();
-});
-</script>
+      if ($start > 1) {
+        echo '<a href="?'.http_build_query(array_merge($_GET, ['page' => 1])).'" class="w-9 h-9 flex items-center justify-center text-sm font-medium bg-white border border-gray-200 rounded-xl hover:bg-gray-50">1</a>';
+      }
+      if ($start > 2) echo '<span class="text-gray-400 px-1">…</span>';
+      
+      for ($i = $start; $i <= $end; $i++):
+      ?>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>" 
+           class="w-9 h-9 flex items-center justify-center text-sm font-medium rounded-xl border transition-colors
+           <?= $i == $page ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' ?>">
+          <?= $i ?>
+        </a>
+      <?php
+      endfor;
+      
+      if ($end < $totalPages - 1) echo '<span class="text-gray-400 px-1">…</span>';
+      if ($end < $totalPages) {
+        echo '<a href="?'.http_build_query(array_merge($_GET, ['page' => $totalPages])).'" class="w-9 h-9 flex items-center justify-center text-sm font-medium bg-white border border-gray-200 rounded-xl hover:bg-gray-50">'.$totalPages.'</a>';
+      }
+      ?>
+
+      <?php if ($page < $totalPages): ?>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page+1])) ?>" 
+           class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-1">
+          Next<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+      <?php else: ?>
+        <span class="px-3 py-1.5 text-sm text-gray-300 bg-gray-50 border border-gray-100 rounded-xl cursor-not-allowed flex items-center gap-1">
+          Next<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+</div>
