@@ -88,12 +88,12 @@ $uploadsBase = '/sjfbi-js/';  // ← adjust if your project root differs
     <div class="flex items-center gap-3">
       <div class="size-12 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-lg uppercase select-none">
         <?php
-          $n = $first['full_name'];
+          $n = $first['reviewer_name'];
           echo htmlspecialchars(substr($n, 0, 1) . (strpos($n, ' ') !== false ? substr(strrchr($n, ' '), 1, 1) : ''));
         ?>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-gray-800 leading-tight"><?= htmlspecialchars($first['full_name']) ?></h3>
+        <h3 class="text-lg font-bold text-gray-800 leading-tight"><?= htmlspecialchars($first['reviewer_name']) ?></h3>
         <p class="text-sm text-gray-500">
           <?= !empty($first['position']) ? htmlspecialchars($first['position']) : 'Customer' ?>
           <?= !empty($first['company'])  ? ' · ' . htmlspecialchars($first['company'])  : '' ?>

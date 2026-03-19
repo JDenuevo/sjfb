@@ -3,15 +3,21 @@
 $currentPage = basename($_SERVER['PHP_SELF']);
 $pageLabels = [
   'dashboard.php'           => 'Dashboard',
+  'logs.php'           => 'Activity Logs',
   'orders.php'              => 'Orders',
+  'order_manage.php'            => 'Order Management',
   'payments.php'            => 'Payments',
+  'deliveries.php'            => 'Deliveries',
   'products.php'            => 'Products',
+  'discounts.php'            => 'Discounts',
   'category.php'            => 'Categories',
+  'markets.php'            => 'Markets',
+  'blogs.php'               => 'Blogs',
+  'reviews.php'             => 'Reviews',
+  'cooking_suggestions.php' => 'Cooking Suggestions',
   'accounts.php'            => 'Accounts',
   'riders.php'              => 'Riders',
-  'blogs.php'               => 'Blogs',
-  'cooking_suggestions.php' => 'Cooking Suggestions',
-  'reviews.php'             => 'Reviews',
+  'inquiries.php'              => 'Inquiries',
   'profile.php'             => 'Profile',
 ];
 $pageTitle = $pageLabels[$currentPage] ?? 'Super Admin';
@@ -21,11 +27,11 @@ $adminName = 'Super Admin';
 if (isset($_SESSION['account_id'])) {
   $aid = (int)$_SESSION['account_id'];
   global $conn;
-  $hStmt = $conn->prepare("SELECT first_name FROM accounts WHERE account_id = ?");
+  $hStmt = $conn->prepare("SELECT account_first_name FROM accounts WHERE account_id = ?");
   $hStmt->bind_param("i", $aid);
   $hStmt->execute();
   $hRow = $hStmt->get_result()->fetch_assoc();
-  if ($hRow) $adminName = $hRow['first_name'];
+  if ($hRow) $adminName = $hRow['account_first_name'];
   $hStmt->close();
 }
 ?>

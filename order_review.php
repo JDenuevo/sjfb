@@ -65,7 +65,7 @@ try {
 
     // ── COD — create payments row if missing ───────────────────────────────────
     if ($order['payment_method'] === 'cod') {
-        $codCheck = $conn->prepare("SELECT * FROM payments WHERE order_id = ?");
+        $codCheck = $conn->prepare("SELECT payment_id FROM payments WHERE order_id = ?");
         $codCheck->bind_param("i", $orderId);
         $codCheck->execute();
         if ($codCheck->get_result()->num_rows === 0) {
@@ -73,20 +73,18 @@ try {
                 INSERT INTO payments (
                     order_id, currency, gross_amount, payment_status,
                     mode, billing_name, billing_email, billing_phone,
-                    billing_line1, billing_city, billing_postal_code, billing_country
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    billing_line1, billing_city, billing_postal_code, billing_country,
+                    source_type, created_at
+                ) VALUES (?, 'PHP', ?, 'Pending', 'live', ?, ?, ?, ?, ?, 'PH', 'cod', NOW())
             ");
-            $billingName      = $order['first_name'] . ' ' . $order['last_name'];
-            $currency         = 'PHP';
-            $paymentStatusCod = 'Pending';
-            $mode             = 'test';
-            $billingCountry   = 'PH';
-            $codStmt->bind_param("isdsssssssss",
-                $orderId, $currency, $order['total_price'], $paymentStatusCod, $mode,
-                $billingName, $order['email'], $order['phone_number'],
-                $order['address'], $order['city'], $order['postal_code'], $billingCountry);
+            $billingName = $order['recipient_first_name'] . ' ' . $order['recipient_last_name'];
+            $codStmt->bind_param("idssssss",
+                $orderId, $order['total_price'],
+                $billingName, $order['recipient_email'], $order['recipient_phone'],
+                $order['recipient_address'], $order['city'], $order['postal_code']
+            );
             if (!$codStmt->execute()) error_log("COD payment insert error: " . $codStmt->error);
-            $paymentStatus = $paymentStatusCod;
+            $paymentStatus = 'Pending';
         }
     }
 
@@ -348,10 +346,10 @@ try {
             <div class="my-8 grid sm:grid-cols-2 gap-3">
               <div>
                 <h3 class="text-lg font-semibold text-gray-800">Shipping Information:</h3>
-                <h3 class="text-lg font-semibold text-gray-500"><?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?></h3>
+                <h3 class="text-lg font-semibold text-gray-500"><?= htmlspecialchars($order['recipient_first_name'] . ' ' . $order['recipient_last_name']) ?></h3>
                 <h3 class="mt-2 text-lg font-semibold text-gray-800">Address:</h3>
                 <address class="not-italic text-gray-500">
-                  <?= htmlspecialchars($order['address']) ?><br>
+                  <?= htmlspecialchars($order['recipient_address']) ?><br>
                   <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['postal_code']) ?>
                 </address>
               </div>
@@ -408,13 +406,55 @@ try {
               </div>
             </div>
 
-            <!-- Total -->
-            <div class="mt-8 p-4">
-              <div class="grid grid-cols-4 gap-2">
-                <dt class="text-lg font-semibold text-gray-800">Total Amount:</dt>
-                <div></div><div></div>
-                <dd class="text-lg font-semibold text-gray-800">₱<?= number_format($order['total_price'], 2) ?></dd>
-              </div>
+            <!-- Totals breakdown -->
+            <div class="mt-8 p-4 border-t border-gray-100 space-y-2">
+
+                <!-- Subtotal row — only show if columns exist (they do after the ALTER) -->
+                <?php if (!empty($order['subtotal']) || !empty($order['delivery_fee']) || !empty($order['discount_amount'])): ?>
+                
+                <div class="flex justify-between text-sm text-gray-500">
+                    <dt>Subtotal</dt>
+                    <dd>₱<?= number_format((float)($order['subtotal'] ?? $order['total_price']), 2) ?></dd>
+                </div>
+
+                <?php if (!empty($order['discount_amount']) && (float)$order['discount_amount'] > 0): ?>
+                <div class="flex justify-between text-sm text-green-600">
+                    <dt class="flex items-center gap-1.5">
+                        Discount
+                        <?php if (!empty($order['voucher_code'])): ?>
+                        <span class="text-xs font-mono bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                            <?= htmlspecialchars($order['voucher_code']) ?>
+                        </span>
+                        <?php endif; ?>
+                    </dt>
+                    <dd>−₱<?= number_format((float)$order['discount_amount'], 2) ?></dd>
+                </div>
+                <?php endif; ?>
+
+                <div class="flex justify-between text-sm text-gray-500">
+                    <dt>Delivery Fee</dt>
+                    <dd>
+                        <?php if ((float)($order['delivery_fee'] ?? 0) === 0.0): ?>
+                            <span class="text-green-600 font-semibold">FREE</span>
+                        <?php else: ?>
+                            ₱<?= number_format((float)$order['delivery_fee'], 2) ?>
+                        <?php endif; ?>
+                    </dd>
+                </div>
+
+                <div class="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-100">
+                    <dt>Total Amount</dt>
+                    <dd class="text-orange-600">₱<?= number_format($order['total_price'], 2) ?></dd>
+                </div>
+
+                <?php else: ?>
+                <!-- Fallback for orders placed before the schema update -->
+                <div class="flex justify-between text-base font-bold text-gray-900">
+                    <dt>Total Amount</dt>
+                    <dd>₱<?= number_format($order['total_price'], 2) ?></dd>
+                </div>
+                <?php endif; ?>
+
             </div>
           </div>
           <!-- /printable receipt -->
@@ -504,20 +544,20 @@ try {
             </div>
             <div class="px-5 py-4 space-y-2">
               <p class="font-semibold text-gray-800 text-sm">
-                <?= htmlspecialchars($order['first_name'] . ' ' . $order['last_name']) ?>
+                <?= htmlspecialchars($order['recipient_first_name'] . ' ' . $order['recipient_last_name']) ?>
               </p>
               <p class="flex items-center gap-1.5 text-gray-500 text-xs">
                 <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                <?= htmlspecialchars($order['email']) ?>
+                <?= htmlspecialchars($order['recipient_email']) ?>
               </p>
               <p class="flex items-center gap-1.5 text-gray-500 text-xs">
                 <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.98 3.4 2 2 0 0 1 3.94 1.01h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
-                <?= htmlspecialchars($order['phone_number']) ?>
+                <?= htmlspecialchars($order['recipient_phone']) ?>
               </p>
 
               <!-- In the customer info section, replace the existing Track my Order link with: -->

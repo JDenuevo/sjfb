@@ -1,16 +1,11 @@
 <?php
 /**
  * rider/dashboard.php
- *
- * Rider dashboard — supports:
- *  - Multiple simultaneous active deliveries
- *  - Accept / Picked Up / Delivered flow per card
- *  - Multiple proof image attachments per delivery (camera + file upload)
- *  - GPS push (15s interval) per active delivery
- *  - Realtime polling for new assignments
- *
- * Auth: $_SESSION['loggedinasrider'] === true + $_SESSION['role'] === 'rider'
- * Upload path: sjfbi-js/uploads/delivery_proofs/
+ * Column renames applied:
+ *   riders:     rider_name (was full_name), rider_phone (was contact_number)
+ *   accounts:   account_first_name/last_name/email/phone
+ *   orders:     recipient_first_name/last_name/address/phone (was first_name etc.)
+ *   deliveries: delivery_status (was status)
  */
 session_start();
 require_once '../conn.php';
@@ -27,12 +22,17 @@ if ($_SESSION['role'] !== 'rider') {
 
 $rider_account_id = (int)$_SESSION['account_id'];
 
-// Rider profile
+// ── Rider profile ──────────────────────────────────────────────────────────
 $rq = $conn->prepare("
     SELECT r.rider_id, r.image, r.vehicle_type, r.vehicle_plate_number,
-           r.variant_color, r.organization, r.contact_number, r.is_available,
-           COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS display_name,
-           a.first_name, a.last_name, a.email, a.phone_number
+           r.variant_color, r.organization,
+           r.rider_phone  AS contact_number,
+           r.is_available,
+           COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS display_name,
+           a.account_first_name AS first_name,
+           a.account_last_name  AS last_name,
+           a.account_email      AS email,
+           a.account_phone      AS phone_number
     FROM riders r JOIN accounts a ON a.account_id=r.account_id
     WHERE r.account_id=? AND r.is_deleted=0 LIMIT 1
 ");
@@ -43,30 +43,122 @@ if (!$rider) { header('Location: ../index.php'); exit; }
 
 $rider_id = (int)$rider['rider_id'];
 
-// Active deliveries
-$deliveries = getRiderPendingDeliveries($rider_account_id, $conn);
+// ── Active deliveries — extended query to include payment info ─────────────
+// We re-query here instead of using getRiderPendingDeliveries() so we can
+// also pull payment_method and payment_status for the COD button logic.
+$dlStmt = $conn->prepare("
+    SELECT d.delivery_id, d.order_id, d.delivery_status AS status,
+           d.assigned_at,
+           o.order_code,
+           o.recipient_first_name AS first_name,
+           o.recipient_last_name  AS last_name,
+           o.recipient_address    AS address,
+           o.city,
+           o.delivery_address,
+           o.delivery_latitude, o.delivery_longitude,
+           o.total_price,
+           o.recipient_phone      AS phone_number,
+           o.delivery_notes,
+           o.payment_method,
+           COALESCE(p.payment_status, 'Pending') AS payment_status
+    FROM deliveries d
+    JOIN riders r  ON r.rider_id  = d.rider_id
+    JOIN orders o  ON o.order_id  = d.order_id
+    LEFT JOIN (
+        SELECT p1.order_id, p1.payment_status
+        FROM payments p1
+        INNER JOIN (
+            SELECT order_id, MAX(created_at) AS max_created
+            FROM payments GROUP BY order_id
+        ) p2 ON p1.order_id = p2.order_id AND p1.created_at = p2.max_created
+    ) p ON p.order_id = d.order_id
+    WHERE r.account_id = ?
+      AND d.delivery_status IN ('pending_acceptance','accepted','picked_up','in_transit')
+    ORDER BY d.assigned_at DESC
+");
+$dlStmt->bind_param('i', $rider_account_id);
+$dlStmt->execute();
+$deliveries = $dlStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Completed deliveries (last 20)
+// ── Also include Delivered orders that are COD-unpaid ─────────────────────
+// Rider still needs to collect payment → show "Payment Received" button
+$codPendingStmt = $conn->prepare("
+    SELECT d.delivery_id, d.order_id, d.delivery_status AS status,
+           d.assigned_at,
+           o.order_code,
+           o.recipient_first_name AS first_name,
+           o.recipient_last_name  AS last_name,
+           o.recipient_address    AS address,
+           o.city,
+           o.delivery_address,
+           o.delivery_latitude, o.delivery_longitude,
+           o.total_price,
+           o.recipient_phone      AS phone_number,
+           o.delivery_notes,
+           o.payment_method,
+           COALESCE(p.payment_status, 'Pending') AS payment_status
+    FROM deliveries d
+    JOIN riders r  ON r.rider_id  = d.rider_id
+    JOIN orders o  ON o.order_id  = d.order_id
+    LEFT JOIN (
+        SELECT p1.order_id, p1.payment_status
+        FROM payments p1
+        INNER JOIN (
+            SELECT order_id, MAX(created_at) AS max_created
+            FROM payments GROUP BY order_id
+        ) p2 ON p1.order_id = p2.order_id AND p1.created_at = p2.max_created
+    ) p ON p.order_id = d.order_id
+    WHERE r.account_id = ?
+      AND d.delivery_status = 'delivered'
+      AND o.payment_method  = 'cod'
+      AND COALESCE(p.payment_status, 'Pending') != 'Paid'
+    ORDER BY d.assigned_at DESC
+    LIMIT 10
+");
+$codPendingStmt->bind_param('i', $rider_account_id);
+$codPendingStmt->execute();
+$codPendingOrders = $codPendingStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ── Completed deliveries (last 20) ─────────────────────────────────────────
 $doneStmt = $conn->prepare("
     SELECT d.delivery_id, d.order_id, d.delivered_at,
-           o.order_code, o.first_name, o.last_name, o.total_price,
-           o.delivery_address, o.address, o.city
+           o.order_code,
+           o.recipient_first_name AS first_name,
+           o.recipient_last_name  AS last_name,
+           o.total_price,
+           o.delivery_address,
+           o.recipient_address    AS address,
+           o.city,
+           o.payment_method,
+           COALESCE(p.payment_status, 'Pending') AS payment_status
     FROM deliveries d
-    JOIN orders o ON o.order_id=d.order_id
-    JOIN riders r ON r.rider_id=d.rider_id
-    WHERE r.account_id=? AND d.status='delivered'
+    JOIN orders o  ON o.order_id = d.order_id
+    JOIN riders r  ON r.rider_id = d.rider_id
+    LEFT JOIN (
+        SELECT p1.order_id, p1.payment_status
+        FROM payments p1
+        INNER JOIN (
+            SELECT order_id, MAX(created_at) AS max_created
+            FROM payments GROUP BY order_id
+        ) p2 ON p1.order_id = p2.order_id AND p1.created_at = p2.max_created
+    ) p ON p.order_id = d.order_id
+    WHERE r.account_id = ? AND d.delivery_status = 'delivered'
+      AND NOT (o.payment_method = 'cod' AND COALESCE(p.payment_status,'Pending') != 'Paid')
     ORDER BY d.delivered_at DESC LIMIT 20
 ");
 $doneStmt->bind_param('i', $rider_account_id);
 $doneStmt->execute();
 $completed = $doneStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Proof counts per order (to show badge)
+// Proof counts per order
 $proofCounts = [];
-if (!empty($deliveries)) {
-    $orderIds = array_map(fn($d) => (int)$d['order_id'], $deliveries);
-    $inList   = implode(',', $orderIds);
-    $pcRes    = $conn->query("SELECT order_id, COUNT(*) AS cnt FROM delivery_proofs WHERE order_id IN ({$inList}) GROUP BY order_id");
+$allOrderIds = array_unique(array_merge(
+    array_column($deliveries, 'order_id'),
+    array_column($codPendingOrders, 'order_id')
+));
+if (!empty($allOrderIds)) {
+    $inList = implode(',', array_map('intval', $allOrderIds));
+    $pcRes  = $conn->query("SELECT order_id, COUNT(*) AS cnt FROM delivery_proofs WHERE order_id IN ({$inList}) GROUP BY order_id");
     if ($pcRes) while ($row = $pcRes->fetch_assoc()) $proofCounts[(int)$row['order_id']] = (int)$row['cnt'];
 }
 
@@ -98,6 +190,8 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     .delivery-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
     @keyframes pulse-border { 0%,100%{border-color:#fdba74} 50%{border-color:#f97316} }
     .pending-card { animation:pulse-border 2s ease-in-out infinite; border-width:2px; }
+    @keyframes pulse-green { 0%,100%{border-color:#86efac} 50%{border-color:#16a34a} }
+    .cod-pending-card { animation:pulse-green 2s ease-in-out infinite; border-width:2px; }
     #camera-preview { width:100%;border-radius:.75rem;background:#111;aspect-ratio:4/3;object-fit:cover; }
     .tab-btn { padding:.5rem 1.25rem;border-radius:.625rem;font-size:.75rem;font-weight:600;transition:all .15s;border:none;cursor:pointer; }
     .tab-btn.active { background:#f97316;color:#fff; }
@@ -105,6 +199,18 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     .proof-thumb { position:relative;width:76px;height:76px;border-radius:.5rem;overflow:hidden;border:2px solid #e5e7eb;flex-shrink:0;cursor:default; }
     .proof-thumb img { width:100%;height:100%;object-fit:cover; }
     .proof-thumb .rm { position:absolute;top:2px;right:2px;background:rgba(239,68,68,.9);color:#fff;border:none;border-radius:9999px;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:700; }
+    /* Status flow indicator */
+    .flow-step { display:flex;align-items:center;gap:.375rem;font-size:.65rem;font-weight:600; }
+    .flow-step .dot { width:8px;height:8px;border-radius:9999px;flex-shrink:0; }
+    .flow-step.done .dot  { background:#f97316; }
+    .flow-step.done span  { color:#ea580c; }
+    .flow-step.active .dot { background:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2); }
+    .flow-step.active span { color:#2563eb; font-weight:700; }
+    .flow-step.idle .dot  { background:#d1d5db; }
+    .flow-step.idle span  { color:#9ca3af; }
+    .flow-sep { color:#d1d5db;font-size:.6rem; }
+    /* Disabled button state */
+    .btn-done { background:#f3f4f6 !important;color:#9ca3af !important;cursor:default !important;pointer-events:none; }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -130,7 +236,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
       </a>
       <span id="notif-count" class="absolute -top-1 -right-1 size-4 text-[10px] bg-red-500 text-white rounded-full hidden items-center justify-center font-bold">0</span>
     </div>
-    <a href="../logout.php" class="text-xs text-gray-400 hover:text-orange-500 transition-colors">← Logout</a>
+    <a href="logout.php" class="text-xs text-gray-400 hover:text-orange-500 transition-colors">← Logout</a>
   </div>
 </header>
 
@@ -141,7 +247,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
 ══════════════════════════════════════════════════ -->
 <div id="proof-modal" class="modal-overlay">
   <div class="modal-box">
-    <!-- Header -->
     <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
       <div>
         <h3 class="text-base font-bold text-gray-800">Upload Delivery Proof</h3>
@@ -149,17 +254,12 @@ $dlLabels = DELIVERY_STATUS_LABELS;
       </div>
       <button onclick="closeProofModal()" class="size-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors text-sm leading-none">✕</button>
     </div>
-
     <div class="px-5 pt-4 pb-5 space-y-4">
       <input type="hidden" id="proof-order-id">
-
-      <!-- Tab switcher -->
       <div class="flex gap-2">
         <button class="tab-btn active" id="tab-file-btn" onclick="switchTab('file')">📁 Upload Files</button>
         <button class="tab-btn" id="tab-cam-btn" onclick="switchTab('camera')">📷 Camera</button>
       </div>
-
-      <!-- File upload panel -->
       <div id="panel-file">
         <label class="block w-full border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-orange-400 transition-colors">
           <div class="text-2xl mb-1">📎</div>
@@ -168,8 +268,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           <input type="file" id="proof-files" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handleFileSelect(this)">
         </label>
       </div>
-
-      <!-- Camera panel -->
       <div id="panel-camera" class="hidden space-y-2">
         <video id="camera-preview" autoplay playsinline muted></video>
         <div class="flex gap-2">
@@ -179,8 +277,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         </div>
         <canvas id="capture-canvas" class="hidden"></canvas>
       </div>
-
-      <!-- Queue preview -->
       <div id="proof-queue-wrap" class="hidden">
         <div class="flex items-center justify-between mb-2">
           <p class="text-xs font-semibold text-gray-600">Queued photos (<span id="queue-count">0</span>)</p>
@@ -188,15 +284,11 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         </div>
         <div id="proof-queue" class="flex flex-wrap gap-2"></div>
       </div>
-
-      <!-- Caption -->
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Caption <span class="text-gray-400">(optional — applies to all)</span></label>
         <input type="text" id="proof-caption" placeholder="e.g. Left at gate, handed to recipient"
                class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-orange-400">
       </div>
-
-      <!-- Actions -->
       <div class="flex gap-2 pt-1">
         <button onclick="closeProofModal()" class="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
         <button onclick="submitProofs()" id="upload-btn"
@@ -211,7 +303,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
 <!-- Main content -->
 <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
-  <!-- Rider profile -->
+  <!-- Rider profile card -->
   <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
     <div class="flex items-center gap-4">
       <?php if (!empty($rider['image'])): ?>
@@ -236,12 +328,79 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           <span class="size-2 rounded-full inline-block <?= $rider['is_available'] ? 'bg-green-500 animate-pulse' : 'bg-gray-400' ?>"></span>
           <?= $rider['is_available'] ? 'Available' : 'Offline' ?>
         </div>
-        <div class="text-xs text-gray-400 mt-1"><?= count($deliveries) ?> active</div>
+        <div class="text-xs text-gray-400 mt-1"><?= count($deliveries) ?> active · <?= count($codPendingOrders) ?> awaiting payment</div>
       </div>
     </div>
   </div>
 
-  <!-- Active deliveries -->
+  <!-- ══ COD AWAITING PAYMENT ══════════════════════════════════════════════ -->
+  <?php if (!empty($codPendingOrders)): ?>
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold text-gray-800">💵 Awaiting COD Payment</h3>
+      <span class="text-xs bg-green-100 text-green-700 font-semibold px-2.5 py-0.5 rounded-full"><?= count($codPendingOrders) ?></span>
+    </div>
+    <div class="space-y-4">
+      <?php foreach ($codPendingOrders as $d):
+        $addr   = $d['delivery_address'] ?: ($d['address'].', '.$d['city']);
+        $proofs = $proofCounts[$d['order_id']] ?? 0;
+      ?>
+      <div class="delivery-card bg-white rounded-2xl p-5 border border-green-200 cod-pending-card shadow-sm">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-base font-bold text-green-700"><?= htmlspecialchars($d['order_code']) ?></span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">✅ Delivered</span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">💵 COD Unpaid</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5">Delivered — collect payment from customer</div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-base font-bold text-green-700">₱<?= number_format($d['total_price'], 2) ?></div>
+            <div class="text-xs text-gray-400">to collect</div>
+          </div>
+        </div>
+
+        <!-- Customer info -->
+        <div class="bg-green-50 rounded-xl p-3 mb-3 space-y-1.5 text-xs">
+          <div class="flex items-center gap-2">
+            <svg class="size-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="font-medium text-gray-700"><?= htmlspecialchars($d['first_name'].' '.$d['last_name']) ?></span>
+            <?php if (!empty($d['phone_number'])): ?>
+            <a href="tel:<?= htmlspecialchars($d['phone_number']) ?>" class="text-blue-600 hover:underline">📞 <?= htmlspecialchars($d['phone_number']) ?></a>
+            <?php endif; ?>
+          </div>
+          <div class="flex items-start gap-2">
+            <svg class="size-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="text-gray-600"><?= htmlspecialchars($addr) ?></span>
+          </div>
+        </div>
+
+        <!-- Amount reminder -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-3 flex items-center justify-between">
+          <div class="text-xs text-amber-700">
+            <span class="font-semibold">Collect from customer:</span> This is a Cash on Delivery order.
+          </div>
+          <span class="text-base font-bold text-amber-700">₱<?= number_format($d['total_price'], 2) ?></span>
+        </div>
+
+        <!-- Payment Received button -->
+        <button onclick="markCODPaymentReceived(<?= $d['order_id'] ?>, this)"
+                class="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold bg-green-600 hover:bg-green-500 active:scale-95 text-white rounded-xl transition-all">
+          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          ✓ Payment Received from Customer
+        </button>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <!-- ══ ACTIVE DELIVERIES ══════════════════════════════════════════════════ -->
   <div>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-base font-semibold text-gray-800">Active Deliveries</h3>
@@ -256,11 +415,16 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         <p class="text-xs text-gray-400 mt-1">You'll be notified when a new order is assigned.</p>
       </div>
       <?php else: foreach ($deliveries as $d):
-        $badge    = $statusColor[$d['status']] ?? 'bg-gray-100 text-gray-700';
-        $pending  = $d['status'] === 'pending_acceptance';
-        $border   = $pending ? 'border-orange-300 pending-card' : 'border-gray-100';
-        $proofs   = $proofCounts[$d['order_id']] ?? 0;
-        $addr     = $d['delivery_address'] ?: ($d['address'].', '.$d['city']);
+        $badge   = $statusColor[$d['status']] ?? 'bg-gray-100 text-gray-700';
+        $pending = $d['status'] === 'pending_acceptance';
+        $border  = $pending ? 'border-orange-300 pending-card' : 'border-gray-100';
+        $proofs  = $proofCounts[$d['order_id']] ?? 0;
+        $addr    = $d['delivery_address'] ?: ($d['address'].', '.$d['city']);
+
+        // Flow step states: done / active / idle
+        $flowMap = ['pending_acceptance'=>0, 'accepted'=>1, 'picked_up'=>2, 'in_transit'=>2, 'delivered'=>3];
+        $flowIdx = $flowMap[$d['status']] ?? 0;
+        $flowClass = fn(int $step) => $step < $flowIdx ? 'done' : ($step === $flowIdx ? 'active' : 'idle');
       ?>
       <div class="delivery-card bg-white rounded-2xl p-5 border <?= $border ?> shadow-sm">
 
@@ -273,17 +437,38 @@ $dlLabels = DELIVERY_STATUS_LABELS;
               <?php if ($proofs > 0): ?>
               <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">📷 <?= $proofs ?> proof<?= $proofs > 1 ? 's' : '' ?></span>
               <?php endif; ?>
+              <?php if ($d['payment_method'] === 'cod'): ?>
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">💵 COD</span>
+              <?php endif; ?>
             </div>
             <div class="text-xs text-gray-400 mt-0.5">Assigned <?= date('M j, g:i A', strtotime($d['assigned_at'])) ?></div>
           </div>
           <div class="text-sm font-bold text-gray-800 shrink-0">₱<?= number_format($d['total_price'], 2) ?></div>
         </div>
 
-        <!-- Details -->
+        <!-- Progress flow indicator -->
+        <div class="flex items-center gap-1.5 mb-3 flex-wrap">
+          <div class="flow-step <?= $flowClass(0) ?>"><span class="dot"></span><span>Assigned</span></div>
+          <span class="flow-sep">→</span>
+          <div class="flow-step <?= $flowClass(1) ?>"><span class="dot"></span><span>Accepted</span></div>
+          <span class="flow-sep">→</span>
+          <div class="flow-step <?= $flowClass(2) ?>"><span class="dot"></span><span>Picked Up</span></div>
+          <span class="flow-sep">→</span>
+          <div class="flow-step <?= $flowClass(3) ?>"><span class="dot"></span><span>Delivered</span></div>
+          <?php if ($d['payment_method'] === 'cod'): ?>
+          <span class="flow-sep">→</span>
+          <div class="flow-step idle"><span class="dot"></span><span>Paid</span></div>
+          <?php endif; ?>
+        </div>
+
+        <!-- Customer info -->
         <div class="bg-gray-50 rounded-xl p-3 mb-3 space-y-1.5 text-xs">
           <div class="flex items-center gap-2">
             <svg class="size-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="font-medium text-gray-700"><?= htmlspecialchars($d['first_name'].' '.$d['last_name']) ?></span>
+            <?php if (!empty($d['phone_number'])): ?>
+            <a href="tel:<?= htmlspecialchars($d['phone_number']) ?>" class="text-blue-600 hover:underline ml-auto">📞 Call</a>
+            <?php endif; ?>
           </div>
           <div class="flex items-start gap-2">
             <svg class="size-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -304,9 +489,11 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           <?php endif; ?>
         </div>
 
-        <!-- Action buttons -->
+        <!-- Action buttons — context-aware per status -->
         <div class="flex flex-wrap gap-2">
+
           <?php if ($d['status'] === 'pending_acceptance'): ?>
+          <!-- ── PENDING: Only Accept is available ── -->
           <button onclick="riderAction('rider_accept',<?= $d['delivery_id'] ?>,<?= $d['order_id'] ?>,this)"
                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition-colors">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -314,6 +501,11 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           </button>
 
           <?php elseif ($d['status'] === 'accepted'): ?>
+          <!-- ── ACCEPTED: Accept is done, Pick Up is next ── -->
+          <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Accepted ✓
+          </div>
           <button onclick="riderAction('rider_pickup',<?= $d['delivery_id'] ?>,<?= $d['order_id'] ?>,this)"
                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -321,10 +513,18 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           </button>
           <button onclick="openProofModal(<?= $d['order_id'] ?>)"
                   class="flex items-center gap-1.5 px-3 py-2.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors">
-            📷 Proof<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
+            📷<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
           </button>
 
           <?php elseif (in_array($d['status'], ['picked_up','in_transit'])): ?>
+          <!-- ── PICKED UP: Accept + Pickup done, Deliver is next ── -->
+          <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Accepted ✓
+          </div>
+          <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
+            📦 Picked Up ✓
+          </div>
           <button onclick="riderAction('mark_delivered',null,<?= $d['order_id'] ?>,this)"
                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-green-600 hover:bg-green-500 text-white rounded-xl transition-colors">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
@@ -332,8 +532,9 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           </button>
           <button onclick="openProofModal(<?= $d['order_id'] ?>)"
                   class="flex items-center gap-1.5 px-3 py-2.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors">
-            📷 Proof<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
+            📷<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
           </button>
+
           <?php endif; ?>
         </div>
       </div>
@@ -341,7 +542,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     </div>
   </div>
 
-  <!-- Completed -->
+  <!-- ══ COMPLETED DELIVERIES ══════════════════════════════════════════════ -->
   <?php if (!empty($completed)): ?>
   <div>
     <h3 class="text-base font-semibold text-gray-800 mb-3">Recent Completed</h3>
@@ -354,7 +555,14 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         </div>
         <div class="text-right">
           <div class="text-xs font-semibold text-green-600">₱<?= number_format($c['total_price'], 2) ?></div>
-          <div class="text-xs text-gray-400"><?= $c['delivered_at'] ? date('M j, g:i A', strtotime($c['delivered_at'])) : '—' ?></div>
+          <div class="flex items-center gap-1 justify-end mt-0.5">
+            <?php if ($c['payment_method'] === 'cod'): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">COD Paid ✓</span>
+            <?php else: ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold">Online ✓</span>
+            <?php endif; ?>
+            <span class="text-xs text-gray-400"><?= $c['delivered_at'] ? date('M j, g:i A', strtotime($c['delivered_at'])) : '—' ?></span>
+          </div>
         </div>
       </div>
       <?php endforeach; ?>
@@ -369,7 +577,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
 <script>
 const PROCESS = '../supadmin/functions/order_process.php';
 
-// ── Utilities ──────────────────────────────────────────────────────────────
+// ── Toast ──────────────────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
   const c = { success:'bg-teal-600', error:'bg-red-600', info:'bg-gray-800', warning:'bg-orange-500' };
   const el = document.createElement('div');
@@ -387,6 +595,7 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) { m.classList.remove('modal-open'); stopCamera(); } });
 });
 
+// ── Rider actions ──────────────────────────────────────────────────────────
 async function postAction(data, onSuccess) {
   const fd = new FormData();
   Object.entries(data).forEach(([k,v]) => { if (v !== null && v !== undefined) fd.append(k,v); });
@@ -397,12 +606,15 @@ async function postAction(data, onSuccess) {
   } catch { toast('Network error. Please try again.', 'error'); }
 }
 
-// ── Rider actions ──────────────────────────────────────────────────────────
 function riderAction(action, deliveryId, orderId, btn) {
   btn.disabled = true;
   const original = btn.innerHTML;
   btn.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Working…';
-  const labels = { rider_accept:'Delivery accepted! 🛵', rider_pickup:'Marked as picked up. 📦', mark_delivered:'Marked as delivered! ✅' };
+  const labels = {
+    rider_accept:   'Delivery accepted! 🛵',
+    rider_pickup:   'Marked as picked up. 📦',
+    mark_delivered: 'Marked as delivered! ✅'
+  };
   const data = { action };
   if (deliveryId) data.delivery_id = deliveryId;
   if (orderId)    data.order_id    = orderId;
@@ -410,13 +622,22 @@ function riderAction(action, deliveryId, orderId, btn) {
     toast(labels[action] || 'Done.', 'success');
     setTimeout(() => location.reload(), 800);
   });
-  setTimeout(() => { if(btn) { btn.disabled=false; btn.innerHTML=original; } }, 5000);
+  setTimeout(() => { if (btn) { btn.disabled=false; btn.innerHTML=original; } }, 5000);
 }
 
-// ══════════════════════════════════════════════════════
-//  PROOF UPLOAD — multiple images + camera
-// ══════════════════════════════════════════════════════
-let proofQueue = []; // [{blob, name, preview}]
+// ── COD Payment Received ───────────────────────────────────────────────────
+function markCODPaymentReceived(orderId, btn) {
+  if (!confirm('Confirm you have collected the cash payment from the customer?')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Processing…';
+  postAction({ action: 'mark_cod_payment_received', order_id: orderId }, () => {
+    toast('✅ COD payment collected and recorded!', 'success');
+    setTimeout(() => location.reload(), 800);
+  });
+}
+
+// ── Proof upload ───────────────────────────────────────────────────────────
+let proofQueue = [];
 let cameraStream = null;
 let activeProofOrderId = null;
 
@@ -431,7 +652,6 @@ function openProofModal(orderId) {
 }
 function closeProofModal() { closeModal('proof-modal'); stopCamera(); }
 
-// Tab
 function switchTab(tab) {
   const isFile = tab === 'file';
   document.getElementById('panel-file').classList.toggle('hidden', !isFile);
@@ -441,7 +661,6 @@ function switchTab(tab) {
   if (isFile) stopCamera();
 }
 
-// File select
 function handleFileSelect(input) {
   Array.from(input.files).forEach(file => {
     if (file.size > 8 * 1024 * 1024) { toast(`${file.name} exceeds 8MB`, 'warning'); return; }
@@ -453,7 +672,6 @@ function handleFileSelect(input) {
   input.value = '';
 }
 
-// Camera
 async function startCamera() {
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
@@ -479,7 +697,6 @@ function capturePhoto() {
   }, 'image/jpeg', 0.92);
 }
 
-// Queue render
 function renderQueue() {
   const wrap  = document.getElementById('proof-queue-wrap');
   const qEl   = document.getElementById('proof-queue');
@@ -498,7 +715,7 @@ function renderQueue() {
 function removeFromQueue(idx) { proofQueue.splice(idx, 1); renderQueue(); }
 function clearQueue() { proofQueue = []; renderQueue(); }
 
-// Submit all queued
+let uploadPending = false;
 async function submitProofs() {
   if (proofQueue.length === 0) { toast('Add at least one photo first.', 'warning'); return; }
   const caption = document.getElementById('proof-caption').value.trim();
@@ -506,7 +723,7 @@ async function submitProofs() {
   const btn     = document.getElementById('upload-btn');
   btn.disabled  = true;
   btn.textContent = 'Uploading…';
-  uploadPending = true; // block polling reload while upload is in progress
+  uploadPending = true;
 
   let uploaded = 0, failed = 0;
   for (const item of proofQueue) {
@@ -530,22 +747,18 @@ async function submitProofs() {
     toast(`✅ ${uploaded} proof photo${uploaded>1?'s':''} uploaded!`, 'success');
     proofQueue = []; renderQueue();
     closeProofModal();
-    // Reload after modal fully closes — rider already done at this point
     setTimeout(() => location.reload(), 800);
   }
   if (failed > 0) toast(`${failed} photo(s) failed.`, 'error');
 }
 
-// ── GPS  (persists across page reloads via localStorage) ───────────────────
-// localStorage key: 'sjfbi_gps_on'  →  '1' when GPS should be running
-// On every page load: if key === '1' AND there's an active delivery, auto-start.
+// ── GPS ────────────────────────────────────────────────────────────────────
 let gpsActive   = false;
 let gpsInterval = null;
 const GPS_KEY   = 'sjfbi_gps_on';
 let currentDeliveryId = <?= !empty($deliveries) ? (int)$deliveries[0]['delivery_id'] : 'null' ?>;
 
 function toggleGPS() { gpsActive ? stopGPS() : startGPS(); }
-
 function startGPS(silent = false) {
   if (!navigator.geolocation) { toast('Geolocation not supported.', 'warning'); return; }
   if (!currentDeliveryId)     { toast('No active delivery to track.', 'warning'); return; }
@@ -558,7 +771,6 @@ function startGPS(silent = false) {
   gpsInterval = setInterval(pushLocation, 15000);
   if (!silent) toast('📍 GPS tracking started', 'success');
 }
-
 function stopGPS() {
   gpsActive = false;
   clearInterval(gpsInterval);
@@ -567,7 +779,6 @@ function stopGPS() {
   document.getElementById('gps-label').textContent = 'GPS Off';
   document.getElementById('gps-btn').classList.remove('border-green-400','text-green-600');
 }
-
 function pushLocation() {
   if (!currentDeliveryId) return;
   navigator.geolocation.getCurrentPosition(pos => {
@@ -580,25 +791,17 @@ function pushLocation() {
     fetch(PROCESS, { method:'POST', body:fd }).catch(()=>{});
   }, err => console.warn('GPS:', err.message), { enableHighAccuracy:true, timeout:8000 });
 }
-
-// ── Auto-resume GPS on page load if it was on before reload ────────────────
 (function resumeGPS() {
   if (localStorage.getItem(GPS_KEY) === '1' && currentDeliveryId) {
-    // Small delay so the page is fully visible before starting
     setTimeout(() => startGPS(true), 800);
   } else if (localStorage.getItem(GPS_KEY) === '1' && !currentDeliveryId) {
-    // No active delivery anymore — clear the flag silently
     localStorage.removeItem(GPS_KEY);
   }
 })();
 
 // ── Poll for new assignments ───────────────────────────────────────────────
-// Tracks IDs we've already seen so we ONLY react to genuinely new notifications.
-// Never reloads while the proof modal is open or an upload is in progress.
-let seenNotifIds  = new Set();
-let uploadPending = false; // set true during submitProofs, false after
+let seenNotifIds = new Set();
 
-// Seed seen IDs on page load so existing unread don't trigger reload
 (function seedSeenIds() {
   fetch(`${PROCESS}?action=poll_notifications`)
     .then(r => r.json())
@@ -608,7 +811,6 @@ let uploadPending = false; // set true during submitProofs, false after
 })();
 
 setInterval(() => {
-  // Never interrupt an upload or open modal
   const modalOpen = document.getElementById('proof-modal')?.classList.contains('modal-open');
   if (uploadPending || modalOpen) return;
 
@@ -616,19 +818,12 @@ setInterval(() => {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
-
-      // Find genuinely new notifications (IDs we haven't seen before)
       const newItems = (data.items || []).filter(n => {
         const id = n.notif_id ?? String(n.created_at);
         return !seenNotifIds.has(id);
       });
+      (data.items || []).forEach(n => { seenNotifIds.add(n.notif_id ?? String(n.created_at)); });
 
-      // Mark all current as seen
-      (data.items || []).forEach(n => {
-        seenNotifIds.add(n.notif_id ?? String(n.created_at));
-      });
-
-      // Update badge — always visible now (bell links to notifications page)
       if (data.count > 0) {
         const badge = document.getElementById('notif-count');
         badge.textContent = data.count;
@@ -638,10 +833,8 @@ setInterval(() => {
         document.getElementById('notif-count').classList.add('hidden');
       }
 
-      // Only toast + reload if there's a genuinely new delivery assignment
       const hasNewAssignment = newItems.some(n => {
         const msg = (n.message ?? '').toLowerCase();
-        // Match "new delivery assignment" but NOT "reassignment"
         return msg.includes('new delivery') || msg.includes('delivery assigned');
       });
 

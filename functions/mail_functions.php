@@ -4,7 +4,6 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-// Load environment variables
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
@@ -12,7 +11,6 @@ function sendEmail($to, $subject, $message, $isHtml = false) {
     $mail = new PHPMailer(true);
 
     try {
-        // Server settings
         $mail->SMTPDebug = SMTP::DEBUG_OFF;
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com';
@@ -23,15 +21,13 @@ function sendEmail($to, $subject, $message, $isHtml = false) {
         $mail->Port       = 587;
         $mail->Timeout    = 10;
 
-        // Recipients
         $mail->setFrom($_ENV['MAIL_USERNAME'], 'St. Joseph Fish Brokerage Inc.');
         $mail->addAddress($to);
 
-        // Content
         $mail->isHTML($isHtml);
         $mail->Subject = $subject;
         $mail->Body    = $message;
-        
+
         if (!$isHtml) {
             $mail->AltBody = strip_tags($message);
         }
@@ -40,7 +36,7 @@ function sendEmail($to, $subject, $message, $isHtml = false) {
             error_log("Mailer Error: " . $mail->ErrorInfo);
             return false;
         }
-        
+
         error_log("Email successfully sent to: $to");
         return true;
     } catch (Exception $e) {
@@ -50,13 +46,16 @@ function sendEmail($to, $subject, $message, $isHtml = false) {
 }
 
 function getOrderDetails($orderId, $conn) {
+    // Uses renamed columns:
+    //   orders:   recipient_first_name, recipient_last_name, recipient_email, recipient_phone, recipient_address
+    //   accounts: account_first_name, account_last_name, account_email
     $stmt = $conn->prepare("
-        SELECT o.*, 
-               COALESCE(a.first_name, o.first_name) as customer_first_name,
-               COALESCE(a.last_name, o.last_name) as customer_last_name,
-               COALESCE(a.email, o.email) as customer_email
-        FROM orders o 
-        LEFT JOIN accounts a ON o.account_id = a.account_id 
+        SELECT o.*,
+               COALESCE(a.account_first_name, o.recipient_first_name) AS customer_first_name,
+               COALESCE(a.account_last_name,  o.recipient_last_name)  AS customer_last_name,
+               COALESCE(a.account_email,      o.recipient_email)      AS customer_email
+        FROM orders o
+        LEFT JOIN accounts a ON o.account_id = a.account_id
         WHERE o.order_id = ?
     ");
     $stmt->bind_param("i", $orderId);
@@ -66,7 +65,7 @@ function getOrderDetails($orderId, $conn) {
 
 function getOrderItems($orderId, $conn) {
     $stmt = $conn->prepare("
-        SELECT oi.*, p.product_name, pv.variant_name, pv.weight
+        SELECT oi.*, p.product_name, pv.variant_name, pv.variant_price
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
         LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
@@ -79,19 +78,18 @@ function getOrderItems($orderId, $conn) {
 
 function sendPaymentConfirmationEmail($orderId) {
     global $conn;
-    
+
     try {
         $order = getOrderDetails($orderId, $conn);
         if (!$order) {
             error_log("Order not found for confirmation email: " . $orderId);
             return false;
         }
-        
+
         $items = getOrderItems($orderId, $conn);
-        
+
         $subject = "Payment Confirmation - Order #" . $orderId;
-        
-        // Create HTML email content
+
         $message = "
         <html>
         <head>
@@ -111,10 +109,10 @@ function sendPaymentConfirmationEmail($orderId) {
                 <h1>Payment Confirmed!</h1>
                 <p>Thank you for your order, " . htmlspecialchars($order['customer_first_name'] . ' ' . $order['customer_last_name']) . "</p>
             </div>
-            
+
             <div class='content'>
                 <p>We're pleased to confirm that your payment has been successfully processed.</p>
-                
+
                 <div class='order-details'>
                     <h3>Order Details</h3>
                     <p><strong>Order ID:</strong> #" . $orderId . "</p>
@@ -122,7 +120,7 @@ function sendPaymentConfirmationEmail($orderId) {
                     <p><strong>Payment Method:</strong> " . ucfirst($order['payment_method']) . "</p>
                     <p><strong>Order Status:</strong> " . $order['order_status'] . "</p>
                 </div>
-                
+
                 <h3>Items Ordered</h3>
                 <table class='items-table'>
                     <tr>
@@ -132,10 +130,10 @@ function sendPaymentConfirmationEmail($orderId) {
                         <th>Price</th>
                         <th>Subtotal</th>
                     </tr>";
-        
+
         foreach ($items as $item) {
-            $variantInfo = $item['variant_name'] ? $item['variant_name'] . ' (' . $item['weight'] . ')' : 'Standard';
-            $subtotal = $item['quantity'] * $item['price'];
+            $variantInfo = $item['variant_name'] ?? 'Standard';
+            $subtotal    = $item['quantity'] * $item['price'];
             $message .= "
                     <tr>
                         <td>" . htmlspecialchars($item['product_name']) . "</td>
@@ -145,34 +143,34 @@ function sendPaymentConfirmationEmail($orderId) {
                         <td>₱" . number_format($subtotal, 2) . "</td>
                     </tr>";
         }
-        
+
         $message .= "
                 </table>
-                
+
                 <div class='total'>
                     <p>Total Amount: ₱" . number_format($order['total_price'], 2) . "</p>
                 </div>
-                
+
                 <h3>Delivery Information</h3>
                 <div class='order-details'>
                     <p><strong>Delivery Address:</strong><br>
-                    " . htmlspecialchars($order['address']) . "<br>
+                    " . htmlspecialchars($order['recipient_address']) . "<br>
                     " . htmlspecialchars($order['city']) . ", " . htmlspecialchars($order['postal_code']) . "</p>
-                    <p><strong>Contact Number:</strong> " . htmlspecialchars($order['phone_number']) . "</p>
+                    <p><strong>Contact Number:</strong> " . htmlspecialchars($order['recipient_phone']) . "</p>
                 </div>
-                
+
                 <p>Your order will be processed and prepared for delivery. You will receive another email with tracking information once your order ships.</p>
-                
+
                 <p>Thank you for choosing St. Joseph Fish Brokerage Inc.!</p>
-                
+
                 <hr>
                 <p><small>This is an automated email. Please do not reply to this message.</small></p>
             </div>
         </body>
         </html>";
-        
+
         return sendEmail($order['customer_email'], $subject, $message, true);
-        
+
     } catch (Exception $e) {
         error_log("Error sending payment confirmation email: " . $e->getMessage());
         return false;
@@ -181,16 +179,16 @@ function sendPaymentConfirmationEmail($orderId) {
 
 function sendPaymentFailedEmail($orderId) {
     global $conn;
-    
+
     try {
         $order = getOrderDetails($orderId, $conn);
         if (!$order) {
             error_log("Order not found for failure email: " . $orderId);
             return false;
         }
-        
+
         $subject = "Payment Failed - Order #" . $orderId;
-        
+
         $message = "
         <html>
         <head>
@@ -207,10 +205,10 @@ function sendPaymentFailedEmail($orderId) {
                 <h1>Payment Failed</h1>
                 <p>Order #" . $orderId . "</p>
             </div>
-            
+
             <div class='content'>
                 <p>Dear " . htmlspecialchars($order['customer_first_name'] . ' ' . $order['customer_last_name']) . ",</p>
-                
+
                 <p>We were unable to process your payment for Order #" . $orderId . ". This could be due to:</p>
                 <ul>
                     <li>Insufficient funds</li>
@@ -218,7 +216,7 @@ function sendPaymentFailedEmail($orderId) {
                     <li>Network connectivity issues</li>
                     <li>Payment method declined by your bank</li>
                 </ul>
-                
+
                 <div class='order-details'>
                     <h3>Order Details</h3>
                     <p><strong>Order ID:</strong> #" . $orderId . "</p>
@@ -226,7 +224,7 @@ function sendPaymentFailedEmail($orderId) {
                     <p><strong>Total Amount:</strong> ₱" . number_format($order['total_price'], 2) . "</p>
                     <p><strong>Payment Method:</strong> " . ucfirst($order['payment_method']) . "</p>
                 </div>
-                
+
                 <p><strong>What's Next?</strong></p>
                 <p>Your order is currently on hold. You can:</p>
                 <ul>
@@ -235,21 +233,21 @@ function sendPaymentFailedEmail($orderId) {
                     <li>Contact your bank to ensure the payment method is working</li>
                     <li>Contact us for assistance</li>
                 </ul>
-                
+
                 <p>If you need help or have questions about this order, please contact us at:</p>
                 <p>Email: " . $_ENV['MAIL_USERNAME'] . "<br>
                 Phone: [Your Phone Number]</p>
-                
+
                 <p>Thank you for your understanding.</p>
-                
+
                 <hr>
                 <p><small>This is an automated email. Please do not reply to this message.</small></p>
             </div>
         </body>
         </html>";
-        
+
         return sendEmail($order['customer_email'], $subject, $message, true);
-        
+
     } catch (Exception $e) {
         error_log("Error sending payment failed email: " . $e->getMessage());
         return false;

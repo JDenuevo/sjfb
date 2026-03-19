@@ -1,5 +1,3 @@
-<!-- get_cart_count.php -->
-
 <?php
 session_start();
 

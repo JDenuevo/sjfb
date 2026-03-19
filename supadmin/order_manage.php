@@ -63,7 +63,7 @@ if ($order['order_status'] === 'Delivered') {
 $orderReviews = [];
 if ($order['order_status'] === 'Delivered') {
     $revSt = $conn->prepare("
-        SELECT r.review_id, r.product_id, r.full_name, r.rating, r.feedback,
+        SELECT r.review_id, r.product_id, r.reviewer_name, r.rating, r.feedback,
                r.status, r.created_at, p.product_name
         FROM reviews r
         JOIN products p ON p.product_id = r.product_id
@@ -107,7 +107,7 @@ foreach ($history as $t) {
 
 // 2. Activity log
 $al = $conn->prepare("
-    SELECT al.*, CONCAT(a.first_name,' ',a.last_name) AS actor_name
+    SELECT al.*, CONCAT(a.account_first_name,' ',a.account_last_name) AS actor_name
     FROM activity_log al
     LEFT JOIN accounts a ON a.account_id = al.user_id
     WHERE al.entity_type = 'order' AND al.entity_id = ?
@@ -140,8 +140,8 @@ foreach ($activity_rows as $l) {
 // 3. Delivery events (assigned, accepted, picked_up, delivered timestamps)
 $dlQ = $conn->prepare("
     SELECT d.delivery_id, d.assigned_at, d.accepted_at, d.picked_up_at, d.delivered_at,
-           d.is_third_party, d.third_party_name, d.status,
-           COALESCE(r.full_name, CONCAT(ra.first_name,' ',ra.last_name)) AS rider_name
+           d.is_third_party, d.third_party_name, d.delivery_status,
+           COALESCE(r.rider_name, CONCAT(ra.account_first_name,' ',ra.account_last_name)) AS rider_name
     FROM deliveries d
     LEFT JOIN riders r   ON r.rider_id = d.rider_id
     LEFT JOIN accounts ra ON ra.account_id = r.account_id
@@ -160,7 +160,7 @@ foreach ($dlRows as $dl) {
 }
 
 // 4. Proof uploads
-$proofQ = $conn->prepare("SELECT dp.uploaded_at, dp.caption, dp.file_path, COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS rider_name FROM delivery_proofs dp LEFT JOIN riders r ON r.rider_id=dp.rider_id LEFT JOIN accounts a ON a.account_id=r.account_id WHERE dp.order_id=? ORDER BY dp.uploaded_at ASC");
+$proofQ = $conn->prepare("SELECT dp.uploaded_at, dp.caption, dp.file_path, COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS rider_name FROM delivery_proofs dp LEFT JOIN riders r ON r.rider_id=dp.rider_id LEFT JOIN accounts a ON a.account_id=r.account_id WHERE dp.order_id=? ORDER BY dp.uploaded_at ASC");
 $proofQ->bind_param('i', $order_id);
 $proofQ->execute();
 $proofEvts = $proofQ->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -216,6 +216,11 @@ $methodDisplay = $methodLabels[$order['payment_method'] ?? ''] ?? ucfirst($order
 
 $currentStep = $stepIndex[$order['order_status']] ?? 0;
 $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100) : 0;
+
+$isCOD        = $order['payment_method'] === 'cod';
+$isDelivered  = $order['order_status'] === 'Delivered';
+$isUnpaid     = ($order['payment_status'] ?? 'Pending') === 'Pending';
+$isThirdParty = !empty($order['is_third_party']);
 
 ?>
 
@@ -340,8 +345,8 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
           <?php endif; ?>
         </div>
         <p class="text-gray-400 text-sm mt-1">
-          <?= htmlspecialchars($order['first_name'].' '.$order['last_name']) ?>
-          · <?= htmlspecialchars($order['email']) ?>
+          <?= htmlspecialchars($order['recipient_first_name'].' '.$order['recipient_last_name']) ?>
+          · <?= htmlspecialchars($order['recipient_email']) ?>
         </p>
       </div>
       <div class="text-right">
@@ -446,6 +451,10 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
           </tbody>
           <tfoot class="bg-gray-50">
             <tr>
+              <td colspan="4" class="px-5 py-3 text-right text-sm text-gray-700">Delivery Fee</td>
+              <td class="px-4 py-3 text-right text-base font-bold ext-gray-800">₱<?= number_format($order['delivery_fee'], 2) ?></td>
+            </tr>
+            <tr>
               <td colspan="4" class="px-5 py-3 text-right text-sm font-semibold text-gray-700">Order Total</td>
               <td class="px-4 py-3 text-right text-base font-bold text-orange-600">₱<?= number_format($order['total_price'], 2) ?></td>
             </tr>
@@ -461,8 +470,8 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
             <svg class="size-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           </div>
           <div class="text-sm text-gray-600 space-y-0.5">
-            <p class="font-semibold text-gray-800"><?= htmlspecialchars($order['first_name'].' '.$order['last_name']) ?></p>
-            <?php $addr = $order['delivery_address'] ?: $order['address']; ?>
+            <p class="font-semibold text-gray-800"><?= htmlspecialchars($order['recipient_first_name'].' '.$order['recipient_last_name']) ?></p>
+            <?php $addr = $order['delivery_address'] ?: $order['recipient_address']; ?>
             <p><?= htmlspecialchars($addr) ?></p>
             <p><?= htmlspecialchars($order['city'].', '.$order['postal_code']) ?></p>
             <?php if (!empty($order['delivery_notes'])): ?>
@@ -483,7 +492,10 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
           All forms POST to order_process.php with action= field matching
           the switch cases in order_process.php.
       ──────────────────────────────────────────────────────────────────── -->
-      <?php if (!in_array($order['order_status'], ['Delivered','Cancelled'])): ?>
+      <?php $needsPaymentAction = $isCOD && $isDelivered && $isUnpaid;
+        if (!in_array($order['order_status'], ['Cancelled']) && 
+            ($order['order_status'] !== 'Delivered' || $needsPaymentAction)): 
+      ?>
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div>
               <h3 class="text-base font-semibold text-gray-800">Manage Order</h3>
@@ -533,7 +545,28 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
                   Mark as Delivered
               </button>
               <p class="w-full text-xs text-gray-400 -mt-1">Use this if the rider is unregistered or customer didn't confirm receipt.</p>
+              <?php endif; ?>
 
+              <?php if ($isDelivered && $isCOD && $isUnpaid && !$isThirdParty): ?>
+              <!-- Rider payment collection — shows on manage page for admin visibility too -->
+              <button onclick="markCODPaid()"
+                      class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-500 rounded-xl transition-colors">
+                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  Mark COD Payment Received
+              </button>
+              <?php endif; ?>
+
+              <?php if ($isDelivered && $isCOD && $isUnpaid && $isThirdParty): ?>
+              <!-- 3rd party COD — only admin marks payment -->
+              <button onclick="markThirdPartyPaid()"
+                      class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-colors">
+                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  Mark as Paid (3rd Party Collected)
+              </button>
               <?php endif; ?>
 
               <!-- Cancel is always visible for non-terminal statuses -->
@@ -589,11 +622,11 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
           <!-- Customer info row -->
           <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
             <div class="size-9 rounded-full bg-orange-100 flex items-center justify-center text-sm font-bold text-orange-600 shrink-0">
-              <?= strtoupper(substr($order['first_name'],0,1).substr($order['last_name'],0,1)) ?>
+              <?= strtoupper(substr($order['recipient_first_name'],0,1).substr($order['recipient_last_name'],0,1)) ?>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-semibold text-gray-800"><?= htmlspecialchars($order['first_name'].' '.$order['last_name']) ?></p>
-              <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($order['email']) ?></p>
+              <p class="text-xs font-semibold text-gray-800"><?= htmlspecialchars($order['recipient_first_name'].' '.$order['recipient_last_name']) ?></p>
+              <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($order['recipient_email']) ?></p>
             </div>
             <span class="text-xs text-gray-400 shrink-0">
               Delivered <?= !empty($order['delivered_at']) ? date('M j, Y', strtotime($order['delivered_at'])) : date('M j, Y', strtotime($order['updated_at'])) ?>
@@ -620,7 +653,7 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
 
           <!-- Quick action buttons -->
           <div class="flex flex-wrap gap-2">
-            <a href="mailto:<?= urlencode($order['email']) ?>?subject=<?= urlencode('How was your order '.$order['order_code'].'?') ?>&body=<?= urlencode("Hi ".$order['first_name'].",\n\nThank you for your order ".$order['order_code']."! We hope you enjoyed your purchase.\n\nWe'd love to hear your feedback. Please take a moment to leave a review:\n".$reviewInvite['review_url']."\n\nThank you!\nSt. Joseph Fish Brokerage Inc.") ?>"
+            <a href="href="mailto:<?= urlencode($order['recipient_email']) ?>?...&body=<?= urlencode("Hi ".$order['recipient_first_name'].",\n\n...") ?>
                class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors">
               <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               Open in Mail
@@ -670,7 +703,7 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
                     <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold <?= $statusBadge ?>"><?= ucfirst($rev['status']) ?></span>
                   </div>
                   <p class="text-xs text-gray-500 mt-0.5 line-clamp-2"><?= htmlspecialchars($rev['feedback']) ?></p>
-                  <p class="text-[10px] text-gray-400 mt-1"><?= htmlspecialchars($rev['full_name']) ?> · <?= date('M j, Y', strtotime($rev['created_at'])) ?></p>
+                  <p class="text-[10px] text-gray-400 mt-1"><?= htmlspecialchars($rev['reviewer_name']) ?>
                 </div>
                 <a href="reviews.php?review_id=<?= $rev['review_id'] ?>"
                    class="shrink-0 text-[10px] text-orange-500 hover:underline font-medium mt-1">View →</a>
@@ -854,15 +887,15 @@ $fillPct     = $currentStep > 0 ? round(($currentStep / (count($steps)-1)) * 100
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
             <span class="text-gray-500">Name</span>
-            <span class="font-medium text-gray-800"><?= htmlspecialchars($order['first_name'].' '.$order['last_name']) ?></span>
+            <span class="font-medium text-gray-800"><?= htmlspecialchars($order['recipient_first_name'].' '.$order['recipient_last_name']) ?></span>
           </div>
           <div class="flex justify-between gap-2">
             <span class="text-gray-500 shrink-0">Email</span>
-            <span class="text-xs text-gray-700 text-right break-all"><?= htmlspecialchars($order['email']) ?></span>
+            <span class="text-xs text-gray-700 text-right break-all"><?= htmlspecialchars($order['recipient_email']) ?></span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500">Phone</span>
-            <span class="text-gray-700"><?= htmlspecialchars($order['phone_number'] ?? '—') ?></span>
+            <span class="text-gray-700"><?= htmlspecialchars($order['recipient_phone'] ?? '—') ?></span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500">Type</span>
@@ -1019,6 +1052,22 @@ function markDelivered() {
     toast('✅ Order marked as Delivered.', 'success');
     setTimeout(() => location.reload(), 800);
   });
+}
+
+function markCODPaid() {
+    if (!confirm('Confirm COD payment has been received from the customer?')) return;
+    postAction({ action: 'mark_cod_payment_received', order_id: ORDER_ID }, () => {
+        toast('✅ COD payment marked as received.', 'success');
+        setTimeout(() => location.reload(), 800);
+    });
+}
+
+function markThirdPartyPaid() {
+    if (!confirm('Confirm that the 3rd-party delivery has collected payment from the customer?')) return;
+    postAction({ action: 'mark_third_party_paid', order_id: ORDER_ID }, () => {
+        toast('✅ Payment marked as Paid.', 'success');
+        setTimeout(() => location.reload(), 800);
+    });
 }
 
 /** cancel_order — requires reason */

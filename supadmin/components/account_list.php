@@ -16,7 +16,7 @@ $bindParams = [];
 $bindTypes  = '';
 
 if ($searchTerm) {
-  $where[] = "(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ?)";
+  $where[] = "(account_first_name LIKE ? OR account_last_name LIKE ? OR account_email LIKE ? OR username LIKE ?)";
   $st = "%$searchTerm%";
   $bindParams = array_merge($bindParams, [$st,$st,$st,$st]);
   $bindTypes .= 'ssss';
@@ -119,8 +119,8 @@ $result = $mStmt->get_result();
       </thead>
       <tbody class="divide-y divide-gray-50">
         <?php while ($row = $result->fetch_assoc()):
-          [$avatarBg, $avatarText] = avatarColor($row['first_name'] ?? 'A');
-          $initials = strtoupper(substr($row['first_name'],0,1).substr($row['last_name'],0,1));
+          [$avatarBg, $avatarText] = avatarColor($row['account_first_name'] ?? 'A');
+          $initials = strtoupper(substr($row['account_first_name'],0,1).substr($row['last_name'],0,1));
           $roleConf = ['customer'=>['bg-blue-100','text-blue-700'],'admin'=>['bg-orange-100','text-orange-700'],
                        'rider'=>['bg-purple-100','text-purple-700'],'super_admin'=>['bg-gray-100','text-gray-700'],'guest'=>['bg-gray-100','text-gray-600']];
           [$roleBg, $roleText] = $roleConf[$row['role']] ?? ['bg-gray-100','text-gray-600'];
@@ -133,7 +133,7 @@ $result = $mStmt->get_result();
                 <?= $initials ?>
               </div>
               <div>
-                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($row['account_first_name'].' '.$row['account_last_name']) ?></div>
                 <div class="text-xs text-gray-400">@<?= htmlspecialchars($row['username'] ?? '—') ?></div>
               </div>
             </div>
@@ -146,8 +146,8 @@ $result = $mStmt->get_result();
           </td>
           <!-- Contact -->
           <td class="px-4 py-3">
-            <div class="text-xs text-gray-700"><?= htmlspecialchars($row['email']) ?></div>
-            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['phone_number'] ?? '—') ?></div>
+            <div class="text-xs text-gray-700"><?= htmlspecialchars($row['account_email']) ?></div>
+            <div class="text-xs text-gray-400"><?= htmlspecialchars($row['account_phone'] ?? '—') ?></div>
           </td>
           <!-- Location -->
           <td class="px-4 py-3">
@@ -178,7 +178,7 @@ $result = $mStmt->get_result();
         <div id="updateAccountModal<?= $row['account_id'] ?>" class="fixed inset-0 z-100 flex items-start justify-center bg-black bg-opacity-50 hidden overflow-y-auto py-10">      
           <div class="bg-white w-full max-w-4xl p-6 rounded-2xl shadow-2xl flex flex-col">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-800">Edit Account — <?= htmlspecialchars($row['first_name']) ?></h3>
+              <h3 class="text-lg font-semibold text-gray-800">Edit Account — <?= htmlspecialchars($row['account_first_name']) ?></h3>
               <button onclick="document.getElementById('updateAccountModal<?= $row['account_id'] ?>').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
                 <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
@@ -208,24 +208,24 @@ $result = $mStmt->get_result();
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-gray-600 mb-1">First Name</label>
-                  <input type="text" name="first_name" value="<?= htmlspecialchars($row['first_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                  <input type="text" name="account_first_name" value="<?= htmlspecialchars($row['account_first_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-gray-600 mb-1">Last Name</label>
-                  <input type="text" name="last_name" value="<?= htmlspecialchars($row['last_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                  <input type="text" name="account_last_name" value="<?= htmlspecialchars($row['account_last_name']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
                 </div>
               </div>
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
-                <input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                <input type="email" name="account_email" value="<?= htmlspecialchars($row['account_email']) ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
               </div>
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Phone Number</label>
-                <input type="text" name="phone_number" value="<?= htmlspecialchars($row['phone_number'] ?? '') ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                <input type="text" name="account_phone" value="<?= htmlspecialchars($row['account_phone'] ?? '') ?>" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
               </div>
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Address</label>
-                <textarea name="address" rows="2" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"><?= htmlspecialchars($row['address']) ?></textarea>
+                <textarea name="account_address" rows="2" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"><?= htmlspecialchars($row['account_address']) ?></textarea>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -257,7 +257,7 @@ $result = $mStmt->get_result();
                 <p class="text-xs text-gray-500">This action cannot be undone.</p>
               </div>
             </div>
-            <p class="text-sm text-gray-600 mb-4">Are you sure you want to delete <strong><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></strong>?</p>
+            <p class="text-sm text-gray-600 mb-4">Are you sure you want to delete <strong><?= htmlspecialchars($row['account_first_name'].' '.$row['account_last_name']) ?></strong>?</p>
             <form action="./functions/delete.php" method="POST">
               <input type="hidden" name="account_id" value="<?= $row['account_id'] ?>">
               <div class="flex gap-2">

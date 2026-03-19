@@ -1,24 +1,12 @@
-/**
- * cart_process.js
- * Single source of truth for ALL cart JS across every page.
- * Loaded by: checkout.php, index.php (shop), item.php, any page with cart.php component.
- *
- * PATHS: Always uses /functions/... (absolute from web root).
- *        Override by setting window.CART_BASE before loading this file.
- */
-
 (function () {
     'use strict';
 
-    // ── Base path ─────────────────────────────────────────────────────────────
-    // Set window.CART_BASE = '/your-path' BEFORE including this file to override.
     const BASE = (window.CART_BASE || '/sjfbi-js').replace(/\/$/, '');
-    window.CART_BASE = BASE; // expose so products_patch.js and item.php can use it
+    window.CART_BASE = BASE;
 
     // ── TOAST ─────────────────────────────────────────────────────────────────
     window.showToast = function (message, type) {
         type = type || 'success';
-
         var palette = {
             success: 'background:linear-gradient(135deg,#10b981,#059669)',
             error:   'background:linear-gradient(135deg,#dc2626,#991b1b)',
@@ -29,29 +17,19 @@
             error:   '<svg style="width:20px;height:20px;flex-shrink:0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>',
             remove:  '<svg style="width:20px;height:20px;flex-shrink:0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
         };
-
-        // Inject keyframes once
         if (!document.getElementById('_cart_toast_kf')) {
             var s = document.createElement('style');
             s.id = '_cart_toast_kf';
-            s.textContent = [
-                '@keyframes _toastIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}',
-                '@keyframes _toastOut{from{opacity:1;transform:none}to{opacity:0;transform:translateX(60px)}}',
-                '@keyframes _cntBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.45)}}'
-            ].join('');
+            s.textContent = '@keyframes _toastIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}@keyframes _toastOut{from{opacity:1;transform:none}to{opacity:0;transform:translateX(60px)}}@keyframes _cntBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.45)}}';
             document.head.appendChild(s);
         }
-
-        // Ensure container
         var container = document.getElementById('toastContainer');
         if (!container) {
             container = document.createElement('div');
             container.id = 'toastContainer';
-            container.setAttribute('style',
-                'position:fixed;bottom:5rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none');
+            container.setAttribute('style', 'position:fixed;bottom:5rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none');
             document.body.appendChild(container);
         }
-
         var toast = document.createElement('div');
         toast.setAttribute('style', [
             'display:flex;align-items:center;gap:12px',
@@ -65,20 +43,16 @@
         ].join(';'));
         toast.innerHTML = (icons[type] || '') + '<span style="flex:1">' + message + '</span>';
         container.appendChild(toast);
-
         setTimeout(function () {
             toast.style.animation = '_toastOut .3s ease both';
             setTimeout(function () { toast.remove(); }, 320);
         }, 3200);
     };
 
-    // ── UPDATE CART COUNT BADGES ───────────────────────────────────────────────
-    // Blasts count into every possible badge selector — covers nav regardless of its class/id
+    // ── CART COUNT ────────────────────────────────────────────────────────────
     function _applyCountToDOM(n) {
         var num = parseInt(n) || 0;
-        ['.cart-count', '#cart-count-sidebar', '#cart-count',
-         '.cart-badge', '.nav-cart-count', '[data-cart-count]'
-        ].forEach(function (sel) {
+        ['.cart-count','#cart-count-sidebar','#cart-count','.cart-badge','.nav-cart-count','[data-cart-count]'].forEach(function (sel) {
             document.querySelectorAll(sel).forEach(function (el) {
                 el.textContent = num;
                 el.style.animation = 'none';
@@ -87,8 +61,6 @@
             });
         });
     }
-
-    // Public: applies n immediately AND re-fetches from server to sync all badges
     window.updateCartCount = function (n) {
         if (n !== undefined && n !== null) _applyCountToDOM(n);
         fetch(BASE + '/functions/get_cart_count.php', { cache: 'no-store' })
@@ -97,18 +69,92 @@
             .catch(function () {});
     };
 
-    // ── RECALC TOTALS (DOM-only, zero server calls) ────────────────────────────
+    // ── CHECKOUT ORDER SUMMARY RELOAD ─────────────────────────────────────────
+    //
+    // On the checkout page we reload the entire order summary from the server
+    // after every quantity change. This guarantees PHP is the single source of
+    // truth — no JS math, no stale DOM values, no doubling bugs.
+    //
+    // Non-checkout pages (shop, cart sidebar) still use the lightweight
+    // recalcTotals() path below.
+    //
+    var _summaryDebounce = null;
+
+    function _reloadOrderSummary() {
+        var city     = (document.getElementById('City') || {}).value || '';
+        var discount = parseFloat((document.getElementById('discount_amount_input') || {}).value || 0) || 0;
+
+        var url = BASE + '/functions/fetch_order_summary.php?city=' + encodeURIComponent(city) + '&discount=' + discount;
+
+        fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.success) return;
+
+                // Replace cart items HTML
+                var list = document.getElementById('cart-items-list');
+                if (list) list.innerHTML = d.items_html;
+
+                // Subtotal
+                var st = document.getElementById('cart-subtotal');
+                if (st) st.textContent = '₱' + parseFloat(d.subtotal).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+                // Delivery fee display
+                var fd = document.getElementById('delivery-fee-display');
+                if (fd) {
+                    fd.textContent = d.fee_display;
+                    fd.className   = d.fee_class;
+                }
+
+                // Free shipping banner
+                // Discount line
+                if (d.discount > 0) {
+                    var dl = document.getElementById('discount-line-container');
+                    if (dl) dl.classList.remove('hidden');
+                    var da = document.getElementById('discount-amount');
+                    if (da) da.textContent = '-₱' + parseFloat(d.discount).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+                }
+
+                // Grand total
+                var gt = document.getElementById('cart-grand-total');
+                if (gt) gt.textContent = '₱' + parseFloat(d.grand_total).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+                // Hidden form fields
+                var si = document.getElementById('subtotal_input');
+                if (si) si.value = parseFloat(d.subtotal).toFixed(2);
+                var fi = document.getElementById('delivery_fee_input');
+                if (fi) fi.value = parseFloat(d.delivery_fee).toFixed(2);
+                var ta = document.getElementById('total_amount');
+                if (ta) ta.value = parseFloat(d.grand_total).toFixed(2);
+
+                // Cart count badge
+                _applyCountToDOM(d.cart_count);
+
+                // Re-init decrease button states after HTML replacement
+                _initDecreaseStates();
+
+                // Notify to_checkout.php that stock state may have changed
+                if (typeof window._checkAllStock === 'function') window._checkAllStock();
+            })
+            .catch(function () {
+                // On network error fall back to a simple recalc so page isn't broken
+                recalcTotals();
+            });
+    }
+
+    // ── RECALC TOTALS (non-checkout pages only) ───────────────────────────────
+    //
+    // Used by: cart sidebar (shop.php, item.php, any non-checkout page).
+    // On checkout, _reloadOrderSummary() is used instead.
+    //
     window.recalcTotals = function () {
         var total = 0;
-
         document.querySelectorAll('#cart-items-list .cart-item').forEach(function (item) {
-            var qtyEl   = item.querySelector('.quantity');
-            var qty     = parseFloat(qtyEl ? qtyEl.value : 0) || 0;
-            var price   = parseFloat(item.dataset.pricePerUnit) || 0;
-            var line    = qty * price;
+            var qtyEl = item.querySelector('.quantity');
+            var qty   = parseFloat(qtyEl ? qtyEl.value : 0) || 0;
+            var price = parseFloat(item.dataset.pricePerUnit) || 0;
+            var line  = qty * price;
             total += line;
-
-            // Update per-item price label
             var priceEl = item.querySelector('.item-price, .price');
             if (priceEl) {
                 priceEl.textContent = '₱' + line.toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -120,16 +166,19 @@
         var sidebarTotal = document.getElementById('cart-total-sidebar');
         if (sidebarTotal) sidebarTotal.textContent = '₱' + fmt;
 
-        var grandTotal = document.getElementById('cart-grand-total');
-        if (grandTotal) grandTotal.textContent = '₱' + fmt;
+        var subtotalEl = document.getElementById('cart-subtotal');
+        if (subtotalEl) subtotalEl.textContent = '₱' + fmt;
 
-        var hiddenTotal = document.getElementById('total_amount');
-        if (hiddenTotal) hiddenTotal.value = total.toFixed(2);
+        var gt = document.getElementById('cart-grand-total');
+        if (gt) gt.textContent = '₱' + fmt;
+
+        var ht = document.getElementById('total_amount');
+        if (ht) ht.value = total.toFixed(2);
     };
 
-    // ── APPLY QTY (validate → snap → DOM → silent server sync) ────────────────
+    // ── APPLY QTY ─────────────────────────────────────────────────────────────
     window.applyQty = function (item, newQty) {
-        var unitType  = item.dataset.unitType     || 'piece';
+        var unitType  = item.dataset.unitType      || 'piece';
         var minOrder  = parseFloat(item.dataset.minimumOrder)   || 1;
         var orderIncr = parseFloat(item.dataset.orderIncrement) || 1;
         var qtyInput  = item.querySelector('.quantity');
@@ -140,11 +189,17 @@
             newQty = minOrder;
         }
 
-        // Snap to nearest valid increment
         var snapped = minOrder + Math.round((newQty - minOrder) / orderIncr) * orderIncr;
-        var display = unitType === 'piece' ? Math.round(snapped) : snapped;
+        var display = unitType === 'piece' ? Math.round(snapped) : parseFloat(snapped.toFixed(3));
 
         if (qtyInput) qtyInput.value = display;
+
+        // Optimistic UI: update qty display and item price immediately
+        // so the user sees instant feedback before the server reload lands.
+        var price   = parseFloat(item.dataset.pricePerUnit) || 0;
+        var lineAmt = display * price;
+        var priceEl = item.querySelector('.item-price');
+        if (priceEl) priceEl.textContent = '₱' + lineAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
         if (decBtn) {
             var atMin = display - orderIncr < minOrder;
@@ -153,13 +208,22 @@
             decBtn.classList.toggle('cursor-not-allowed', atMin);
         }
 
-        recalcTotals();
-        _syncQtyToServer(parseInt(item.dataset.cartIndex), snapped);
+        // Sync quantity to server session first, then reload the summary
+        _syncQtyToServer(parseInt(item.dataset.cartIndex), snapped, function () {
+            if (typeof window.updateDeliveryFee === 'function') {
+                // CHECKOUT: reload full order summary from server
+                clearTimeout(_summaryDebounce);
+                _summaryDebounce = setTimeout(_reloadOrderSummary, 150);
+            } else {
+                // NON-CHECKOUT: lightweight DOM recalc is fine
+                recalcTotals();
+            }
+        });
     };
 
-    // ── SILENT SERVER SYNC (debounced 300 ms per cart index) ──────────────────
+    // ── SERVER SYNC ───────────────────────────────────────────────────────────
     var _syncTimers = {};
-    function _syncQtyToServer(cartIndex, quantity) {
+    function _syncQtyToServer(cartIndex, quantity, callback) {
         clearTimeout(_syncTimers[cartIndex]);
         _syncTimers[cartIndex] = setTimeout(function () {
             fetch(BASE + '/functions/update_cart_quantity.php', {
@@ -170,18 +234,20 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.status !== 'success') showToast(d.message || 'Sync error', 'error');
+                if (typeof callback === 'function') callback();
             })
-            .catch(function () { /* silent — session corrects on next page load */ });
-        }, 300);
+            .catch(function () {
+                if (typeof callback === 'function') callback();
+            });
+        }, 200);
     }
 
-    // ── REMOVE ITEM ────────────────────────────────────────────────────────────
+    // ── REMOVE ITEM ───────────────────────────────────────────────────────────
     window.removeCartItem = function (item) {
         var productId = item.dataset.productId;
         var variantId = item.dataset.variantId;
 
-        // Immediately give visual feedback so user knows it's working
-        item.style.opacity = '0.4';
+        item.style.opacity      = '0.4';
         item.style.pointerEvents = 'none';
 
         fetch(BASE + '/functions/remove_from_cart.php', {
@@ -190,95 +256,72 @@
             body:    JSON.stringify({ product_id: productId, variant_id: variantId })
         })
         .then(function (r) {
-            // Always try to parse as JSON regardless of content-type header
             return r.text().then(function (text) {
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    throw new Error('Server error: ' + text.substring(0, 200));
-                }
+                try { return JSON.parse(text); }
+                catch (e) { throw new Error('Server error: ' + text.substring(0, 200)); }
             });
         })
         .then(function (d) {
             if (d.status !== 'success') {
-                // Restore item if removal failed
-                item.style.opacity = '';
+                item.style.opacity      = '';
                 item.style.pointerEvents = '';
                 showToast(d.message || 'Failed to remove item', 'error');
                 return;
             }
 
-            // Remove from DOM with animation, then hard-delete
+            // Animate removal
             var el = document.querySelector(
                 '#cart-items-list .cart-item[data-product-id="' + productId + '"][data-variant-id="' + variantId + '"]'
             ) || item;
-
             if (el) {
                 el.style.transition = 'opacity 0.2s, max-height 0.3s, padding 0.3s, margin 0.3s';
                 el.style.overflow   = 'hidden';
                 el.style.opacity    = '0';
                 el.style.maxHeight  = el.offsetHeight + 'px';
-                // Trigger reflow then collapse
                 void el.offsetHeight;
                 el.style.maxHeight  = '0';
                 el.style.padding    = '0';
                 el.style.margin     = '0';
                 setTimeout(function () {
                     if (el.parentNode) el.parentNode.removeChild(el);
+                    // After DOM removal, reload summary (checkout) or recalc (elsewhere)
+                    if (typeof window.updateDeliveryFee === 'function') {
+                        _reloadOrderSummary();
+                    } else {
+                        recalcTotals();
+                    }
                 }, 320);
             }
 
             showToast('Item removed from cart', 'remove');
+            if (d.cart_count != null) updateCartCount(d.cart_count);
 
-            // Update totals from server data if available
-            if (d.cart_total != null) {
-                var fmt = parseFloat(d.cart_total).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-                var st = document.getElementById('cart-total-sidebar');
-                if (st) st.textContent = '\u20B1' + fmt;
-                var gt = document.getElementById('cart-grand-total');
-                if (gt) gt.textContent = '\u20B1' + fmt;
-                var ht = document.getElementById('total_amount');
-                if (ht) ht.value = parseFloat(d.cart_total).toFixed(2);
-            } else {
-                recalcTotals();
-            }
-
-            // Use server count as source of truth for badges
-            var remaining = (d.cart_count != null) ? parseInt(d.cart_count) : null;
-            if (remaining !== null) updateCartCount(remaining);
-
-            // After animation completes, clean up empty state
             setTimeout(function () {
                 var domCount = document.querySelectorAll('#cart-items-list .cart-item').length;
-                var finalCount = remaining !== null ? remaining : domCount;
-                if (remaining === null) updateCartCount(domCount);
-
-                if (finalCount === 0) {
+                if (domCount === 0) {
                     var list = document.getElementById('cart-items-list');
                     if (list) list.innerHTML = '<p style="text-align:center;color:#9ca3af;padding:2rem 0;font-size:.875rem">Your cart is empty.</p>';
                     var submitBtn = document.getElementById('submitBtn');
                     if (submitBtn) {
                         submitBtn.disabled = true;
                         submitBtn.className = submitBtn.className
-                            .replace('bg-orange-600', 'bg-gray-200')
-                            .replace('hover:bg-orange-500', '')
-                            .replace('active:scale-95', 'cursor-not-allowed')
-                            .replace('text-white', 'text-gray-400');
+                            .replace('bg-orange-600','bg-gray-200')
+                            .replace('hover:bg-orange-500','')
+                            .replace('active:scale-95','cursor-not-allowed')
+                            .replace('text-white','text-gray-400');
                         submitBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg> Cart is empty';
                     }
                 }
-                _checkSubmitState();
-            }, 350);
+            }, 400);
         })
         .catch(function (err) {
-            // Restore item on error
-            item.style.opacity = '';
+            item.style.opacity      = '';
             item.style.pointerEvents = '';
             showToast(err.message || 'Error removing item', 'error');
         });
     };
 
-    // ── FULL REFRESH FROM SERVER (used after add-to-cart) ─────────────────────
+    // ── REFRESH FROM SERVER (cart sidebar) ────────────────────────────────────
     window.refreshCartFromServer = function () {
         return fetch(BASE + '/functions/fetch_cart_items.php')
             .then(function (r) {
@@ -294,32 +337,28 @@
 
                 if (data.cart_total != null) {
                     var fmt = parseFloat(data.cart_total).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-                    var st = document.getElementById('cart-total-sidebar');
+                    var st  = document.getElementById('cart-total-sidebar');
                     if (st) st.textContent = '₱' + fmt;
-                    var gt = document.getElementById('cart-grand-total');
-                    if (gt) gt.textContent = '₱' + fmt;
-                    var ht = document.getElementById('total_amount');
-                    if (ht) ht.value = parseFloat(data.cart_total).toFixed(2);
                 }
 
                 if (data.cart_count != null) updateCartCount(data.cart_count);
-
                 _initDecreaseStates();
             })
             .catch(function (err) { showToast(err.message || 'Error refreshing cart', 'error'); });
     };
-
-    // Alias used by older code in cart.php / item.php
     window.updateCartUI = window.refreshCartFromServer;
 
-    // ── INTERNAL ──────────────────────────────────────────────────────────────
+    // ── Expose reload for to_checkout.php ────────────────────────────────────
+    window.reloadOrderSummary = _reloadOrderSummary;
+
+    // ── INTERNALS ─────────────────────────────────────────────────────────────
     function _initDecreaseStates() {
         document.querySelectorAll('#cart-items-list .cart-item').forEach(function (item) {
             var qtyInput = item.querySelector('.quantity');
             var decBtn   = item.querySelector('.decrease-quantity');
             if (!qtyInput || !decBtn) return;
             var qty   = parseFloat(qtyInput.value);
-            var min   = parseFloat(item.dataset.minimumOrder) || 1;
+            var min   = parseFloat(item.dataset.minimumOrder)   || 1;
             var incr  = parseFloat(item.dataset.orderIncrement) || 1;
             var atMin = qty - incr < min;
             decBtn.disabled = atMin;
@@ -328,94 +367,56 @@
         });
     }
 
-    function _checkSubmitState() {
-        var errorItems = document.querySelectorAll('#cart-items-list .cart-item-error');
-        var btn = document.getElementById('submitBtn');
-        if (!btn || errorItems.length > 0) return;
-        btn.disabled = false;
-        btn.className = btn.className
-            .replace('bg-gray-200', 'bg-orange-600')
-            .replace('text-gray-400', 'text-white')
-            .replace('cursor-not-allowed', 'active:scale-95');
-        btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Complete Order';
-        var banner = document.getElementById('cartErrorBanner');
-        if (banner) banner.remove();
-    }
-
-    // ── EVENT DELEGATION (one listener covers dynamically added rows) ──────────
+    // ── EVENT DELEGATION ──────────────────────────────────────────────────────
+    // Scoped strictly to #cart-items-list .cart-item — never fires for
+    // .add-to-cart-form buttons on product cards (product_process.js handles those).
     var _attached = false;
     window.initCartHandlers = function () {
         if (_attached) return;
         _attached = true;
 
         document.addEventListener('click', function (e) {
-            // + button
-            var inc = e.target.closest ? e.target.closest('.increase-quantity') : null;
-            if (inc) {
-                var item = inc.closest('.cart-item');
-                if (!item) return;
-                var qty  = parseFloat(item.querySelector('.quantity').value) || parseFloat(item.dataset.minimumOrder);
-                var incr = parseFloat(item.dataset.orderIncrement);
-                applyQty(item, qty + incr);
+            var cartItem = e.target.closest ? e.target.closest('#cart-items-list .cart-item') : null;
+            if (!cartItem) return;
+
+            if (e.target.closest('.increase-quantity')) {
+                var qty  = parseFloat(cartItem.querySelector('.quantity').value) || parseFloat(cartItem.dataset.minimumOrder);
+                applyQty(cartItem, qty + parseFloat(cartItem.dataset.orderIncrement));
                 return;
             }
-
-            // − button
-            var dec = e.target.closest ? e.target.closest('.decrease-quantity') : null;
-            if (dec) {
-                var item2 = dec.closest('.cart-item');
-                if (!item2) return;
-                var qty2  = parseFloat(item2.querySelector('.quantity').value) || parseFloat(item2.dataset.minimumOrder);
-                var incr2 = parseFloat(item2.dataset.orderIncrement);
-                applyQty(item2, qty2 - incr2);
+            if (e.target.closest('.decrease-quantity')) {
+                var qty2 = parseFloat(cartItem.querySelector('.quantity').value) || parseFloat(cartItem.dataset.minimumOrder);
+                applyQty(cartItem, qty2 - parseFloat(cartItem.dataset.orderIncrement));
                 return;
             }
-
-            // Remove button
-            var rmv = e.target.closest ? e.target.closest('.remove') : null;
-            if (rmv) {
-                e.preventDefault(); // prevent any form interaction
+            if (e.target.closest('.remove')) {
+                e.preventDefault();
                 e.stopPropagation();
-                var item3 = rmv.closest('.cart-item');
-                if (item3) removeCartItem(item3);
+                removeCartItem(cartItem);
             }
         });
 
-        // Live price preview while typing
-        document.addEventListener('input', function (e) {
-            if (!e.target.classList.contains('quantity')) return;
-            var item = e.target.closest ? e.target.closest('.cart-item') : null;
-            if (!item) return;
-            var price   = parseFloat(item.dataset.pricePerUnit) || 0;
-            var qty     = parseFloat(e.target.value) || 0;
-            var priceEl = item.querySelector('.item-price, .price');
-            if (priceEl) priceEl.textContent = '₱' + (price * qty).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-            recalcTotals();
-        });
-
-        // Commit typed value on blur
+        // Typed qty — commit on blur/Enter
         document.addEventListener('change', function (e) {
             if (!e.target.classList.contains('quantity')) return;
-            var item = e.target.closest ? e.target.closest('.cart-item') : null;
-            if (!item) return;
+            var cartItem = e.target.closest ? e.target.closest('#cart-items-list .cart-item') : null;
+            if (!cartItem) return;
             var typed = parseFloat(e.target.value);
-            if (isNaN(typed) || typed <= 0) e.target.value = item.dataset.minimumOrder;
-            applyQty(item, parseFloat(e.target.value));
+            if (isNaN(typed) || typed <= 0) e.target.value = cartItem.dataset.minimumOrder;
+            applyQty(cartItem, parseFloat(e.target.value));
         });
 
-        // Enter key commits without form-submit
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Enter' || !e.target.classList.contains('quantity')) return;
+            if (!e.target.closest('#cart-items-list .cart-item')) return;
             e.preventDefault();
             e.target.blur();
         });
     };
 
-    // Auto-init on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function () {
         initCartHandlers();
         _initDecreaseStates();
-        // Sync ALL cart count badges from server on every page load
         updateCartCount();
     });
 

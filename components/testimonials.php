@@ -2,7 +2,7 @@
 
 $sql = "SELECT 
         r.review_id,
-        r.full_name,
+        r.reviewer_name,
         r.position,
         r.company,
         r.rating,
@@ -11,8 +11,8 @@ $sql = "SELECT
         r.created_at,
         p.product_name,
         (SELECT COUNT(*) FROM review_attachments ra WHERE ra.review_id = r.review_id) as attachment_count,
-        LEFT(r.full_name, 1) as first_initial,
-        SUBSTRING_INDEX(r.full_name, ' ', -1) as last_name
+        LEFT(r.reviewer_name, 1) as first_initial,
+        SUBSTRING_INDEX(r.reviewer_name, ' ', -1) as last_name
     FROM reviews r
     LEFT JOIN products p ON r.product_id = p.product_id
     WHERE r.status = 'approved'
@@ -120,7 +120,7 @@ $totalReviews = max(1, (int)$stats['total_reviews']); // avoid division by zero
             $initials .= substr($review['last_name'], 0, 1);
         }
         $avatarColors = ['bg-orange-400', 'bg-amber-500', 'bg-red-400', 'bg-teal-500', 'bg-sky-500', 'bg-violet-500'];
-        $colorClass = $avatarColors[abs(crc32($review['full_name'])) % count($avatarColors)];
+        $colorClass = $avatarColors[abs(crc32($review['reviewer_name'])) % count($avatarColors)];
       ?>
       <div class="flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 hover:border-orange-200 hover:-translate-y-0.5">
         <!-- Card body -->
@@ -169,7 +169,7 @@ $totalReviews = max(1, (int)$stats['total_reviews']); // avoid division by zero
             </div>
             <div class="overflow-hidden">
               <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-slate-800 truncate"><?= htmlspecialchars($review['full_name']) ?></p>
+                <p class="text-sm font-semibold text-slate-800 truncate"><?= htmlspecialchars($review['reviewer_name']) ?></p>
                 <?php if ($review['is_verified_purchase']): ?>
                   <span class="shrink-0 inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-orange-500 text-white rounded-full">✓ Verified</span>
                 <?php endif; ?>

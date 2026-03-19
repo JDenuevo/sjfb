@@ -6,14 +6,13 @@
  * Called via POST from rider/my-profile.php.
  *
  * Editable fields:
- *   riders table  : full_name, vehicle_type, vehicle_plate_number, variant_color, contact_number, image
- *   accounts table: first_name, last_name, phone_number
+ *   riders table  : rider_name (was full_name), vehicle_type, vehicle_plate_number,
+ *                   variant_color, rider_phone (was contact_number), image
+ *   accounts table: account_first_name (was first_name), account_last_name (was last_name),
+ *                   account_phone (was phone_number)
  *   accounts table: password (optional — only if new_password is provided)
  *
  * NOT editable here: organization, is_available (admin-only)
- *
- * Upload path: sjfbi-js/uploads/riders/
- * Stored DB path (no leading slash): uploads/riders/filename.ext
  */
 session_start();
 require_once '../../conn.php';
@@ -27,18 +26,23 @@ if (!isset($_SESSION['loggedinasrider']) || $_SESSION['loggedinasrider'] !== tru
 
 $rider_account_id = (int)$_SESSION['account_id'];
 
-// ── Only handle POST ───────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../my-profile.php');
     exit;
 }
 
-// ── Fetch rider + account rows (for fallbacks and checks) ─────────────────
+// ── Fetch rider + account rows ─────────────────────────────────────────────
+// Uses renamed columns:
+//   riders:   rider_name (was full_name), rider_phone (was contact_number)
+//   accounts: account_first_name, account_last_name, account_phone, account_email
 $fetchStmt = $conn->prepare("
-    SELECT r.rider_id, r.image, r.full_name, r.vehicle_type,
-           r.vehicle_plate_number, r.variant_color, r.contact_number,
+    SELECT r.rider_id, r.image,
+           r.rider_name, r.vehicle_type,
+           r.vehicle_plate_number, r.variant_color,
+           r.rider_phone,
            r.organization, r.is_available,
-           a.first_name, a.last_name, a.email, a.phone_number, a.password_hash
+           a.account_first_name, a.account_last_name,
+           a.account_email, a.account_phone, a.password_hash
     FROM riders r
     JOIN accounts a ON a.account_id = r.account_id
     WHERE r.account_id = ? AND r.is_deleted = 0
@@ -92,7 +96,7 @@ if ($new_password !== '') {
 }
 
 // ── Handle photo upload ────────────────────────────────────────────────────
-$image_path = $current['image']; // keep existing by default
+$image_path = $current['image'];
 
 if (!empty($_FILES['image']['tmp_name'])) {
     $mime = mime_content_type($_FILES['image']['tmp_name']);
@@ -109,14 +113,10 @@ if (!empty($_FILES['image']['tmp_name'])) {
 
     $ext   = match($mime) { 'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg' };
     $fname = 'rider_' . $rider_account_id . '_' . time() . '.' . $ext;
-
-    // Path relative to sjfbi-js/: uploads/riders/
-    // __DIR__ is rider/functions/ → go up two levels to sjfbi-js/
-    $dir = __DIR__ . '/../../uploads/riders/';
+    $dir   = __DIR__ . '/../../uploads/riders/';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 
     if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
-        // Delete old photo if it exists and is not the default
         if (!empty($current['image']) && file_exists(__DIR__ . '/../../' . $current['image'])) {
             @unlink(__DIR__ . '/../../' . $current['image']);
         }
@@ -129,13 +129,14 @@ if (!empty($_FILES['image']['tmp_name'])) {
 }
 
 // ── Update riders table ────────────────────────────────────────────────────
+// Uses renamed columns: rider_name (was full_name), rider_phone (was contact_number)
 $fnVal = $full_name ?: null;
 
 $rStmt = $conn->prepare("
     UPDATE riders
-    SET image = ?, full_name = ?, vehicle_type = ?,
+    SET image = ?, rider_name = ?, vehicle_type = ?,
         vehicle_plate_number = ?, variant_color = ?,
-        contact_number = ?, updated_at = NOW()
+        rider_phone = ?, updated_at = NOW()
     WHERE rider_id = ?
 ");
 $rStmt->bind_param('ssssssi',
@@ -152,20 +153,32 @@ if (!$rStmt->execute()) {
 }
 
 // ── Update accounts table ──────────────────────────────────────────────────
+// Uses renamed columns: account_first_name, account_last_name, account_phone
 if ($newHashedPw) {
     $aStmt = $conn->prepare("
         UPDATE accounts
-        SET first_name = ?, last_name = ?, phone_number = ?, password_hash = ?
+        SET account_first_name = ?,
+            account_last_name  = ?,
+            account_phone      = ?,
+            password_hash      = ?
         WHERE account_id = ?
     ");
-    $aStmt->bind_param('ssssi', $first_name, $last_name, $phone_number, $newHashedPw, $rider_account_id);
+    $aStmt->bind_param('ssssi',
+        $first_name, $last_name, $phone_number,
+        $newHashedPw, $rider_account_id
+    );
 } else {
     $aStmt = $conn->prepare("
         UPDATE accounts
-        SET first_name = ?, last_name = ?, phone_number = ?
+        SET account_first_name = ?,
+            account_last_name  = ?,
+            account_phone      = ?
         WHERE account_id = ?
     ");
-    $aStmt->bind_param('sssi', $first_name, $last_name, $phone_number, $rider_account_id);
+    $aStmt->bind_param('sssi',
+        $first_name, $last_name, $phone_number,
+        $rider_account_id
+    );
 }
 
 if (!$aStmt->execute()) {
@@ -174,7 +187,6 @@ if (!$aStmt->execute()) {
     exit;
 }
 
-// ── Done ───────────────────────────────────────────────────────────────────
 $_SESSION['profile_msg'] = ['type' => 'success', 'text' => 'Profile updated successfully!'];
 header('Location: ../my-profile.php');
 exit;

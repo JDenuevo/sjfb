@@ -28,7 +28,7 @@ if (!empty($_GET['payment_status'])) {
 
 // Search Filter
 if (!empty($_GET['search'])) {
-    $whereConditions[] = "(o.order_code LIKE ? OR o.first_name LIKE ? OR o.last_name LIKE ? OR p.provider_id LIKE ? OR p.billing_email LIKE ?)";
+    $whereConditions[] = "(o.order_code LIKE ? OR o.recipient_first_name LIKE ? OR o.recipient_last_name LIKE ? OR p.provider_id LIKE ? OR p.billing_email LIKE ?)";
     $searchTerm = "%" . $_GET['search'] . "%";
     $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
     $types .= "sssss";
@@ -58,7 +58,7 @@ $stmt->close();
 
 // Main query with pagination
 $sql = "
-    SELECT p.*, o.order_code, o.first_name, o.last_name, o.payment_method
+    SELECT p.*, o.order_code, o.recipient_first_name, o.recipient_last_name, o.payment_method
     FROM payments p
     JOIN orders o ON p.order_id = o.order_id
     $whereSQL

@@ -296,7 +296,7 @@ $ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=8
         </div>
       </div>
       <div class="img-zoom img-shadow-l aspect-[4/3]" data-aos="fade-left">
-        <img src="https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=800&q=80" alt="Marine conservation" loading="lazy">
+        <img src="https://www.undp.org/sites/g/files/zskgke326/files/2024-11/ecothailand.jpg" alt="Marine conservation" loading="lazy">
       </div>
     </div>
   </div>

@@ -62,7 +62,7 @@
                           <?= $is_primary ? 'title="Primary Category"' : '' ?>>
                       <?= htmlspecialchars($cat) ?>
                       <?php if ($is_primary): ?>
-                        <span class="ml-1">★</span>
+                        <span class="ms-1">★</span>
                       <?php endif; ?>
                     </span>
                   <?php

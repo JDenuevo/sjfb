@@ -4,7 +4,7 @@ require_once '../conn.php';
 require_once '../vendor/autoload.php';
 require_once 'paymongo_helper.php';
 require_once '../functions/activity_log_helper.php';
-require_once '../functions/order_helper.php'; // Add this line
+require_once '../functions/order_helper.php';
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
@@ -16,6 +16,7 @@ function redirectWithMessage($location, $message, $type = 'error') {
     header("Location: $location");
     exit();
 }
+
 /**
  * Validate every cart item against current DB state.
  * Returns array of error objects: [['product_name'=>…, 'variant_name'=>…, 'message'=>…], …]
@@ -30,7 +31,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $name      = $item['product_name'];
         $varName   = $item['variant_name'] ?? '';
 
-        // Pull product + its specific variant in one query
         $stmt = $conn->prepare("
             SELECT
                 p.is_deleted,
@@ -50,7 +50,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $row = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        // Product does not exist at all
         if (!$row) {
             $errors[] = [
                 'product_name' => $name,
@@ -60,7 +59,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             continue;
         }
 
-        // Product was soft-deleted
         if ($row['is_deleted']) {
             $errors[] = [
                 'product_name' => $name,
@@ -70,7 +68,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             continue;
         }
 
-        // Variant itself is gone (FK would blow up here without this check)
         if ($row['variant_id'] === null) {
             $errors[] = [
                 'product_name' => $name,
@@ -80,7 +77,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             continue;
         }
 
-        // Variant marked out of stock
         if ($row['stock_status'] !== 'In Stock') {
             $vLabel = $varName ? " ($varName)" : '';
             $errors[] = [
@@ -91,7 +87,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             continue;
         }
 
-        // Not enough stock for requested quantity
         $stock = floatval($row['stock_quantity']);
         if ($stock < $qty) {
             $vLabel  = $varName ? " ($varName)" : '';
@@ -115,7 +110,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         // ─────────────────────────────────────────────────────────────────────────
         if (isset($_POST['register_account'])) {
 
-        // Already logged in? Just go to shop.
         if (isset($_SESSION['account_id'])) {
             header("Location: ../account/shop.php");
             exit();
@@ -127,7 +121,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $confirm_password = trim($_POST['confirm_password'] ?? '');
         $role             = 'customer';
 
-        // ── Field-level validation ────────────────────────────────────────────────
         if (empty($email) || empty($username) || empty($password) || empty($confirm_password)) {
             redirectWithMessage('../register.php', "All fields are required.");
         }
@@ -154,7 +147,8 @@ function validateCartItems(mysqli $conn, array $cart): array {
         }
 
         // ── Duplicate checks ──────────────────────────────────────────────────────
-        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? LIMIT 1");
+        // Uses account_email (renamed from email)
+        $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE account_email = ? LIMIT 1");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
         $stmt->bind_param("s", $email);
         $stmt->execute();
@@ -175,10 +169,11 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $stmt->close();
 
         // ── Insert new account ────────────────────────────────────────────────────
+        // Uses account_email (renamed from email)
         $hashed = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt = $conn->prepare("
-            INSERT INTO accounts (email, username, password_hash, role)
+            INSERT INTO accounts (account_email, username, password_hash, role)
             VALUES (?, ?, ?, ?)
         ");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
@@ -193,7 +188,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $newAccountId = $stmt->insert_id;
         $stmt->close();
 
-        // ── Activity log (only if helper exists) ─────────────────────────────────
         if (function_exists('logActivity')) {
             logActivity(
                 $conn, 'account', $newAccountId,
@@ -203,8 +197,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
             );
         }
 
-        // ── Auto-login: set session immediately ───────────────────────────────────
-        session_regenerate_id(true); // prevent session fixation
+        session_regenerate_id(true);
 
         $_SESSION['account_id']      = $newAccountId;
         $_SESSION['username']        = $username;
@@ -213,7 +206,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
         $conn->close();
 
-        // ── Redirect to shop (no details step required) ───────────────────────────
         redirectWithMessage('../account/shop.php', "Welcome aboard, {$username}! Your account has been created.", 'success');
     }
 
@@ -225,29 +217,31 @@ function validateCartItems(mysqli $conn, array $cart): array {
             $cart = $_SESSION['cart'] ?? [];
             if (empty($cart)) throw new Exception("Your cart is empty.");
 
-            // ── Field validation ───────────────────────────────────────────
-            $requiredFields = ['first_name','last_name','email','phone_number',
-                               'address','city','postal_code','payment_method'];
+            // ── Field validation ───────────────────────────────────────────────
+            $requiredFields = [
+                'recipient_first_name', 'recipient_last_name', 'recipient_email',
+                'recipient_phone', 'recipient_address', 'city', 'postal_code', 'payment_method'
+            ];
             foreach ($requiredFields as $field)
                 if (empty($_POST[$field]))
                     throw new Exception("Please fill in all required fields.");
 
-            $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
+            $email = filter_var(trim($_POST['recipient_email']), FILTER_VALIDATE_EMAIL);
             if (!$email) throw new Exception("Please provide a valid email address.");
 
-            $phoneNumber = trim($_POST['phone_number']);
+            $phoneNumber = trim($_POST['recipient_phone']);
             if (!preg_match('/^[0-9+\-\s()]+$/', $phoneNumber) || strlen($phoneNumber) < 10)
                 throw new Exception("Please provide a valid phone number.");
 
-            $firstName  = trim($_POST['first_name']);
-            $lastName   = trim($_POST['last_name']);
+            $firstName  = trim($_POST['recipient_first_name']);
+            $lastName   = trim($_POST['recipient_last_name']);
             if (strlen($firstName) < 2 || strlen($lastName) < 2)
-                throw new Exception("First name and last name must be at least 2 characters long.");
+                throw new Exception("First and last name must be at least 2 characters.");
 
-            $address    = trim($_POST['address']);
-            $city       = trim($_POST['city']);
-            $postalCode = trim($_POST['postal_code']);
-            $deliveryNotes = trim($_POST['delivery_notes']);
+            $address       = trim($_POST['recipient_address']);
+            $city          = trim($_POST['city']);
+            $postalCode    = trim($_POST['postal_code']);
+            $deliveryNotes = trim($_POST['delivery_notes'] ?? '');
 
             if (strlen($address) < 10) throw new Exception("Please provide a complete address.");
             if (strlen($city) < 2)     throw new Exception("Please provide a valid city name.");
@@ -255,11 +249,93 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 throw new Exception("Please provide a valid postal code (4-6 digits).");
 
             $paymentMethod       = $_POST['payment_method'];
-            $validPaymentMethods = ['cod','gcash','paymaya','grab_pay','card','qrph'];
+            $validPaymentMethods = ['cod', 'gcash', 'paymaya', 'grab_pay', 'card', 'qrph'];
             if (!in_array($paymentMethod, $validPaymentMethods))
                 throw new Exception("Invalid payment method selected.");
 
-            // ── Stock & availability guard (prevents FK constraint error) ──
+            // ── Pricing inputs from checkout form ──────────────────────────────
+            // These come from the hidden fields written by to_checkout.php JS
+            $submittedSubtotal     = round((float)($_POST['subtotal']         ?? 0), 2);
+            $submittedDeliveryFee  = round((float)($_POST['delivery_fee']     ?? 0), 2);
+            $submittedDiscount     = round((float)($_POST['discount_amount']  ?? 0), 2);
+            $voucherCode           = trim($_POST['voucher_code'] ?? '');
+
+            // ── Server-side subtotal verification ─────────────────────────────
+            // Always recalculate subtotal from cart — never trust the client value
+            $serverSubtotal = round(array_sum(
+                array_map(fn($i) => (float)$i['price'] * (float)$i['quantity'], $cart)
+            ), 2);
+
+            // Reject if client subtotal differs by more than ₱1 (float rounding buffer)
+            if (abs($serverSubtotal - $submittedSubtotal) > 1.00) {
+                error_log("Subtotal mismatch — client: {$submittedSubtotal}, server: {$serverSubtotal}");
+                throw new Exception("Order total mismatch. Please refresh and try again.");
+            }
+
+            // ── Server-side delivery fee verification ──────────────────────────
+            require_once '../functions/discount_helper.php';
+            $serverDeliveryFee = round(getDeliveryFee($city, $serverSubtotal, $conn), 2);
+
+            // If client sent a different fee, use the server-calculated one
+            if (abs($serverDeliveryFee - $submittedDeliveryFee) > 1.00) {
+                error_log("Delivery fee mismatch — client: {$submittedDeliveryFee}, server: {$serverDeliveryFee}. Using server value.");
+                $submittedDeliveryFee = $serverDeliveryFee;
+            }
+
+            // ── Server-side voucher verification ──────────────────────────────
+            $verifiedDiscount = 0.00;
+            $verifiedVoucherId = null;
+
+            if (!empty($voucherCode)) {
+                $accountId  = $_SESSION['account_id'] ?? null;
+                $userGroups = getUserGroups($accountId, $conn);
+                $voucher    = validateVoucher($voucherCode, $serverSubtotal, $userGroups, $accountId, $conn);
+
+                if ($voucher && !isset($voucher['error'])) {
+                    $verifiedDiscount  = calculateDiscount(
+                        $voucher['discount_type'],
+                        $voucher['discount_value'],
+                        $serverSubtotal,
+                        $voucher['max_discount'] ?? null
+                    );
+                    $verifiedVoucherId = (int)$voucher['voucher_id'];
+
+                    // If voucher grants free shipping, override delivery fee
+                    if (!empty($voucher['free_shipping']) || $verifiedDiscount >= $serverSubtotal) {
+                        $submittedDeliveryFee = 0.00;
+                    }
+
+                    // Check free shipping rules too
+                    $freeShippingRule = checkFreeShipping(
+                        $serverSubtotal - $verifiedDiscount,
+                        $userGroups,
+                        $city,
+                        $conn
+                    );
+                    if ($freeShippingRule) {
+                        $submittedDeliveryFee = 0.00;
+                    }
+                } else {
+                    // Voucher was submitted but is no longer valid — reject the order
+                    // so client can't sneak a stale discount through
+                    $voucherCode = ''; // clear it — don't block order, just ignore discount
+                    $verifiedDiscount = 0.00;
+                }
+            } else {
+                // No voucher — still check auto free shipping rules
+                $accountId  = $_SESSION['account_id'] ?? null;
+                $userGroups = getUserGroups($accountId, $conn);
+                $freeShippingRule = checkFreeShipping($serverSubtotal, $userGroups, $city, $conn);
+                if ($freeShippingRule) {
+                    $submittedDeliveryFee = 0.00;
+                }
+            }
+
+            // ── Final total (server-authoritative) ────────────────────────────
+            $totalAmount = round($serverSubtotal - $verifiedDiscount + $submittedDeliveryFee, 2);
+            if ($totalAmount <= 0) throw new Exception("Invalid order total.");
+
+            // ── Cart validation ────────────────────────────────────────────────
             $cartErrors = validateCartItems($conn, $cart);
             if (!empty($cartErrors)) {
                 $_SESSION['cart_errors'] = $cartErrors;
@@ -267,44 +343,45 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 exit();
             }
 
-            $totalAmount = array_sum(array_map(fn($i) => $i['price'] * $i['quantity'], $cart));
-            if ($totalAmount <= 0) throw new Exception("Invalid order total.");
-
             $conn->begin_transaction();
 
             $accountId = $_SESSION['account_id'] ?? null;
             $isGuest   = $accountId ? 0 : 1;
             $orderCode = generateOrderCode();
 
-            // ── Insert order ───────────────────────────────────────────────
+            // ── Insert order ───────────────────────────────────────────────────
             $stmt = $conn->prepare("
                 INSERT INTO orders (
-                    account_id, email, phone_number, first_name, last_name,
-                    address, postal_code, city, total_price, payment_method,
+                    account_id, recipient_email, recipient_phone,
+                    recipient_first_name, recipient_last_name,
+                    recipient_address, postal_code, city,
+                    subtotal, delivery_fee, discount_amount, voucher_code,
+                    total_price, payment_method,
                     is_guest_order, order_code, delivery_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("isssssssdsiss",
-                $accountId, $email, $phoneNumber, $firstName, $lastName,
-                $address, $postalCode, $city, $totalAmount,
-                $paymentMethod, $isGuest, $orderCode, $deliveryNotes);
+            $stmt->bind_param("isssssssdddsdsiss",
+                $accountId, $email, $phoneNumber,
+                $firstName, $lastName,
+                $address, $postalCode, $city,
+                $serverSubtotal, $submittedDeliveryFee, $verifiedDiscount, $voucherCode,
+                $totalAmount, $paymentMethod,
+                $isGuest, $orderCode, $deliveryNotes
+            );
             if (!$stmt->execute()) throw new Exception("Failed to create order: " . $conn->error);
-
             $orderId = $conn->insert_id;
+            $stmt->close();
 
-            // ── Insert order items (second race-condition guard) ───────────
-            $itemStmt    = $conn->prepare("
-                INSERT INTO order_items (order_id, product_id, variant_id, quantity, price)
-                VALUES (?, ?, ?, ?, ?)
-            ");
+            // ── Insert order items ─────────────────────────────────────────────
+            $itemStmt = $conn->prepare(
+                "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)"
+            );
             $itemSummary = [];
             foreach ($cart as $item) {
-                // Re-check variant right before insert to handle race conditions
-                $chk = $conn->prepare("
-                    SELECT variant_id FROM product_variants
-                    WHERE variant_id = ? AND stock_status = 'In Stock'
-                    LIMIT 1
-                ");
+                // Last-second stock check per item
+                $chk = $conn->prepare(
+                    "SELECT variant_id FROM product_variants WHERE variant_id = ? AND stock_status = 'In Stock' LIMIT 1"
+                );
                 $chk->bind_param("i", $item['variant_id']);
                 $chk->execute();
                 if ($chk->get_result()->num_rows === 0) {
@@ -313,133 +390,166 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     $_SESSION['cart_errors'] = [[
                         'product_name' => $item['product_name'],
                         'variant_name' => $item['variant_name'] ?? '',
-                        'message'      => "\"{$item['product_name']}\" became unavailable just now. Please remove it to proceed.",
+                        'message'      => "\"{$item['product_name']}\" became unavailable just now. Please remove it.",
                     ]];
                     header("Location: ../checkout.php");
                     exit();
                 }
                 $chk->close();
 
-                $itemStmt->bind_param("iiiid",
+                $itemStmt->bind_param(
+                    "iiiid",
                     $orderId, $item['product_id'], $item['variant_id'],
-                    $item['quantity'], $item['price']);
+                    $item['quantity'], $item['price']
+                );
                 if (!$itemStmt->execute()) throw new Exception("Failed to add order items: " . $conn->error);
                 $itemSummary[] = "{$item['product_name']} x{$item['quantity']}";
             }
+            $itemStmt->close();
 
-            logActivity($conn, 'order', $orderId, 'Order created', null, 'Pending',
+            // ── Record voucher usage ───────────────────────────────────────────
+            if ($verifiedVoucherId && $verifiedDiscount > 0) {
+                $vuStmt = $conn->prepare(
+                    "INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount) VALUES (?, ?, ?, ?)"
+                );
+                $vuStmt->bind_param("iiid", $verifiedVoucherId, $accountId, $orderId, $verifiedDiscount);
+                $vuStmt->execute();
+                $vuStmt->close();
+            }
+
+            logActivity(
+                $conn, 'order', $orderId, 'Order created', null, 'Pending',
                 "Order #{$orderCode} created. " .
-                ($isGuest ? "Guest order" : "Account ID: {$accountId}") .
+                ($isGuest ? "Guest" : "Account #{$accountId}") .
                 " | Payment: {$paymentMethod}" .
+                " | Subtotal: ₱" . number_format($serverSubtotal, 2) .
+                ($verifiedDiscount > 0 ? " | Discount: -₱" . number_format($verifiedDiscount, 2) . " ({$voucherCode})" : '') .
+                " | Delivery: ₱" . number_format($submittedDeliveryFee, 2) .
                 " | Total: ₱" . number_format($totalAmount, 2) .
                 " | Items: " . implode(', ', $itemSummary),
-                $accountId, 'customer');
+                $accountId, 'customer'
+            );
 
-            // ── Online payment ─────────────────────────────────────────────────────
-            if (in_array($paymentMethod, ['gcash','paymaya','grab_pay','card','qrph'])) {
+            // ── Save pending checkout for online payment cancel/return ─────────
+            $_SESSION['pending_checkout'] = [
+                'first_name'      => $firstName,
+                'last_name'       => $lastName,
+                'email'           => $email,
+                'phone_number'    => $phoneNumber,
+                'address'         => $address,
+                'postal_code'     => $postalCode,
+                'city'            => $city,
+                'delivery_notes'  => $deliveryNotes,
+                'payment_method'  => $paymentMethod,
+                'subtotal'        => $serverSubtotal,
+                'delivery_fee'    => $submittedDeliveryFee,
+                'discount_amount' => $verifiedDiscount,
+                'voucher_code'    => $voucherCode,
+                'total_amount'    => $totalAmount,
+                'cart'            => $cart,
+                'account_id'      => $accountId,
+                'is_guest'        => $isGuest,
+                'created_at'      => time(),
+            ];
+            // Also persist city separately for the input field restore
+            $_SESSION['last_checkout_city'] = $city;
 
-                // Store checkout data in session temporarily (NO ORDER CREATED YET)
-                $_SESSION['pending_checkout'] = [
-                    'email' => $email,
-                    'phone_number' => $phoneNumber,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'address' => $address,
-                    'postal_code' => $postalCode,
-                    'city' => $city,
-                    'delivery_notes' => $deliveryNotes,
-                    'payment_method' => $paymentMethod,
-                    'total_amount' => $totalAmount,
-                    'cart' => $cart, // Store the cart items
-                    'account_id' => $accountId,
-                    'is_guest' => $isGuest,
-                    'created_at' => time()
-                ];
-                
+            // ── Online payment ─────────────────────────────────────────────────
+            if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card', 'qrph'])) {
+
                 $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
-                $baseUrl = 'http://localhost/sjfbi-js';
-                
-                $customerInfo = ['first_name'=>$firstName,'last_name'=>$lastName,'email'=>$email,'phone'=>$phoneNumber];
-                $billingAddress = ['line1'=>$address,'city'=>$city,'postal_code'=>$postalCode,'state'=>'','country'=>'PH'];
-                
-                // Generate a temporary reference for this checkout attempt
+                $baseUrl  = rtrim($_ENV['APP_URL'] ?? 'http://localhost/sjfbi-js', '/');
+
                 $tempReference = 'TMP_' . uniqid() . '_' . time();
-                $_SESSION['temp_checkout_ref'] = $tempReference;
-                
+                $_SESSION['temp_checkout_ref']   = $tempReference;
+                $_SESSION['paymongo_session_id'] = null; // will be set below
+
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
-                    "Order Payment",
+                    "Order #{$orderCode} Payment",
                     [
                         'payment_method_types' => [$paymentMethod],
                         'success_url' => $baseUrl . '/payment_callback.php?ref=' . $tempReference . '&status=success',
-                        'cancel_url' => $baseUrl . '/checkout.php?cancel=1&ref=' . $tempReference,
-                        'customer_info' => $customerInfo,
+                        'cancel_url'  => $baseUrl . '/checkout.php?cancel=1&ref=' . $tempReference,
+                        'customer_info' => [
+                            'first_name' => $firstName,
+                            'last_name'  => $lastName,
+                            'email'      => $email,
+                            'phone'      => $phoneNumber,
+                        ],
                         'billing' => [
-                            'address' => $billingAddress,
+                            'address' => [
+                                'line1'       => $address,
+                                'city'        => $city,
+                                'postal_code' => $postalCode,
+                                'state'       => '',
+                                'country'     => 'PH',
+                            ],
                             'email' => $email,
-                            'name' => "$firstName $lastName",
+                            'name'  => "$firstName $lastName",
                             'phone' => $phoneNumber,
                         ],
                         'metadata' => [
                             'temp_reference' => $tempReference,
+                            'order_id'       => $orderId,
+                            'order_code'     => $orderCode,
                             'customer_email' => $email,
-                            'customer_name' => "$firstName $lastName",
+                            'customer_name'  => "$firstName $lastName",
                             'payment_method' => $paymentMethod,
                         ],
                     ]
                 );
-                
+
                 if (!isset($response['data']['attributes']['checkout_url'])) {
-                    // If PayMongo fails, clear the pending checkout and show error
-                    unset($_SESSION['pending_checkout']);
-                    unset($_SESSION['temp_checkout_ref']);
+                    unset($_SESSION['pending_checkout'], $_SESSION['temp_checkout_ref']);
                     throw new Exception("Checkout session creation failed. No checkout URL returned.");
                 }
-                
-                $checkoutSessionId = $response['data']['id'];
-                $_SESSION['paymongo_session_id'] = $checkoutSessionId;
-                
-                // Log the attempt (optional)
-                error_log("Payment initiated - Temp Ref: $tempReference, Method: $paymentMethod");
-                
-                // IMPORTANT: Rollback the transaction since we're not creating the order yet
+
+                $_SESSION['paymongo_session_id'] = $response['data']['id'];
+                error_log("Payment initiated — Ref: {$tempReference}, Order: {$orderCode}, Method: {$paymentMethod}");
+
+                // Rollback the DB order — it will be re-created in payment_callback.php
+                // after PayMongo confirms payment. This prevents phantom unpaid orders.
                 $conn->rollback();
-                
-                // Redirect to PayMongo - NO ORDER CREATED YET
+
                 header("Location: " . $response['data']['attributes']['checkout_url']);
                 exit();
 
-            // ── COD ────────────────────────────────────────────────────────
+            // ── COD ────────────────────────────────────────────────────────────
             } elseif ($paymentMethod === 'cod') {
+
                 $codStmt = $conn->prepare("
                     INSERT INTO payments (
                         order_id, currency, gross_amount, payment_status,
                         mode, billing_name, billing_email, billing_phone,
                         billing_line1, billing_city, billing_postal_code, billing_country,
                         source_type, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    ) VALUES (?, 'PHP', ?, 'Pending', 'live', ?, ?, ?, ?, ?, ?, 'PH', 'cod', NOW())
                 ");
-                $billingName    = "$firstName $lastName";
-                $currency       = 'PHP';
-                $codPayStatus   = 'Pending';
-                $mode           = 'live';
-                $billingCountry = 'PH';
-                $sourceType     = 'cod';
-                $codStmt->bind_param("isdssssssssss",
-                    $orderId, $currency, $totalAmount, $codPayStatus, $mode,
+                $billingName = "$firstName $lastName";
+                $codStmt->bind_param(
+                    "idssssss",
+                    $orderId, $totalAmount,
                     $billingName, $email, $phoneNumber,
-                    $address, $city, $postalCode, $billingCountry, $sourceType);
+                    $address, $city, $postalCode
+                );
                 if (!$codStmt->execute())
                     error_log("COD payment insert error: " . $codStmt->error);
+                $codStmt->close();
 
-                logActivity($conn, 'payment', $orderId, 'COD order confirmed', null, 'Pending',
-                    "Cash on Delivery order #{$orderCode} placed. Total: ₱" . number_format($totalAmount, 2),
-                    $accountId, 'customer');
+                logActivity(
+                    $conn, 'payment', $orderId, 'COD order placed', null, 'Pending',
+                    "COD order #{$orderCode}. Total: ₱" . number_format($totalAmount, 2),
+                    $accountId, 'customer'
+                );
 
                 $conn->commit();
-                unset($_SESSION['cart'], $_SESSION['cart_errors']);
+
+                // Clean up session
+                unset($_SESSION['cart'], $_SESSION['cart_errors'], $_SESSION['pending_checkout'], $_SESSION['last_checkout_city']);
                 $_SESSION['order_id']   = $orderId;
                 $_SESSION['order_code'] = $orderCode;
+
                 header("Location: ../order_review.php?order_code=" . $orderCode);
                 exit();
 
@@ -447,8 +557,10 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 throw new Exception("Unsupported payment method: " . $paymentMethod);
             }
 
-        } catch (Exception $e) {
-            if (isset($conn)) $conn->rollback();
+        } catch (Exception $e) { 
+            if (isset($conn)) {
+                $conn->rollback(); 
+            }
             error_log("Order processing error: " . $e->getMessage());
             $_SESSION['error'] = $e->getMessage();
             header("Location: ../checkout.php");
@@ -469,7 +581,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
         $redirectBase = "../review.php?order={$orderCode}&token={$token}";
 
-        // Fetch order
+        // ── Fetch order — uses renamed recipient_email column
         $stmt = $conn->prepare("
             SELECT o.*
             FROM orders o
@@ -485,18 +597,16 @@ function validateCartItems(mysqli $conn, array $cart): array {
             redirectWithMessage($redirectBase, 'Order not found or not yet delivered.', 'error');
         }
 
-        // Validate token
-        $expectedToken = generateReviewToken($orderCode, $order['email']);
+        // Validate token — uses recipient_email (renamed from email)
+        $expectedToken = generateReviewToken($orderCode, $order['recipient_email']);
         if (!hash_equals($expectedToken, strtoupper($token))) {
             redirectWithMessage($redirectBase, 'Invalid review token.', 'error');
         }
 
-        // CSRF check
         if (strtoupper($_POST['token']) !== strtoupper($token)) {
             redirectWithMessage($redirectBase, 'Security check failed.', 'error');
         }
 
-        // Fetch unreviewed items
         $iStmt = $conn->prepare("
             SELECT oi.*, p.product_name, p.product_id,
                 pv.variant_name, pv.variant_price
@@ -513,7 +623,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $validationErrors = [];
         $reviewedCount    = 0;
 
-        // Optional context fields
         $reviewerPosition = trim($_POST['position'] ?? '');
         $reviewerCompany  = trim($_POST['company']  ?? '');
 
@@ -523,7 +632,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             $rating    = intval($_POST["rating_{$itemId}"] ?? 0);
             $feedback  = trim($_POST["feedback_{$itemId}"] ?? '');
 
-            // Skip if user left this item blank (optional per-item)
             if (!$rating && !$feedback) continue;
 
             if ($rating < 1 || $rating > 5) {
@@ -535,22 +643,22 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 continue;
             }
 
-            $fullName = trim($order['first_name'] . ' ' . $order['last_name']);
-            $email    = $order['email'];
+            // Uses renamed columns: recipient_first_name, recipient_last_name, recipient_email
+            $fullName = trim($order['recipient_first_name'] . ' ' . $order['recipient_last_name']);
+            $email    = $order['recipient_email'];
             $ip       = $_SERVER['REMOTE_ADDR'] ?? null;
             $ua       = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-            // INSERT — includes position and company
+            // INSERT — uses renamed columns: reviewer_name, reviewer_email
             $rStmt = $conn->prepare("
                 INSERT INTO reviews
                     (order_id, order_item_id, product_id,
-                    full_name, email, rating, feedback,
+                    reviewer_name, reviewer_email, rating, feedback,
                     position, company,
                     is_verified_purchase, status,
                     reviewer_ip, user_agent)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?, ?)
             ");
-            // i  i  i  s  s  i  s  s  s  s  s
             $rStmt->bind_param('iiisissssss',
                 $order['order_id'], $itemId, $productId,
                 $fullName, $email, $rating, $feedback,
@@ -562,7 +670,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $reviewId = $conn->insert_id;
                 $rStmt->close();
 
-                // Photo uploads
                 $photoKey = "photos_{$itemId}";
                 if (!empty($_FILES[$photoKey]['name'][0])) {
                     $uploadDir = __DIR__ . '/../uploads/reviews/';
@@ -573,7 +680,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         if (!is_uploaded_file($tmpPath)) continue;
                         $mimeType = $_FILES[$photoKey]['type'][$idx];
                         $fileSize = $_FILES[$photoKey]['size'][$idx];
-                        if ($fileSize > 5 * 1024 * 1024)       continue; // 5 MB max
+                        if ($fileSize > 5 * 1024 * 1024)        continue;
                         if (!in_array($mimeType, $allowedMimes)) continue;
 
                         $origName = $_FILES[$photoKey]['name'][$idx];
@@ -589,15 +696,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
                                     (review_id, file_path, file_name, file_size, mime_type, upload_order)
                                 VALUES (?, ?, ?, ?, ?, ?)
                             ");
-                            $aStmt->bind_param('ississi',   // ← wait, review_id is int
-                                $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
-                            );
-                            // Correct: i s s i s i
-                            $aStmt = $conn->prepare("
-                                INSERT INTO review_attachments
-                                    (review_id, file_path, file_name, file_size, mime_type, upload_order)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                            ");
                             $aStmt->bind_param('issiis',
                                 $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
                             );
@@ -607,7 +705,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     }
                 }
 
-                // Mark item as reviewed
                 $uStmt = $conn->prepare("
                     UPDATE order_items SET is_reviewed = 1, review_id = ?
                     WHERE order_item_id = ?

@@ -33,7 +33,7 @@ $stmt = $conn->prepare("
     JOIN products p ON mp.product_id = p.product_id
     LEFT JOIN product_variants pv ON p.product_id = pv.product_id
     WHERE mp.market_id = ?
-    GROUP BY mp.id
+    GROUP BY mp.market_product_id
     ORDER BY mp.display_order
 ");
 $stmt->bind_param("i", $market_id);
@@ -211,7 +211,7 @@ $all_products = $conn->query("
                     <div>
                         <label class="form-label">Name</label>
                         <input type="text" name="member_name[]"
-                               value="<?= htmlspecialchars($member['name']) ?>"
+                               value="<?= htmlspecialchars($member['member_name']) ?>"
                                class="form-input" required>
                     </div>
                     <div>
@@ -261,7 +261,7 @@ $all_products = $conn->query("
             <?php if ($linked_products && $linked_products->num_rows > 0):
                 while ($product = $linked_products->fetch_assoc()): ?>
             <div class="product-row">
-                <input type="hidden" name="product_link_id[]" value="<?= $product['id'] ?>">
+                <input type="hidden" name="product_link_id[]" value="<?= $product['market_product_id'] ?>">
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="form-label">Product</label>
@@ -276,7 +276,7 @@ $all_products = $conn->query("
                     </div>
                     <div class="flex items-end">
                         <button type="button" class="btn-danger delete-product-link-btn"
-                                data-link-id="<?= $product['id'] ?>">Remove</button>
+                                data-link-id="<?= $product['market_product_id'] ?>">Remove</button>
                     </div>
                 </div>
             </div>

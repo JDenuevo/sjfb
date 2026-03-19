@@ -224,10 +224,10 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
 </head>
 
 <body id="content" class="bg-white">
-
+  <?php include './components/preloaders.php'; ?>
   <?php include './components/navigation.php'; ?>
   <?php include './components/nav_crumb.php'; ?>
-  <?php include './components/preloaders.php'; ?>
+  
 
   <!-- ══════════════════════════════════════════════
        HERO — parallax bg + orange-to-amber gradient

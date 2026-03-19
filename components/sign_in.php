@@ -67,7 +67,7 @@
           <?php unset($_SESSION['error_message']); ?>
           <?php endif; ?>
 
-          <form action="/sjfbi-js/functions/checker.php" method="POST" autocomplete="on" id="signin-form" name="login">
+          <form action="./functions/checker.php" method="POST" autocomplete="on" id="signin-form" name="login">
             <div class="signin-fields">
 
               <!-- Username -->
@@ -103,7 +103,7 @@
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   </span>
-                  <input type="password" id="password" name="password"
+                  <input type="password" id="password" name="password_hash"
                     placeholder="Your password"
                     autocomplete="current-password"
                     class="form-input signin-padded signin-password-input"

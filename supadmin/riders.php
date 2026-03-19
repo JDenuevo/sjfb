@@ -13,13 +13,13 @@ if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !
 
 // ── Accounts that can become riders ─────────────────────────────────────
 $availableAccounts = $conn->query("
-    SELECT a.account_id, a.first_name, a.last_name, a.email
+    SELECT a.account_id, a.account_first_name, a.account_last_name, a.account_email
     FROM accounts a
     LEFT JOIN riders r ON r.account_id = a.account_id AND r.is_deleted = 0
     WHERE r.account_id IS NULL
       AND a.role NOT IN ('admin','super_admin','customer')
       AND a.is_deleted = 0
-    ORDER BY a.first_name, a.last_name
+    ORDER BY a.account_first_name, a.account_last_name
 ")->fetch_all(MYSQLI_ASSOC);
 
 // ── Pagination ─────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ $search      = trim($_GET['search'] ?? '');
 $whereSearch = '';
 $searchParam = '';
 if ($search !== '') {
-    $whereSearch = "AND (a.first_name LIKE ? OR a.last_name LIKE ? OR a.email LIKE ? OR r.vehicle_plate_number LIKE ? OR r.organization LIKE ?)";
+    $whereSearch = "AND (a.account_first_name LIKE ? OR a.account_last_name LIKE ? OR a.account_email LIKE ? OR r.vehicle_plate_number LIKE ? OR r.organization LIKE ?)";
     $s = '%' . $search . '%';
 }
 
@@ -49,11 +49,11 @@ if ($search !== '') {
 }
 $totalPages = max(1, (int)ceil($totalItems / $perPage));
 
-$mainSQL = "SELECT r.rider_id, r.image, r.full_name, r.vehicle_type, r.vehicle_plate_number,
-               r.variant_color, r.organization, r.contact_number, r.is_available,
+$mainSQL = "SELECT r.rider_id, r.image, r.rider_name, r.vehicle_type, r.vehicle_plate_number,
+               r.variant_color, r.organization, r.rider_phone, r.is_available,
                r.current_lat, r.current_lng, r.created_at,
-               a.account_id, a.first_name, a.last_name, a.email, a.phone_number,
-               COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS display_name,
+               a.account_id, a.account_first_name, a.account_last_name, a.account_email, a.account_phone,
+               COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS display_name,
                (SELECT COUNT(*) FROM orders o WHERE o.assigned_rider_id=r.rider_id AND o.order_status='OutForDelivery') AS active_deliveries,
                (SELECT COUNT(*) FROM orders o WHERE o.assigned_rider_id=r.rider_id AND o.order_status='Delivered') AS total_delivered
             FROM riders r
@@ -389,12 +389,12 @@ $vehicleTypes = [
                   <img src="../<?= htmlspecialchars($rider['image']) ?>" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm">
                   <?php else: ?>
                   <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-600">
-                    <?= strtoupper(substr($rider['first_name'],0,1).substr($rider['last_name'],0,1)) ?>
+                    <?= strtoupper(substr($rider['account_first_name'],0,1).substr($rider['account_last_name'],0,1)) ?>
                   </div>
                   <?php endif; ?>
                   <div>
                     <p class="text-sm font-semibold text-gray-900"><?= htmlspecialchars($rider['display_name']) ?></p>
-                    <p class="text-xs text-gray-400"><?= htmlspecialchars($rider['email']) ?></p>
+                    <p class="text-xs text-gray-400"><?= htmlspecialchars($rider['account_email']) ?></p>
                   </div>
                 </div>
               </td>
@@ -410,7 +410,7 @@ $vehicleTypes = [
               
               <!-- Contact -->
               <td class="px-4 py-4">
-                <p class="text-xs text-gray-700"><?= htmlspecialchars($rider['contact_number'] ?: ($rider['phone_number'] ?? '—')) ?></p>
+                <p class="text-xs text-gray-700"><?= htmlspecialchars($rider['rider_phone'] ?: ($rider['phone_number'] ?? '—')) ?></p>
               </td>
               
               <!-- Organization -->
@@ -577,7 +577,7 @@ $vehicleTypes = [
             <option value="">— Select account —</option>
             <?php foreach ($availableAccounts as $acc): ?>
             <option value="<?= $acc['account_id'] ?>">
-              <?= htmlspecialchars($acc['first_name'].' '.$acc['last_name'].' ('.$acc['email'].')') ?>
+              <?= htmlspecialchars($acc['account_first_name'].' '.$acc['account_last_name'].' ('.$acc['account_email'].')') ?>
             </option>
             <?php endforeach; ?>
           </select>
@@ -613,8 +613,8 @@ $vehicleTypes = [
           </div>
           
           <div>
-            <label class="form-label">Contact Number <span class="text-red-500">*</span></label>
-            <input type="text" name="contact_number" placeholder="09XXXXXXXXX" required class="form-input">
+            <label class="form-label">Rider Contact Number <span class="text-red-500">*</span></label>
+            <input type="text" name="rider_phone" placeholder="09XXXXXXXXX" required class="form-input">
           </div>
         </div>
         

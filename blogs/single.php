@@ -108,7 +108,6 @@ if (mysqli_num_rows($result) == 0) {
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
 
   <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
 
   <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
   

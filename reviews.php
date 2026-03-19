@@ -32,7 +32,7 @@ $total_pages = ceil($total_reviews / $limit);
 // Get reviews with pagination
 $sql = "SELECT 
             r.review_id,
-            r.full_name,
+            r.reviewer_name,
             r.position,
             r.company,
             r.rating,
@@ -43,8 +43,8 @@ $sql = "SELECT
             p.product_id,
             GROUP_CONCAT(DISTINCT ra.file_path ORDER BY ra.upload_order SEPARATOR '|') as attachment_paths,
             COUNT(DISTINCT ra.attachment_id) as attachment_count,
-            LEFT(r.full_name, 1) as first_initial,
-            SUBSTRING_INDEX(r.full_name, ' ', -1) as last_name,
+            LEFT(r.reviewer_name, 1) as first_initial,
+            SUBSTRING_INDEX(r.reviewer_name, ' ', -1) as last_name,
             (SELECT COUNT(*) FROM reviews rh WHERE rh.review_id = r.review_id) as helpful_count
         FROM reviews r
         LEFT JOIN products p ON r.product_id = p.product_id
@@ -326,9 +326,9 @@ if (empty($stats)) {
                                     echo htmlspecialchars($initials); 
                                     ?>
                                 </div>
-                                <div class="ml-3">
+                                <div class="ms-3">
                                     <p class="text-sm font-semibold text-gray-900">
-                                        <?php echo htmlspecialchars($review['full_name']); ?>
+                                        <?php echo htmlspecialchars($review['reviewer_name']); ?>
                                     </p>
                                     <p class="text-xs text-gray-500">
                                         <?php 

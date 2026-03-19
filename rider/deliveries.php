@@ -1,10 +1,11 @@
 <?php
 /**
  * rider/deliveries.php
- *
- * Shows ALL deliveries ever assigned to this rider — including active ones.
- * Rider can ONLY see deliveries where deliveries.rider_id = their own rider_id.
- * Includes: order info, delivery status, timestamps, proof thumbnails, earnings.
+ * Column renames applied:
+ *   riders:     rider_name (was full_name)
+ *   accounts:   account_first_name/last_name
+ *   orders:     recipient_first_name/last_name/address (was first_name/last_name/address)
+ *   deliveries: delivery_status (was status)
  */
 session_start();
 require_once '../conn.php';
@@ -18,10 +19,12 @@ if ($_SESSION['role'] !== 'rider') { header('Location: ../index.php'); exit; }
 $rider_account_id = (int)$_SESSION['account_id'];
 
 // ── Rider profile ──────────────────────────────────────────────────────────
+// Uses renamed columns: rider_name, account_first_name/last_name
 $rq = $conn->prepare("
     SELECT r.rider_id, r.image, r.is_available,
-           COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS display_name,
-           a.first_name, a.last_name
+           COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS display_name,
+           a.account_first_name AS first_name,
+           a.account_last_name  AS last_name
     FROM riders r
     JOIN accounts a ON a.account_id = r.account_id
     WHERE r.account_id = ? AND r.is_deleted = 0
@@ -34,13 +37,14 @@ if (!$rider) { header('Location: ../index.php'); exit; }
 $rider_id = (int)$rider['rider_id'];
 
 // ── Stats summary ──────────────────────────────────────────────────────────
+// Uses renamed column: delivery_status (was status)
 $statsStmt = $conn->prepare("
     SELECT
-        COUNT(*)                                            AS total,
-        SUM(d.status = 'delivered')                        AS completed,
-        SUM(d.status IN ('pending_acceptance','accepted','picked_up','in_transit')) AS active,
-        SUM(d.status IN ('reassigned','cancelled'))        AS cancelled,
-        SUM(CASE WHEN d.status='delivered' THEN o.total_price ELSE 0 END) AS total_earnings
+        COUNT(*)                                                              AS total,
+        SUM(d.delivery_status = 'delivered')                                 AS completed,
+        SUM(d.delivery_status IN ('pending_acceptance','accepted','picked_up','in_transit')) AS active,
+        SUM(d.delivery_status IN ('reassigned','cancelled'))                 AS cancelled,
+        SUM(CASE WHEN d.delivery_status='delivered' THEN o.total_price ELSE 0 END) AS total_earnings
     FROM deliveries d
     JOIN orders o ON o.order_id = d.order_id
     WHERE d.rider_id = ?
@@ -50,29 +54,23 @@ $statsStmt->execute();
 $stats = $statsStmt->get_result()->fetch_assoc();
 
 // ── Pagination ─────────────────────────────────────────────────────────────
-$perPage  = 20;
-$page     = max(1, (int)($_GET['page'] ?? 1));
-$offset   = ($page - 1) * $perPage;
-
-$countStmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM deliveries WHERE rider_id = ?");
-$countStmt->bind_param('i', $rider_id);
-$countStmt->execute();
-$totalRows  = (int)$countStmt->get_result()->fetch_assoc()['cnt'];
-$totalPages = (int)ceil($totalRows / $perPage);
+$perPage = 20;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$offset  = ($page - 1) * $perPage;
 
 // ── Filter ─────────────────────────────────────────────────────────────────
-$filterStatus = $_GET['status'] ?? 'all';
+$filterStatus   = $_GET['status'] ?? 'all';
 $allowedFilters = ['all','delivered','active','cancelled'];
 if (!in_array($filterStatus, $allowedFilters)) $filterStatus = 'all';
 
+// Uses renamed column: delivery_status (was status)
 $whereExtra = match($filterStatus) {
-    'delivered' => "AND d.status = 'delivered'",
-    'active'    => "AND d.status IN ('pending_acceptance','accepted','picked_up','in_transit')",
-    'cancelled' => "AND d.status IN ('reassigned','cancelled')",
+    'delivered' => "AND d.delivery_status = 'delivered'",
+    'active'    => "AND d.delivery_status IN ('pending_acceptance','accepted','picked_up','in_transit')",
+    'cancelled' => "AND d.delivery_status IN ('reassigned','cancelled')",
     default     => '',
 };
 
-// Recount for filtered pagination
 $fcStmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM deliveries d WHERE d.rider_id = ? $whereExtra");
 $fcStmt->bind_param('i', $rider_id);
 $fcStmt->execute();
@@ -80,10 +78,13 @@ $filteredTotal = (int)$fcStmt->get_result()->fetch_assoc()['cnt'];
 $totalPages    = (int)ceil($filteredTotal / $perPage);
 
 // ── Deliveries list ────────────────────────────────────────────────────────
+// Uses renamed columns:
+//   delivery_status (was status),
+//   recipient_first_name/last_name/address (was first_name/last_name/address)
 $dStmt = $conn->prepare("
     SELECT d.delivery_id,
            d.order_id,
-           d.status        AS delivery_status,
+           d.delivery_status,
            d.is_third_party,
            d.third_party_name,
            d.assigned_at,
@@ -94,11 +95,11 @@ $dStmt = $conn->prepare("
            d.estimated_distance,
            o.order_code,
            o.order_status,
-           o.first_name,
-           o.last_name,
+           o.recipient_first_name AS first_name,
+           o.recipient_last_name  AS last_name,
            o.total_price,
            o.delivery_address,
-           o.address,
+           o.recipient_address    AS address,
            o.city,
            o.delivery_latitude,
            o.delivery_longitude
@@ -112,11 +113,11 @@ $dStmt->bind_param('iii', $rider_id, $perPage, $offset);
 $dStmt->execute();
 $deliveries = $dStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ── Proof photos per delivery (batch) ─────────────────────────────────────
+// ── Proof photos (batch) ───────────────────────────────────────────────────
 $proofsByDelivery = [];
 if (!empty($deliveries)) {
-    $dids    = implode(',', array_map(fn($d) => (int)$d['delivery_id'], $deliveries));
-    $pRes    = $conn->query("
+    $dids = implode(',', array_map(fn($d) => (int)$d['delivery_id'], $deliveries));
+    $pRes = $conn->query("
         SELECT delivery_id, proof_id, file_path, caption, uploaded_at
         FROM delivery_proofs
         WHERE delivery_id IN ($dids)
@@ -169,11 +170,9 @@ function fmtShort(?string $ts): string {
     .proof-thumb:hover { transform: scale(1.05); }
     .timeline-dot { width: 10px; height: 10px; border-radius: 9999px; border: 2px solid; flex-shrink: 0; margin-top: 3px; }
     .timeline-line { width: 2px; flex: 1; min-height: 16px; margin-left: 4px; }
-    /* Lightbox */
     #lightbox { display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;padding:1rem; }
     #lightbox.open { display:flex; }
     #lightbox img { max-width:100%;max-height:90vh;border-radius:.75rem;object-fit:contain; }
-    /* Filter pills */
     .filter-pill { padding:.35rem 1rem;border-radius:9999px;font-size:.75rem;font-weight:600;border:1.5px solid;transition:all .15s;cursor:pointer;text-decoration:none; }
     .filter-pill.active { background:#f97316;border-color:#f97316;color:#fff; }
     .filter-pill:not(.active) { background:#fff;border-color:#e5e7eb;color:#6b7280; }
@@ -182,7 +181,6 @@ function fmtShort(?string $ts): string {
 </head>
 <body class="bg-gray-50">
 
-<!-- Header -->
 <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
   <div class="flex items-center gap-3">
     <?php if (!empty($rider['image'])): ?>
@@ -200,7 +198,6 @@ function fmtShort(?string $ts): string {
   <span class="text-xs bg-gray-100 text-gray-600 font-semibold px-2.5 py-1 rounded-full"><?= $filteredTotal ?> total</span>
 </header>
 
-<!-- Lightbox (proof preview) -->
 <div id="lightbox" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="Proof photo">
 </div>
@@ -209,7 +206,7 @@ function fmtShort(?string $ts): string {
 
 <div class="max-w-2xl mx-auto px-4 py-5 space-y-4">
 
-  <!-- ── Stats cards ──────────────────────────────────────────────────────── -->
+  <!-- Stats -->
   <div class="grid grid-cols-2 gap-3">
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5">
       <div class="text-2xl font-bold text-gray-800"><?= (int)$stats['completed'] ?></div>
@@ -229,15 +226,10 @@ function fmtShort(?string $ts): string {
     </div>
   </div>
 
-  <!-- ── Filter pills ─────────────────────────────────────────────────────── -->
+  <!-- Filter pills -->
   <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
     <?php
-    $filters = [
-        'all'       => 'All',
-        'active'    => 'Active',
-        'delivered' => 'Completed',
-        'cancelled' => 'Cancelled',
-    ];
+    $filters = ['all'=>'All','active'=>'Active','delivered'=>'Completed','cancelled'=>'Cancelled'];
     foreach ($filters as $val => $label):
       $active = ($filterStatus === $val) ? 'active' : '';
     ?>
@@ -245,7 +237,7 @@ function fmtShort(?string $ts): string {
     <?php endforeach; ?>
   </div>
 
-  <!-- ── Delivery list ─────────────────────────────────────────────────────── -->
+  <!-- Delivery list -->
   <?php if (empty($deliveries)): ?>
   <div class="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
     <div class="text-5xl mb-3">📭</div>
@@ -263,7 +255,6 @@ function fmtShort(?string $ts): string {
   ?>
   <div class="delivery-card bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 
-    <!-- Card header -->
     <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-3">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
@@ -273,9 +264,7 @@ function fmtShort(?string $ts): string {
           <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 animate-pulse">● Active</span>
           <?php endif; ?>
         </div>
-        <div class="text-xs text-gray-500 mt-1">
-          <?= htmlspecialchars($d['first_name'].' '.$d['last_name']) ?>
-        </div>
+        <div class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($d['first_name'].' '.$d['last_name']) ?></div>
         <div class="text-xs text-gray-400 mt-0.5 flex items-start gap-1">
           <svg class="size-3 shrink-0 mt-0.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           <?= htmlspecialchars($addr) ?>
@@ -295,10 +284,10 @@ function fmtShort(?string $ts): string {
       <div class="bg-gray-50 rounded-xl px-3 py-3 space-y-0">
         <?php
         $timelineSteps = [
-            ['key'=>'assigned_at',  'label'=>'Assigned',   'done'=>!!$d['assigned_at'],  'ts'=>$d['assigned_at'],  'color'=>'border-orange-400 bg-orange-400'],
-            ['key'=>'accepted_at',  'label'=>'Accepted',   'done'=>!!$d['accepted_at'],  'ts'=>$d['accepted_at'],  'color'=>'border-blue-400 bg-blue-400'],
-            ['key'=>'picked_up_at', 'label'=>'Picked Up',  'done'=>!!$d['picked_up_at'], 'ts'=>$d['picked_up_at'], 'color'=>'border-indigo-400 bg-indigo-400'],
-            ['key'=>'delivered_at', 'label'=>'Delivered',  'done'=>!!$d['delivered_at'], 'ts'=>$d['delivered_at'], 'color'=>'border-green-400 bg-green-400'],
+            ['label'=>'Assigned',   'done'=>!!$d['assigned_at'],  'ts'=>$d['assigned_at'],  'color'=>'border-orange-400 bg-orange-400'],
+            ['label'=>'Accepted',   'done'=>!!$d['accepted_at'],  'ts'=>$d['accepted_at'],  'color'=>'border-blue-400 bg-blue-400'],
+            ['label'=>'Picked Up',  'done'=>!!$d['picked_up_at'], 'ts'=>$d['picked_up_at'], 'color'=>'border-indigo-400 bg-indigo-400'],
+            ['label'=>'Delivered',  'done'=>!!$d['delivered_at'], 'ts'=>$d['delivered_at'], 'color'=>'border-green-400 bg-green-400'],
         ];
         $stepCount = count($timelineSteps);
         foreach ($timelineSteps as $idx => $step):
@@ -313,9 +302,7 @@ function fmtShort(?string $ts): string {
           </div>
           <div class="pb-2.5 flex-1 min-w-0">
             <div class="flex items-baseline gap-2">
-              <span class="text-xs font-semibold <?= $step['done'] ? 'text-gray-700' : 'text-gray-400' ?>">
-                <?= $step['label'] ?>
-              </span>
+              <span class="text-xs font-semibold <?= $step['done'] ? 'text-gray-700' : 'text-gray-400' ?>"><?= $step['label'] ?></span>
               <?php if ($step['ts']): ?>
               <span class="text-[11px] text-gray-400"><?= fmtShort($step['ts']) ?></span>
               <?php else: ?>
@@ -326,7 +313,6 @@ function fmtShort(?string $ts): string {
         </div>
         <?php endforeach; ?>
 
-        <!-- ETA / distance if available -->
         <?php if ($d['estimated_time'] || $d['estimated_distance']): ?>
         <div class="mt-1 pt-2 border-t border-gray-200 flex gap-4 text-xs text-gray-500">
           <?php if ($d['estimated_time']): ?>
@@ -359,11 +345,9 @@ function fmtShort(?string $ts): string {
     </div>
     <?php endif; ?>
 
-    <!-- Go to active delivery -->
     <?php if ($isActive): ?>
     <div class="px-5 pb-4">
-      <a href="dashboard.php"
-         class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition-colors">
+      <a href="dashboard.php" class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition-colors">
         🛵 Go to Active Dashboard
       </a>
     </div>
@@ -372,19 +356,15 @@ function fmtShort(?string $ts): string {
   </div>
   <?php endforeach; endif; ?>
 
-  <!-- ── Pagination ──────────────────────────────────────────────────────── -->
+  <!-- Pagination -->
   <?php if ($totalPages > 1): ?>
   <div class="flex items-center justify-center gap-2 pt-2">
     <?php if ($page > 1): ?>
-    <a href="?status=<?= $filterStatus ?>&page=<?= $page-1 ?>"
-       class="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">← Prev</a>
+    <a href="?status=<?= $filterStatus ?>&page=<?= $page-1 ?>" class="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">← Prev</a>
     <?php endif; ?>
-
     <span class="text-xs text-gray-500 font-medium">Page <?= $page ?> of <?= $totalPages ?></span>
-
     <?php if ($page < $totalPages): ?>
-    <a href="?status=<?= $filterStatus ?>&page=<?= $page+1 ?>"
-       class="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">Next →</a>
+    <a href="?status=<?= $filterStatus ?>&page=<?= $page+1 ?>" class="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">Next →</a>
     <?php endif; ?>
   </div>
   <?php endif; ?>
@@ -398,9 +378,7 @@ function openLightbox(src) {
   document.getElementById('lightbox-img').src = src;
   document.getElementById('lightbox').classList.add('open');
 }
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 </script>
 </body>

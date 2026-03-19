@@ -1,5 +1,5 @@
-<!-- checkout.php -->
 <?php
+// checkout.php
 session_start();
 include 'conn.php';
 require_once 'functions/cleanup_orders.php';
@@ -8,59 +8,77 @@ $pageTitle = 'Checkout';
 
 // Handle cancelled payment return
 if (isset($_GET['cancel']) && $_GET['cancel'] == 1) {
-    // DO NOT unset pending_checkout - we want to keep the form data!
-    // Only clear the temporary references
     unset($_SESSION['temp_checkout_ref']);
     unset($_SESSION['paymongo_session_id']);
-    
-    // Show a message
     $cancelMessage = "Payment was cancelled. You can try again with a different payment method.";
 }
 
 // Handle payment errors
 if (isset($_GET['error'])) {
     $errorMessages = [
-        'invalid_session' => 'Invalid payment session. Please try again.',
-        'no_data' => 'Checkout data not found. Please try again.',
+        'invalid_session'           => 'Invalid payment session. Please try again.',
+        'no_data'                   => 'Checkout data not found. Please try again.',
         'payment_verification_failed' => 'Payment verification failed. Please try again.',
-        'order_creation_failed' => 'Payment successful but order creation failed. Please contact support.',
-        'payment_failed' => 'Payment failed. Please try again.'
+        'order_creation_failed'     => 'Payment successful but order creation failed. Please contact support.',
+        'payment_failed'            => 'Payment failed. Please try again.',
     ];
-    
-    $errorCode = $_GET['error'];
+    $errorCode    = $_GET['error'];
     $errorMessage = $errorMessages[$errorCode] ?? 'An error occurred. Please try again.';
 }
 
 // Check if there's pending checkout data (user came back after cancellation)
-if (isset($_SESSION['pending_checkout']) && !empty($_SESSION['pending_checkout'])) {
-    // Auto-fill the form with their previous data
+$savedData = [];
+if (!empty($_SESSION['pending_checkout'])) {
     $savedData = $_SESSION['pending_checkout'];
 }
 
-// Run cleanup for abandoned checkouts (but don't delete if it's recent)
 cleanupAbandonedCheckouts();
 
-// Pre-fill form if user is logged in
+if (isset($_SESSION['pending_checkout']['city'])) {
+    $_SESSION['last_checkout_city'] = $_SESSION['pending_checkout']['city'];
+}
+
+// ── Pre-fill from logged-in account (uses renamed columns) ─────────────────
 $userDetails = [];
 if (isset($_SESSION['account_id'])) {
     $uid  = $_SESSION['account_id'];
-    $stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, address, city, postal_code FROM accounts WHERE account_id = ?");
+    $stmt = $conn->prepare("
+        SELECT account_first_name, account_last_name, account_email,
+               account_phone, account_address, city, postal_code
+        FROM accounts WHERE account_id = ?
+    ");
     $stmt->bind_param("i", $uid);
     $stmt->execute();
-    $userDetails = $stmt->get_result()->fetch_assoc() ?? [];
+    $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
+
+    if ($row) {
+        // Normalise to short keys that getFormValue() expects
+        $userDetails = [
+            'first_name'   => $row['account_first_name'] ?? '',
+            'last_name'    => $row['account_last_name']  ?? '',
+            'email'        => $row['account_email']      ?? '',
+            'phone_number' => $row['account_phone']      ?? '',
+            'address'      => $row['account_address']    ?? '',
+            'city'         => $row['city']               ?? '',
+            'postal_code'  => $row['postal_code']        ?? '',
+        ];
+    }
 }
 
-// If we have saved data from a cancelled payment, use that to OVERRIDE user details
-if (isset($savedData) && !empty($savedData)) {
+// ── If we have saved data from a cancelled payment, use it to OVERRIDE ──────
+// pending_checkout uses the short keys saved by add.php
+if (!empty($savedData)) {
     $userDetails = [
-        'first_name' => $savedData['first_name'] ?? $userDetails['first_name'] ?? '',
-        'last_name' => $savedData['last_name'] ?? $userDetails['last_name'] ?? '',
-        'email' => $savedData['email'] ?? $userDetails['email'] ?? '',
-        'phone_number' => $savedData['phone_number'] ?? $userDetails['phone_number'] ?? '',
-        'address' => $savedData['address'] ?? $userDetails['address'] ?? '',
-        'city' => $savedData['city'] ?? $userDetails['city'] ?? '',
-        'postal_code' => $savedData['postal_code'] ?? $userDetails['postal_code'] ?? ''
+        'first_name'    => $savedData['first_name']    ?? $userDetails['first_name']    ?? '',
+        'last_name'     => $savedData['last_name']     ?? $userDetails['last_name']     ?? '',
+        'email'         => $savedData['email']         ?? $userDetails['email']         ?? '',
+        'phone_number'  => $savedData['phone_number']  ?? $userDetails['phone_number']  ?? '',
+        'address'       => $savedData['address']       ?? $userDetails['address']       ?? '',
+        'city'          => $savedData['city']          ?? $userDetails['city']          ?? '',
+        'postal_code'   => $savedData['postal_code']   ?? $userDetails['postal_code']   ?? '',
+        'delivery_notes'=> $savedData['delivery_notes'] ?? '',
+        'payment_method'=> $savedData['payment_method'] ?? '',
     ];
 }
 ?>
@@ -70,8 +88,6 @@ if (isset($savedData) && !empty($savedData)) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout | St. Joseph Fish Brokerage Inc.</title>
-
-  <!-- !! IMPORTANT: cart_core.js uses this to build fetch URLs !! -->
   <meta name="base-url" content="/sjfbi-js">
 
   <meta property="og:type"        content="website">
@@ -85,37 +101,35 @@ if (isset($savedData) && !empty($savedData)) {
   <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
   <meta name="twitter:image"       content="https://fishbrokers.net/assets/icons/logo.svg">
 
-  <link rel="shortcut icon"            href="./assets/icons/logo.ico">
-  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="shortcut icon"             href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon"  href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="apple-touch-icon"         href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon"          href="./assets/icons/logo.svg">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <!-- CSS Files -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
   <!--
-    cart_process.js — single source of truth for all cart JS.
-    Must load BEFORE any component that renders cart items.
+    IMPORTANT: cart_process.js must load BEFORE any component that renders cart items.
+    It defines window.updateDeliveryFee which to_checkout.php checks via typeof.
   -->
+  <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
 
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
   </noscript>
-
   <style>
     body { font-family: 'Lexend', sans-serif; }
   </style>
 </head>
-
 <body class="bg-gray-50">
 
 <?php include('./components/preloaders.php'); ?>
@@ -131,7 +145,6 @@ if (isset($savedData) && !empty($savedData)) {
         : 'bg-red-50 border-red-300 text-red-800';
   unset($_SESSION['success'], $_SESSION['error']);
 ?>
-
 <div class="mx-auto max-w-6xl px-4 pt-4">
   <div class="flex items-center gap-3 <?= $cls ?> border rounded-xl px-4 py-3 text-sm font-medium">
     <?php if ($type === 'success'): ?>
@@ -144,31 +157,25 @@ if (isset($savedData) && !empty($savedData)) {
 </div>
 <?php endif; ?>
 
-<!-- Cancellation message -->
 <?php if (isset($cancelMessage)): ?>
 <div class="mx-auto max-w-6xl px-4 pt-4">
   <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm font-medium text-amber-800">
-    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
-    </svg>
+    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
     <?= htmlspecialchars($cancelMessage) ?>
   </div>
 </div>
 <?php endif; ?>
 
-<!-- Error message -->
 <?php if (isset($errorMessage)): ?>
 <div class="mx-auto max-w-6xl px-4 pt-4">
   <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium text-red-800">
-    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
+    <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <?= htmlspecialchars($errorMessage) ?>
   </div>
 </div>
 <?php endif; ?>
 
-<!-- Page header with step indicator -->
+<!-- Page header -->
 <div class="bg-white border-b border-gray-100 py-6 px-4">
   <div class="max-w-6xl mx-auto flex items-center justify-between">
     <div>
@@ -191,12 +198,11 @@ if (isset($savedData) && !empty($savedData)) {
   </div>
 </div>
 
-<!-- Main checkout body -->
 <section class="py-8 px-4">
   <?php include('./components/to_checkout.php'); ?>
 </section>
 
-<?php $conn->close(); // Close connection after to_checkout.php has finished with it ?>
+<?php $conn->close(); ?>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
 <script>AOS.init();</script>

@@ -39,7 +39,7 @@ while ($product = $products_result->fetch_assoc()) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Markets Management | St. Joseph Fish Brokerage Inc.</title>
+  <title>Markets | St. Joseph Fish Brokerage Inc.</title>
 
   <!-- Favicons -->
   <link rel="icon" href="../assets/icons/logo.ico" sizes="16x16 32x32" type="image/x-icon">

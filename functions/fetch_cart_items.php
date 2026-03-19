@@ -14,11 +14,14 @@ function _fci_formatUnit(string $u): string {
         'piece'    => 'pcs',
         'kilogram' => 'kg',
         'gram'     => 'g',
-        'liter'    => 'L',
+        'pack'     => 'pk',
+        'banyera'     => 'bny',
+        'box'     => 'bx',
+        'sack'     => 'sck',
+        'tray'    => 'tray',
         default    => $u ?: 'pcs',
     };
 }
-
 $html = '';
 $total = 0;
 

@@ -1,9 +1,10 @@
 <?php
 /**
- * track.php  (lives alongside index.php at sjfbi-js root)
- *
+ * track.php
  * Customer-facing order tracking page.
- * Shows: order status, items, delivery/rider info, delivery timeline.
+ * Stepper differs by payment method:
+ *   COD:    Pending → Processing → Out for Delivery → Delivered
+ *   Online: Paid    → Processing → Out for Delivery → Delivered
  */
 session_start();
 include 'conn.php';
@@ -14,13 +15,7 @@ date_default_timezone_set('Asia/Manila');
 // ── Fetch order on GET ─────────────────────────────────────────────────────
 if (isset($_GET['order_code']) && !empty($_GET['order_code'])) {
     $orderCode = trim($_GET['order_code']);
-    $stmt = $conn->prepare("
-        SELECT o.order_id, o.order_code, o.order_date, o.total_price, o.order_status,
-               o.payment_method, o.first_name, o.last_name, o.email,
-               o.phone_number, o.address, o.postal_code, o.city,
-               o.delivery_address, o.delivery_notes, o.assigned_rider_id
-        FROM orders o WHERE o.order_code = ?
-    ");
+    $stmt = $conn->prepare("SELECT * FROM orders WHERE order_code = ?");
     $stmt->bind_param('s', $orderCode);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -42,17 +37,17 @@ if (isset($_GET['order_code']) && !empty($_GET['order_code'])) {
 
         // Delivery + rider info
         $dlStmt = $conn->prepare("
-            SELECT d.delivery_id, d.status AS delivery_status,
+            SELECT d.delivery_id, d.delivery_status,
                    d.is_third_party, d.third_party_name, d.delivery_link,
                    d.assigned_at, d.accepted_at, d.picked_up_at, d.delivered_at,
                    d.estimated_time, d.estimated_distance,
-                   COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS rider_name,
+                   COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS rider_name,
                    r.image AS rider_image, r.vehicle_type, r.vehicle_plate_number,
-                   r.variant_color, r.organization, r.contact_number AS rider_phone
+                   r.variant_color, r.organization, r.rider_phone
             FROM deliveries d
             LEFT JOIN riders r   ON r.rider_id = d.rider_id
             LEFT JOIN accounts a ON a.account_id = r.account_id
-            WHERE d.order_id = ? AND d.status NOT IN ('reassigned','cancelled')
+            WHERE d.order_id = ? AND d.delivery_status NOT IN ('reassigned','cancelled')
             ORDER BY d.assigned_at DESC LIMIT 1
         ");
         $dlStmt->bind_param('i', $orderId);
@@ -84,27 +79,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['track_order'])) {
     header('Location: track.php?order_code=' . urlencode($orderCode));
     exit;
 }
+
 // ── Display config ─────────────────────────────────────────────────────────
-$statusFlow    = ['Paid','Processing','OutForDelivery','Delivered'];
-$statusDisplay = [
-    'Paid' => 'Paid - Awaiting Approval',
-    'Pending' => 'Pending Payment',
-    'Processing' => 'Processing',
-    'OutForDelivery' => 'Out for Delivery',
-    'Delivered' => 'Delivered',
-    'Cancelled' => 'Cancelled'
+$methodLabels = [
+    'gcash'    => 'GCash',
+    'paymaya'  => 'PayMaya',
+    'grab_pay' => 'GrabPay',
+    'qrph'     => 'QR Ph',
+    'cod'      => 'Cash on Delivery',
+    'card'     => 'Visa/Mastercard',
 ];
-$methodLabels  = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qrph'=>'QR Ph','cod'=>'Cash on Delivery','card'=>'Visa/Mastercard'];
 
-$hasOrder   = isset($_SESSION['tracked_order']);
-$orderData  = $_SESSION['tracked_order']       ?? [];
-$orderItems = $_SESSION['tracked_order_items'] ?? [];
-$delivery   = $_SESSION['tracked_delivery']    ?? null;
-
-$isCancelled = ($orderData['order_status'] ?? '') === 'Cancelled';
-$currentStep = array_search($orderData['order_status'] ?? 'Pending', $statusFlow);
-if ($currentStep === false) $currentStep = 0;
-$progressPct = $isCancelled ? 0 : round(($currentStep + 1) / count($statusFlow) * 100);
+$statusDisplay = [
+    'Paid'           => 'Payment Received',
+    'Pending'        => 'Order Placed',
+    'Processing'     => 'In Process',
+    'OutForDelivery' => 'Out for Delivery',
+    'Delivered'      => 'Delivered',
+    'Cancelled'      => 'Cancelled',
+];
 
 $dlStatusLabels = [
     'pending_acceptance' => 'Awaiting Rider Acceptance',
@@ -113,6 +106,48 @@ $dlStatusLabels = [
     'in_transit'         => 'In Transit',
     'delivered'          => 'Delivered',
 ];
+
+$hasOrder   = isset($_SESSION['tracked_order']);
+$orderData  = $_SESSION['tracked_order']       ?? [];
+$orderItems = $_SESSION['tracked_order_items'] ?? [];
+$delivery   = $_SESSION['tracked_delivery']    ?? null;
+
+// ── Build stepper based on payment method ─────────────────────────────────
+// Must be safe to run even when no order is loaded yet
+$isCOD = ($orderData['payment_method'] ?? '') === 'cod';
+
+if ($isCOD) {
+    $steps = [
+        ['key' => 'Pending',        'label' => 'Order Placed',     'icon' => '🧾'],
+        ['key' => 'Processing',     'label' => 'In Process',       'icon' => '⚙️'],
+        ['key' => 'OutForDelivery', 'label' => 'Out for Delivery', 'icon' => '🛵'],
+        ['key' => 'Delivered',      'label' => 'Delivered',        'icon' => '✅'],
+    ];
+    $stepIndex = [
+        'Pending'        => 0,
+        'Processing'     => 1,
+        'OutForDelivery' => 2,
+        'Delivered'      => 3,
+    ];
+} else {
+    $steps = [
+        ['key' => 'Paid',           'label' => 'Payment Received', 'icon' => '💰'],
+        ['key' => 'Processing',     'label' => 'In Process',       'icon' => '⚙️'],
+        ['key' => 'OutForDelivery', 'label' => 'Out for Delivery', 'icon' => '🛵'],
+        ['key' => 'Delivered',      'label' => 'Delivered',        'icon' => '✅'],
+    ];
+    $stepIndex = [
+        'Paid'           => 0,
+        'Processing'     => 1,
+        'OutForDelivery' => 2,
+        'Delivered'      => 3,
+    ];
+}
+
+$isCancelled = ($orderData['order_status'] ?? '') === 'Cancelled';
+$currentStep = $stepIndex[$orderData['order_status'] ?? ''] ?? 0;
+$totalSteps  = count($steps) - 1; // 3
+$fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $totalSteps) * 100) : 0);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -152,13 +187,11 @@ $dlStatusLabels = [
     .step-bubble.done   { background:#f97316;box-shadow:0 4px 14px rgba(249,115,22,.35); }
     .step-bubble.active { background:#fff;border:2px solid #f97316; }
     .step-bubble.idle   { background:#f3f4f6;border:2px solid #e5e7eb; }
-    /* Delivery timeline */
     .dl-step { display:flex;align-items:flex-start;gap:.75rem;position:relative; }
     .dl-step:not(:last-child)::after { content:'';position:absolute;left:11px;top:24px;bottom:-12px;width:2px;background:#e5e7eb;z-index:0; }
     .dl-dot { width:24px;height:24px;border-radius:9999px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;z-index:1;position:relative; }
-    .dl-dot.done   { background:#f97316;color:#fff; }
-    .dl-dot.active { background:#fff;border:2px solid #f97316;color:#f97316; }
-    .dl-dot.idle   { background:#f3f4f6;border:2px solid #e5e7eb;color:#9ca3af; }
+    .dl-dot.done { background:#f97316;color:#fff; }
+    .dl-dot.idle { background:#f3f4f6;border:2px solid #e5e7eb;color:#9ca3af; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
     .anim-1 { animation:fadeUp .5s ease both; }
     .anim-2 { animation:fadeUp .5s .1s ease both; }
@@ -169,7 +202,6 @@ $dlStatusLabels = [
   </style>
 </head>
 
-<!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
 
 <body class="bg-gray-50">
@@ -200,7 +232,7 @@ $dlStatusLabels = [
       <div class="flex-1">
         <input type="text" name="order_code" required
                value="<?= isset($_GET['order_code']) ? htmlspecialchars($_GET['order_code']) : '' ?>"
-               placeholder="e.g. ORD-XXXX-XXXX-XXXX"
+               placeholder="e.g. ORD260318VLIBKU"
                class="py-3 px-4 block border track-input w-full rounded-xl text-sm focus:outline-none transition-all">
       </div>
       <button type="submit" name="track_order"
@@ -215,39 +247,45 @@ $dlStatusLabels = [
 <?php if ($hasOrder):
   $orderStatus   = $orderData['order_status'];
   $methodDisplay = $methodLabels[strtolower($orderData['payment_method'] ?? '')] ?? ucfirst($orderData['payment_method'] ?? '—');
+
   $statusBadgeConf = [
-    'Paid'          =>'bg-green-100 text-green-800',
-    'Pending'       =>'bg-yellow-100 text-yellow-800',
-    'Processing'    =>'bg-blue-100 text-blue-800',
-    'OutForDelivery'=>'bg-purple-100 text-purple-800',
-    'Delivered'     =>'bg-green-100 text-green-800',
-    'Cancelled'     =>'bg-red-100 text-red-800',
+    'Paid'           => 'bg-green-100 text-green-800',
+    'Pending'        => 'bg-yellow-100 text-yellow-800',
+    'Processing'     => 'bg-blue-100 text-blue-800',
+    'OutForDelivery' => 'bg-purple-100 text-purple-800',
+    'Delivered'      => 'bg-green-100 text-green-800',
+    'Cancelled'      => 'bg-red-100 text-red-800',
   ];
   $osBadge = $statusBadgeConf[$orderStatus] ?? 'bg-gray-100 text-gray-700';
-  $stepIcons = ['🛒','⚙️','🛵','✅'];
+
   $statusMessages = [
-    'Paid'          =>'Payment received! Your order is waiting for approval.',
-    'Pending'       =>"Your order is pending confirmation. We'll start processing it shortly.",
-    'Processing'    =>'Great news! Your order is being prepared and packed.',
-    'OutForDelivery'=>'Your order is on the way — our rider is heading to you!',
-    'Delivered'     =>'Order delivered! Thank you for choosing St. Joseph Fish Brokerage.',
-    'Cancelled'     =>'This order has been cancelled. Contact us if you need help.',
+    'Paid'           => 'Payment received! Your order is waiting for admin approval.',
+    'Pending'        => "Order placed! We'll confirm and start processing it shortly.",
+    'Processing'     => 'Your order is being prepared and packed.',
+    'OutForDelivery' => 'Your order is on the way — our rider is heading to you!',
+    'Delivered'      => 'Order delivered! Thank you for choosing St. Joseph Fish Brokerage.',
+    'Cancelled'      => 'This order has been cancelled. Contact us if you need help.',
   ];
+
   $isOutForDelivery = $orderStatus === 'OutForDelivery';
   $isDelivered      = $orderStatus === 'Delivered';
   $showDelivery     = $delivery && ($isOutForDelivery || $isDelivered);
+
+  // Payment status from orders table (fallback) — we fetch from payments if needed
+  // For display we just show the payment_method context
+  $paymentStatusDisplay = $orderData['payment_status'] ?? 'Pending';
 ?>
 
 <section class="py-10 px-4">
 <div class="max-w-3xl mx-auto space-y-5">
 
-  <!-- Order header banner -->
+  <!-- ── Order header banner ──────────────────────────────────────────────── -->
   <div class="anim-2 relative overflow-hidden bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-6 text-white shadow-sm">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
       <div>
         <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Order Reference</p>
         <div class="flex items-center gap-3 flex-wrap">
-          <h2 class="text-2xl font-bold text-orange-600"><?= htmlspecialchars($orderData['order_code']) ?></h2>
+          <h2 class="text-2xl font-bold text-orange-500"><?= htmlspecialchars($orderData['order_code']) ?></h2>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $osBadge ?>">
             <?= $statusDisplay[$orderStatus] ?? $orderStatus ?>
           </span>
@@ -258,14 +296,14 @@ $dlStatusLabels = [
           <?php endif; ?>
         </div>
         <p class="text-gray-400 text-sm mt-1">
-          <?= htmlspecialchars($orderData['first_name'].' '.$orderData['last_name']) ?>
+          <?= htmlspecialchars($orderData['recipient_first_name'].' '.$orderData['recipient_last_name']) ?>
           &nbsp;·&nbsp;
           <?= date('M j, Y · g:i A', strtotime($orderData['order_date'])) ?>
         </p>
       </div>
       <div class="text-left sm:text-right shrink-0">
         <p class="text-xs text-gray-400 mb-0.5">Order Total</p>
-        <p class="text-3xl font-bold text-orange-600">₱<?= number_format($orderData['total_price'], 2) ?></p>
+        <p class="text-3xl font-bold text-orange-500">₱<?= number_format($orderData['total_price'], 2) ?></p>
         <p class="text-xs text-gray-400 mt-0.5"><?= $methodDisplay ?></p>
       </div>
     </div>
@@ -274,58 +312,73 @@ $dlStatusLabels = [
   </div>
 
   <?php if ($isCancelled): ?>
-  <!-- Cancelled -->
+  <!-- ── Cancelled ────────────────────────────────────────────────────────── -->
   <div class="anim-3 bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
     <div class="size-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
       <svg class="size-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
     </div>
     <p class="text-lg font-bold text-red-700 mb-1">Order Cancelled</p>
     <p class="text-sm text-red-500"><?= $statusMessages['Cancelled'] ?></p>
+    <?php if (!empty($orderData['cancel_reason'])): ?>
+    <p class="text-xs text-red-400 mt-2 italic">"<?= htmlspecialchars($orderData['cancel_reason']) ?>"</p>
+    <?php endif; ?>
   </div>
 
   <?php else: ?>
-  <!-- Progress timeline -->
+  <!-- ── Progress stepper ─────────────────────────────────────────────────── -->
   <div class="anim-3 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
     <div class="flex items-center justify-between mb-1">
       <h3 class="text-sm font-semibold text-gray-700">Delivery Progress</h3>
-      <span class="text-xs font-bold text-orange-500"><?= $progressPct ?>% complete</span>
+      <span class="text-xs font-bold text-orange-500"><?= $fillPct ?>% complete</span>
     </div>
+
+    <!-- Progress bar -->
     <div class="w-full h-1.5 bg-gray-100 rounded-full mb-6 overflow-hidden">
-      <div class="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style="width:<?= $progressPct ?>%"></div>
+      <div class="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700"
+           style="width:<?= $fillPct ?>%"></div>
     </div>
+
+    <!-- Step bubbles -->
     <div class="relative flex items-start justify-between">
+      <!-- Gray baseline connector -->
       <div class="step-connector bg-gray-200" style="left:20px;right:20px;"></div>
+      <!-- Orange fill connector — uses $currentStep / $totalSteps -->
       <div class="step-connector" style="left:20px;right:20px;">
-        <div class="step-connector-fill" style="width:<?= $currentStep > 0 ? min(100,($currentStep/(count($statusFlow)-1))*100) : 0 ?>%"></div>
+        <div class="step-connector-fill"
+             style="width:<?= $totalSteps > 0 ? min(100, round(($currentStep / $totalSteps) * 100)) : 0 ?>%"></div>
       </div>
-      <?php foreach ($statusFlow as $i => $status):
-        $done   = $i <= $currentStep;
-        $active = $i === $currentStep;
+
+      <?php foreach ($steps as $i => $step):
+        $done        = $i <= $currentStep;
+        $active      = $i === $currentStep;
         $bubbleClass = $done ? 'done' : ($active ? 'active' : 'idle');
       ?>
-      <div class="flex flex-col items-center gap-2 relative z-10" style="width:<?= 100/count($statusFlow) ?>%">
+      <div class="flex flex-col items-center gap-2 relative z-10" style="width:<?= 100 / count($steps) ?>%">
         <div class="step-bubble <?= $bubbleClass ?>">
-          <?php if ($done): echo $stepIcons[$i];
+          <?php if ($done): echo $step['icon'];
           else: ?><span class="size-3 rounded-full <?= $active ? 'bg-orange-300' : 'bg-gray-300' ?> inline-block"></span><?php endif; ?>
         </div>
-        <span class="text-xs text-center leading-tight max-w-16 <?= $done ? 'text-orange-600 font-semibold' : 'text-gray-400' ?>">
-          <?= $statusDisplay[$status] ?>
+        <span class="text-xs text-center leading-tight max-w-[70px] <?= $done ? 'text-orange-600 font-semibold' : 'text-gray-400' ?>">
+          <?= htmlspecialchars($step['label']) ?>
         </span>
       </div>
       <?php endforeach; ?>
     </div>
+
+    <!-- Current status message -->
     <div class="mt-5 pt-4 border-t border-gray-100 flex items-start gap-3">
-      <div class="size-8 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 text-base"><?= $stepIcons[$currentStep] ?></div>
+      <div class="size-8 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 text-base">
+        <?= $steps[$currentStep]['icon'] ?>
+      </div>
       <div>
-        <p class="text-sm font-semibold text-gray-800"><?= $statusDisplay[$orderStatus] ?></p>
+        <p class="text-sm font-semibold text-gray-800"><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
         <p class="text-xs text-gray-500 mt-0.5"><?= $statusMessages[$orderStatus] ?? '' ?></p>
       </div>
     </div>
   </div>
-
   <?php endif; ?>
 
-  <!-- ── DELIVERY / RIDER SECTION ───────────────────────────────────────── -->
+  <!-- ── Delivery / Rider section ─────────────────────────────────────────── -->
   <?php if ($showDelivery): ?>
   <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
@@ -334,21 +387,18 @@ $dlStatusLabels = [
         <h3 class="text-sm font-semibold text-gray-800">
           <?= !empty($delivery['is_third_party']) ? '3rd-Party Delivery' : 'Rider Information' ?>
         </h3>
-        <p class="text-xs text-gray-400">
-          <?php
+        <?php
           $dlStatus = $delivery['delivery_status'] ?? '';
-          echo htmlspecialchars($dlStatusLabels[$dlStatus] ?? ucfirst($dlStatus));
-          ?>
-        </p>
+        ?>
+        <p class="text-xs text-gray-400"><?= htmlspecialchars($dlStatusLabels[$dlStatus] ?? ucfirst($dlStatus)) ?></p>
       </div>
-      <!-- Delivery status badge -->
       <?php
         $dlBadgeConf = [
-          'pending_acceptance'=>'bg-yellow-100 text-yellow-700',
-          'accepted'          =>'bg-blue-100 text-blue-700',
-          'picked_up'         =>'bg-indigo-100 text-indigo-700',
-          'in_transit'        =>'bg-purple-100 text-purple-700',
-          'delivered'         =>'bg-green-100 text-green-700',
+          'pending_acceptance' => 'bg-yellow-100 text-yellow-700',
+          'accepted'           => 'bg-blue-100 text-blue-700',
+          'picked_up'          => 'bg-indigo-100 text-indigo-700',
+          'in_transit'         => 'bg-purple-100 text-purple-700',
+          'delivered'          => 'bg-green-100 text-green-700',
         ];
         $dlBadge = $dlBadgeConf[$dlStatus] ?? 'bg-gray-100 text-gray-600';
       ?>
@@ -387,7 +437,8 @@ $dlStatusLabels = [
         <div class="flex-1 min-w-0">
           <p class="text-sm font-bold text-gray-800"><?= htmlspecialchars($delivery['rider_name'] ?? 'Your Rider') ?></p>
           <?php if (!empty($delivery['vehicle_type'])): ?>
-          <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars($delivery['vehicle_type']) ?>
+          <p class="text-xs text-gray-500 mt-0.5">
+            <?= htmlspecialchars($delivery['vehicle_type']) ?>
             <?php if (!empty($delivery['vehicle_plate_number'])): ?>&nbsp;·&nbsp;<?= htmlspecialchars($delivery['vehicle_plate_number']) ?><?php endif; ?>
           </p>
           <?php endif; ?>
@@ -410,20 +461,19 @@ $dlStatusLabels = [
 
       <!-- Delivery timestamp timeline -->
       <?php
-        $dlSteps = [
-          ['key'=>'assigned_at',   'label'=>'Assigned',      'icon'=>'📋', 'sub'=>'Delivery assigned to rider'],
-          ['key'=>'accepted_at',   'label'=>'Accepted',      'icon'=>'👍', 'sub'=>'Rider accepted the delivery'],
-          ['key'=>'picked_up_at',  'label'=>'Picked Up',     'icon'=>'📦', 'sub'=>'Package collected'],
-          ['key'=>'delivered_at',  'label'=>'Delivered',     'icon'=>'✅', 'sub'=>'Delivered to recipient'],
-        ];
-        // For 3rd-party, use assigned_at and delivered_at only
         if (!empty($delivery['is_third_party'])) {
           $dlSteps = [
-            ['key'=>'assigned_at', 'label'=>'Dispatched via '.$delivery['third_party_name'], 'icon'=>'🚚','sub'=>'3rd-party pickup requested'],
-            ['key'=>'delivered_at','label'=>'Delivered',  'icon'=>'✅','sub'=>'Delivered to recipient'],
+            ['key' => 'assigned_at',  'label' => 'Dispatched via '.htmlspecialchars($delivery['third_party_name'] ?? '3rd Party'), 'icon' => '🚚', 'sub' => '3rd-party pickup requested'],
+            ['key' => 'delivered_at', 'label' => 'Delivered',  'icon' => '✅', 'sub' => 'Delivered to recipient'],
+          ];
+        } else {
+          $dlSteps = [
+            ['key' => 'assigned_at',  'label' => 'Assigned',   'icon' => '📋', 'sub' => 'Delivery assigned to rider'],
+            ['key' => 'accepted_at',  'label' => 'Accepted',   'icon' => '👍', 'sub' => 'Rider accepted the delivery'],
+            ['key' => 'picked_up_at', 'label' => 'Picked Up',  'icon' => '📦', 'sub' => 'Package collected'],
+            ['key' => 'delivered_at', 'label' => 'Delivered',  'icon' => '✅', 'sub' => 'Delivered to recipient'],
           ];
         }
-        // Find last completed step
         $lastDone = -1;
         foreach ($dlSteps as $si => $step) {
           if (!empty($delivery[$step['key']])) $lastDone = $si;
@@ -435,13 +485,13 @@ $dlStatusLabels = [
           <?php foreach ($dlSteps as $si => $step):
             $ts   = $delivery[$step['key']] ?? null;
             $done = !empty($ts);
-            $curr = $done && ($si === $lastDone);
-            $dotClass = $done ? 'done' : ($curr ? 'active' : 'idle');
           ?>
           <div class="dl-step">
             <div class="dl-dot <?= $done ? 'done' : 'idle' ?>"><?= $done ? $step['icon'] : ($si + 1) ?></div>
             <div class="flex-1 min-w-0 pb-1">
-              <p class="text-xs font-semibold <?= $done ? 'text-gray-800' : 'text-gray-400' ?> leading-snug"><?= htmlspecialchars($step['label']) ?></p>
+              <p class="text-xs font-semibold <?= $done ? 'text-gray-800' : 'text-gray-400' ?> leading-snug">
+                <?= $step['label'] ?>
+              </p>
               <?php if ($done): ?>
               <p class="text-[11px] text-orange-600 font-medium mt-0.5"><?= date('M j, Y · g:i A', strtotime($ts)) ?></p>
               <?php else: ?>
@@ -473,10 +523,12 @@ $dlStatusLabels = [
 
     </div>
   </div>
-  <?php endif; ?>
+  <?php endif; /* showDelivery */ ?>
 
-  <!-- Order receipt card -->
+  <!-- ── Order receipt card ───────────────────────────────────────────────── -->
   <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="orderReceipt">
+
+    <!-- Receipt header -->
     <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/60">
       <div class="flex items-center gap-3">
         <img src="./assets/icons/logo.svg" alt="SJFBI Logo" class="size-10">
@@ -491,13 +543,17 @@ $dlStatusLabels = [
         <p class="text-xs text-gray-400 mt-0.5"><?= date('M j, Y', strtotime($orderData['order_date'])) ?></p>
       </div>
     </div>
+
+    <!-- Delivery + payment info -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
       <div class="px-6 py-4">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Deliver To</p>
-        <p class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($orderData['first_name'].' '.$orderData['last_name']) ?></p>
-        <?php $addrLine = $orderData['delivery_address'] ?: $orderData['address']; ?>
+        <p class="text-sm font-semibold text-gray-800">
+          <?= htmlspecialchars($orderData['recipient_first_name'].' '.$orderData['recipient_last_name']) ?>
+        </p>
+        <?php $addrLine = $orderData['delivery_address'] ?: ($orderData['recipient_address'] ?? ''); ?>
         <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars($addrLine) ?></p>
-        <p class="text-xs text-gray-500"><?= htmlspecialchars($orderData['city'].', '.$orderData['postal_code']) ?></p>
+        <p class="text-xs text-gray-500"><?= htmlspecialchars(($orderData['city'] ?? '').', '.($orderData['postal_code'] ?? '')) ?></p>
         <?php if (!empty($orderData['delivery_notes'])): ?>
         <p class="text-xs text-orange-600 italic mt-1">"<?= htmlspecialchars($orderData['delivery_notes']) ?>"</p>
         <?php endif; ?>
@@ -505,21 +561,32 @@ $dlStatusLabels = [
       <div class="px-6 py-4">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment</p>
         <?php
-          $mBadges = ['gcash'=>'bg-blue-100 text-blue-700','paymaya'=>'bg-green-100 text-green-700','grab_pay'=>'bg-green-100 text-green-700','qrph'=>'bg-indigo-100 text-indigo-700','cod'=>'bg-orange-100 text-orange-700','card'=>'bg-purple-100 text-purple-700'];
-          $mBadge  = $mBadges[strtolower($orderData['payment_method'] ?? '')] ?? 'bg-gray-100 text-gray-600';
+          $mBadges = [
+            'gcash'    => 'bg-blue-100 text-blue-700',
+            'paymaya'  => 'bg-green-100 text-green-700',
+            'grab_pay' => 'bg-green-100 text-green-700',
+            'qrph'     => 'bg-indigo-100 text-indigo-700',
+            'cod'      => 'bg-orange-100 text-orange-700',
+            'card'     => 'bg-purple-100 text-purple-700',
+          ];
+          $mBadge = $mBadges[strtolower($orderData['payment_method'] ?? '')] ?? 'bg-gray-100 text-gray-600';
         ?>
         <span class="px-2.5 py-1 rounded-full text-xs font-semibold <?= $mBadge ?>"><?= $methodDisplay ?></span>
-        <p class="text-xs text-gray-400 mt-1">Placed <?= date('F j, Y \a\t g:i A', strtotime($orderData['order_date'])) ?></p>
+        <p class="text-xs text-gray-400 mt-1">
+          Placed <?= date('F j, Y \a\t g:i A', strtotime($orderData['order_date'])) ?>
+        </p>
       </div>
     </div>
+
+    <!-- Items -->
     <div class="border-t border-gray-100">
       <div class="px-6 py-3 bg-gray-50/60">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Items Ordered</p>
       </div>
       <div class="divide-y divide-gray-50">
         <?php foreach ($orderItems as $item):
-          $unitPrice = $item['price'] ?? $item['variant_price'] ?? 0;
-          $lineTotal = $unitPrice * ($item['quantity'] ?? 1);
+          $unitPrice = (float)($item['price'] ?? $item['variant_price'] ?? 0);
+          $lineTotal = $unitPrice * (float)($item['quantity'] ?? 1);
         ?>
         <div class="receipt-row flex items-center gap-4 px-6 py-3.5">
           <div class="flex-1 min-w-0">
@@ -533,14 +600,60 @@ $dlStatusLabels = [
         </div>
         <?php endforeach; ?>
       </div>
-      <div class="px-6 py-4 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between">
-        <span class="text-sm font-semibold text-gray-700">Order Total</span>
-        <span class="text-xl font-bold text-orange-600">₱<?= number_format($orderData['total_price'], 2) ?></span>
+
+      <!-- Order summary breakdown -->
+      <div class="px-6 py-4 bg-gray-50/60 border-t border-gray-100 space-y-2">
+        <div class="flex justify-between text-sm text-gray-500">
+          <span>Subtotal</span>
+          <span class="font-medium text-gray-800">
+            ₱<?= number_format((float)($orderData['subtotal'] ?? $orderData['total_price']), 2) ?>
+          </span>
+        </div>
+
+        <?php if (!empty($orderData['discount_amount']) && (float)$orderData['discount_amount'] > 0): ?>
+        <div class="flex justify-between text-sm text-green-600">
+          <span>
+            Discount
+            <?php if (!empty($orderData['voucher_code'])): ?>
+            <span class="text-xs font-normal text-green-500">(<?= htmlspecialchars($orderData['voucher_code']) ?>)</span>
+            <?php endif; ?>
+          </span>
+          <span class="font-medium">-₱<?= number_format((float)$orderData['discount_amount'], 2) ?></span>
+        </div>
+        <?php endif; ?>
+
+        <div class="flex justify-between text-sm text-gray-500">
+          <span>Delivery Fee</span>
+          <?php $deliveryFee = (float)($orderData['delivery_fee'] ?? 0); ?>
+          <span class="font-medium <?= $deliveryFee == 0 ? 'text-green-600' : 'text-gray-800' ?>">
+            <?= $deliveryFee == 0 ? 'FREE' : '₱'.number_format($deliveryFee, 2) ?>
+          </span>
+        </div>
+
+        <div class="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-200">
+          <span>Total</span>
+          <span class="text-orange-600">₱<?= number_format((float)$orderData['total_price'], 2) ?></span>
+        </div>
+
+        <!-- Payment status -->
+        <div class="flex justify-between text-sm pt-1">
+          <span class="text-gray-400">Payment Status</span>
+          <?php if ($isCOD): ?>
+            <?php if ($paymentStatusDisplay === 'Paid'): ?>
+            <span class="font-semibold text-green-600">✓ Paid (COD Collected)</span>
+            <?php else: ?>
+            <span class="font-semibold text-amber-600">⏳ Cash on Delivery</span>
+            <?php endif; ?>
+          <?php else: ?>
+            <span class="font-semibold text-green-600">✓ Paid (Online)</span>
+          <?php endif; ?>
+        </div>
       </div>
     </div>
   </div>
+  <!-- /orderReceipt -->
 
-  <!-- Action buttons -->
+  <!-- ── Action buttons ──────────────────────────────────────────────────── -->
   <div class="flex flex-col sm:flex-row gap-3 anim-5">
     <button id="downloadBtn"
       class="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl transition-all">
@@ -561,7 +674,7 @@ $dlStatusLabels = [
 
 </div>
 </section>
-<?php endif; ?>
+<?php endif; /* hasOrder */ ?>
 
 <!-- ── Help strip ─────────────────────────────────────────────────────────── -->
 <section class="py-10 px-4 border-t border-gray-100">
@@ -587,7 +700,7 @@ $dlStatusLabels = [
       const receipt = document.getElementById('orderReceipt');
       if (!receipt) return;
       this.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="60" stroke-dashoffset="30"/></svg> Generating…';
-      html2canvas(receipt, { scale:2, useCORS:true, backgroundColor:'#ffffff' }).then(canvas => {
+      html2canvas(receipt, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
         const link = document.createElement('a');
         link.href = canvas.toDataURL('image/png');
         link.download = '<?= htmlspecialchars($orderData['order_code'] ?? 'receipt') ?>_receipt.png';

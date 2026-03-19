@@ -27,8 +27,8 @@ if (!function_exists('logActivity')) {
         $userId    = null,
         $userType  = 'system'
     ): bool {
-        $ipAddress = $_SERVER['REMOTE_ADDR']      ?? null;
-        $userAgent = $_SERVER['HTTP_USER_AGENT']   ?? null;
+        $ipAddress = $_SERVER['REMOTE_ADDR']     ?? null;
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
         $stmt = $conn->prepare("
             INSERT INTO activity_log

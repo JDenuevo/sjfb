@@ -77,12 +77,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="form-label">First Name</label>
-              <input type="text" name="first_name" value="<?= htmlspecialchars($row['first_name']) ?>" 
+              <input type="text" name="account_first_name" value="<?= htmlspecialchars($row['account_first_name']) ?>" 
                      class="form-input" placeholder="First name">
             </div>
             <div>
               <label class="form-label">Last Name</label>
-              <input type="text" name="last_name" value="<?= htmlspecialchars($row['last_name']) ?>" 
+              <input type="text" name="account_last_name" value="<?= htmlspecialchars($row['account_last_name']) ?>" 
                      class="form-input" placeholder="Last name">
             </div>
           </div>
@@ -90,12 +90,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label class="form-label">Email</label>
-              <input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>" 
+              <input type="email" name="account_email" value="<?= htmlspecialchars($row['account_email']) ?>" 
                      class="form-input" placeholder="Email">
             </div>
             <div>
               <label class="form-label">Phone Number</label>
-              <input type="text" name="phone_number" value="<?= htmlspecialchars($row['phone_number']) ?>" 
+              <input type="text" name="account_phone" value="<?= htmlspecialchars($row['account_phone']) ?>" 
                      class="form-input" placeholder="+63 xxx xxx xxxx">
             </div>
           </div>
@@ -108,8 +108,8 @@
           <div class="space-y-4">
             <div>
               <label class="form-label">Address</label>
-              <textarea name="address" rows="3" class="form-input resize-none" 
-                        placeholder="Enter your full address"><?= htmlspecialchars($row['address']) ?></textarea>
+              <textarea name="account_address" rows="3" class="form-input resize-none" 
+                        placeholder="Enter your full address"><?= htmlspecialchars($row['account_address']) ?></textarea>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

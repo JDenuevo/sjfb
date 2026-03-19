@@ -1,45 +1,24 @@
 <?php
 // ==================== superadmin/functions/review_helper.php ====================
-// Handles ALL customer notifications across the order lifecycle:
-//
-//   dispatchOrderApprovedNotification()   Pending -> Processing
-//   dispatchOutForDeliveryNotification()  Processing -> OutForDelivery
-//   dispatchReviewInvite()                OutForDelivery -> Delivered (+ review link)
-//   dispatchCancelledNotification()       Any -> Cancelled
-//
-// Also contains image upload helpers for review attachments.
-//
-// File structure:
-//   project-root/
-//   ├── .env
-//   ├── vendor/autoload.php
-//   └── superadmin/
-//       └── functions/
-//           └── review_helper.php   <- YOU ARE HERE
-//
-// .env keys required:
-//   SEMAPHORE_API_KEY=your_key_here
-//   SITE_BASE_URL=http://localhost/sjfbi-js
-//   MAIL_FROM=marketing@fishbrokers.net
-//   MAIL_FROM_NAME=St. Joseph Fish Brokerage Inc.
+// Column renames applied:
+//   orders:   recipient_email, recipient_first_name, recipient_last_name, recipient_phone
+//   riders:   rider_name (was full_name)
+//   accounts: account_first_name, account_last_name
 // =================================================================================
 
 if (!defined('REVIEW_HELPER_LOADED')) {
     define('REVIEW_HELPER_LOADED', true);
 }
 
-// -- PHPMailer (loaded once at file scope) ----------------------------------------
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as MailerException;
 
-// -- .env loader ------------------------------------------------------------------
 if (!function_exists('loadEnvValue')) {
     function loadEnvValue(string $key, string $default = ''): string {
         $val = $_ENV[$key] ?? getenv($key);
         if ($val !== false && $val !== '') return (string) $val;
-
         static $parsed = [];
         if (empty($parsed)) {
             $envFile = __DIR__ . '/../../.env';
@@ -56,8 +35,6 @@ if (!function_exists('loadEnvValue')) {
     }
 }
 
-// -- Shared PHPMailer factory -----------------------------------------------------
-// Single SMTP config -- mirrors process_contact.php (GoDaddy localhost relay).
 if (!function_exists('makeMailer')) {
     function makeMailer(): PHPMailer {
         $mail = new PHPMailer(true);
@@ -79,7 +56,6 @@ if (!function_exists('makeMailer')) {
     }
 }
 
-// -- Shared Semaphore SMS dispatcher ----------------------------------------------
 if (!function_exists('sendSms')) {
     function sendSms(string $phoneNumber, string $message): bool {
         $apiKey = loadEnvValue('SEMAPHORE_API_KEY');
@@ -87,7 +63,6 @@ if (!function_exists('sendSms')) {
             error_log('[review_helper] SEMAPHORE_API_KEY not set in .env -- SMS skipped.');
             return false;
         }
-
         $ch = curl_init('https://api.semaphore.co/api/v4/messages');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
@@ -100,16 +75,10 @@ if (!function_exists('sendSms')) {
                 'sendername' => 'SJFBI',
             ]),
         ]);
-
         $response  = curl_exec($ch);
-        $curlErrNo = curl_errno($ch);   // capture BEFORE curl_close
+        $curlErrNo = curl_errno($ch);
         curl_close($ch);
-
-        if ($curlErrNo) {
-            error_log("[review_helper] Semaphore cURL error #{$curlErrNo} for {$phoneNumber}");
-            return false;
-        }
-
+        if ($curlErrNo) { error_log("[review_helper] Semaphore cURL error #{$curlErrNo} for {$phoneNumber}"); return false; }
         $decoded = json_decode($response, true);
         $queued  = isset($decoded[0]['status']) && strtolower($decoded[0]['status']) === 'pending';
         error_log('[review_helper] SMS to ' . $phoneNumber . ' -- ' . ($queued ? 'queued OK' : 'failed: ' . $response));
@@ -117,7 +86,6 @@ if (!function_exists('sendSms')) {
     }
 }
 
-// -- Token & URL helpers (for review link) ----------------------------------------
 if (!function_exists('generateReviewToken')) {
     function generateReviewToken(string $orderCode, string $email, string $salt = 'sjfbi_review_2025'): string {
         return strtoupper(substr(hash('sha256', $orderCode . $email . $salt), 0, 12));
@@ -132,18 +100,20 @@ if (!function_exists('buildReviewUrl')) {
     }
 }
 
-// -- Shared order fetcher ---------------------------------------------------------
+// Uses renamed columns: recipient_email, recipient_first_name, recipient_last_name,
+//                       recipient_phone, rider_name (was full_name),
+//                       account_first_name, account_last_name
 if (!function_exists('fetchOrderForNotification')) {
     function fetchOrderForNotification($conn, int $orderId): ?array {
         $stmt = $conn->prepare("
             SELECT  o.order_code,
-                    o.email,
-                    o.phone_number,
-                    o.first_name,
-                    o.last_name,
+                    o.recipient_email      AS email,
+                    o.recipient_phone      AS phone_number,
+                    o.recipient_first_name AS first_name,
+                    o.recipient_last_name  AS last_name,
                     o.order_status,
                     o.total_price,
-                    CONCAT(a.first_name, ' ', a.last_name) AS rider_name
+                    COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS rider_name
             FROM    orders o
             LEFT JOIN riders   r ON o.assigned_rider_id = r.rider_id
             LEFT JOIN accounts a ON r.account_id         = a.account_id
@@ -158,13 +128,10 @@ if (!function_exists('fetchOrderForNotification')) {
 }
 
 // =============================================================================
-//  1.  PENDING -> PROCESSING  ("Order Approved / Being Prepared")
+//  1.  PENDING -> PROCESSING
 // =============================================================================
 
 if (!function_exists('dispatchOrderApprovedNotification')) {
-    /**
-     * Call inside the approve_order block after updateOrderStatus() succeeds.
-     */
     function dispatchOrderApprovedNotification($conn, int $orderId, ?int $actorId = null, string $actorType = 'super_admin'): array {
         $order = fetchOrderForNotification($conn, $orderId);
         if (!$order) return ['success' => false, 'message' => 'Order not found.'];
@@ -176,11 +143,9 @@ if (!function_exists('dispatchOrderApprovedNotification')) {
         $base      = rtrim(loadEnvValue('SITE_BASE_URL', 'http://localhost/sjfbi-js'), '/');
         $trackUrl  = $base . '/track.php?order_code=' . urlencode($orderCode);
 
-        // SMS
         $smsMsg  = "Hi {$firstName}! Your order {$orderCode} has been approved and is now being prepared. Track: {$trackUrl} -SJFBI";
         $smsSent = !empty($phone) ? sendSms($phone, $smsMsg) : false;
 
-        // Email
         $emailSent = false;
         $safeFirst = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         $safeCode  = htmlspecialchars($orderCode, ENT_QUOTES, 'UTF-8');
@@ -195,18 +160,11 @@ if (!function_exists('dispatchOrderApprovedNotification')) {
           </div>
           <div style='background:white;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;'>
             <p style='font-size:16px;color:#374151;'>Hi <strong>{$safeFirst}</strong>,</p>
-            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>
-              Great news! Your order has been approved and our team is now preparing it for delivery.
-              We will notify you again once it is on its way.
-            </p>
+            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>Great news! Your order has been approved and our team is now preparing it for delivery.</p>
             <div style='text-align:center;margin:28px 0;'>
-              <a href='{$safeTrack}' style='display:inline-block;background:#ea580c;color:white;padding:12px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>
-                Track My Order
-              </a>
+              <a href='{$safeTrack}' style='display:inline-block;background:#ea580c;color:white;padding:12px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Track My Order</a>
             </div>
-            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:0;border-top:1px solid #f3f4f6;padding-top:16px;'>
-              St. Joseph Fish Brokerage Inc. - Navotas City, Philippines
-            </p>
+            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:0;border-top:1px solid #f3f4f6;padding-top:16px;'>St. Joseph Fish Brokerage Inc. - Navotas City, Philippines</p>
           </div>
         </div></body></html>";
 
@@ -219,7 +177,6 @@ if (!function_exists('dispatchOrderApprovedNotification')) {
             $mail->AltBody = "Hi {$firstName}, your order {$orderCode} has been approved and is being prepared. Track: {$trackUrl}";
             $mail->send();
             $emailSent = true;
-            error_log("[review_helper] Approved email sent -> {$email}");
         } catch (MailerException $e) {
             error_log("[review_helper] Approved email FAILED -> {$email}: " . $e->getMessage());
         }
@@ -229,20 +186,15 @@ if (!function_exists('dispatchOrderApprovedNotification')) {
                 null, null, "SMS: " . ($smsSent ? 'OK' : 'failed') . " | Email: " . ($emailSent ? 'OK' : 'failed'),
                 $actorId, $actorType);
         }
-
         return ['success' => true, 'sms_sent' => $smsSent, 'email_sent' => $emailSent];
     }
 }
 
 // =============================================================================
-//  2.  PROCESSING -> OUT FOR DELIVERY  ("Order On the Way")
+//  2.  PROCESSING -> OUT FOR DELIVERY
 // =============================================================================
 
 if (!function_exists('dispatchOutForDeliveryNotification')) {
-    /**
-     * Call inside the assign_rider block after assignRiderToOrder() succeeds.
-     * Includes the rider name so the customer knows who is delivering.
-     */
     function dispatchOutForDeliveryNotification($conn, int $orderId, ?int $actorId = null, string $actorType = 'super_admin'): array {
         $order = fetchOrderForNotification($conn, $orderId);
         if (!$order) return ['success' => false, 'message' => 'Order not found.'];
@@ -255,11 +207,9 @@ if (!function_exists('dispatchOutForDeliveryNotification')) {
         $base      = rtrim(loadEnvValue('SITE_BASE_URL', 'http://localhost/sjfbi-js'), '/');
         $trackUrl  = $base . '/track.php?order_code=' . urlencode($orderCode);
 
-        // SMS
         $smsMsg  = "Hi {$firstName}! Order {$orderCode} is on its way! Rider: {$riderName}. Track: {$trackUrl} -SJFBI";
         $smsSent = !empty($phone) ? sendSms($phone, $smsMsg) : false;
 
-        // Email
         $emailSent = false;
         $safeFirst = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         $safeCode  = htmlspecialchars($orderCode, ENT_QUOTES, 'UTF-8');
@@ -275,21 +225,14 @@ if (!function_exists('dispatchOutForDeliveryNotification')) {
           </div>
           <div style='background:white;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;'>
             <p style='font-size:16px;color:#374151;'>Hi <strong>{$safeFirst}</strong>,</p>
-            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>
-              Your order is now out for delivery! <strong>{$safeRider}</strong> is on the way to you.
-              Please make sure someone is available to receive it.
-            </p>
+            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>Your order is now out for delivery! <strong>{$safeRider}</strong> is on the way.</p>
             <div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:20px 0;text-align:center;'>
               <p style='margin:0;font-size:13px;color:#166534;'>Rider: <strong>{$safeRider}</strong></p>
             </div>
             <div style='text-align:center;margin:24px 0;'>
-              <a href='{$safeTrack}' style='display:inline-block;background:#0d9488;color:white;padding:12px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>
-                Track My Order
-              </a>
+              <a href='{$safeTrack}' style='display:inline-block;background:#0d9488;color:white;padding:12px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Track My Order</a>
             </div>
-            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:0;border-top:1px solid #f3f4f6;padding-top:16px;'>
-              St. Joseph Fish Brokerage Inc. - Navotas City, Philippines
-            </p>
+            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:0;border-top:1px solid #f3f4f6;padding-top:16px;'>St. Joseph Fish Brokerage Inc. - Navotas City, Philippines</p>
           </div>
         </div></body></html>";
 
@@ -302,7 +245,6 @@ if (!function_exists('dispatchOutForDeliveryNotification')) {
             $mail->AltBody = "Hi {$firstName}, order {$orderCode} is on the way! Rider: {$riderName}. Track: {$trackUrl}";
             $mail->send();
             $emailSent = true;
-            error_log("[review_helper] OutForDelivery email sent -> {$email}");
         } catch (MailerException $e) {
             error_log("[review_helper] OutForDelivery email FAILED -> {$email}: " . $e->getMessage());
         }
@@ -312,21 +254,26 @@ if (!function_exists('dispatchOutForDeliveryNotification')) {
                 null, null, "Rider: {$riderName} | SMS: " . ($smsSent ? 'OK' : 'failed') . " | Email: " . ($emailSent ? 'OK' : 'failed'),
                 $actorId, $actorType);
         }
-
         return ['success' => true, 'sms_sent' => $smsSent, 'email_sent' => $emailSent];
     }
 }
 
 // =============================================================================
-//  3.  OUT FOR DELIVERY -> DELIVERED  ("Delivered + Review Invite")
+//  3.  DELIVERED + REVIEW INVITE
 // =============================================================================
 
 if (!function_exists('dispatchReviewInvite')) {
-    /**
-     * Call inside the mark_delivered block after updateOrderStatus() succeeds.
-     * Sends delivery confirmation + review link. Saves invite to review_invites.
-     */
     function dispatchReviewInvite($conn, int $orderId, ?int $actorId = null, string $actorType = 'super_admin'): array {
+        $order = fetchOrderForNotification($conn, $orderId);
+        
+        // Use same deterministic token as review.php expects
+        $token     = strtoupper(substr(hash('sha256', 
+            $order['order_code'] . $order['email'] . 'sjfbi_review_2025'
+        ), 0, 12));
+        $base      = rtrim(loadEnvValue('SITE_BASE_URL', 'http://localhost/sjfbi-js'), '/');
+        $reviewUrl = $base . '/review.php?order=' . urlencode($order['order_code']) 
+                        . '&token=' . urlencode($token);    
+    
         $order = fetchOrderForNotification($conn, $orderId);
         if (!$order) {
             return ['success' => false, 'status' => 'error', 'message' => 'Order not found.',
@@ -339,7 +286,6 @@ if (!function_exists('dispatchReviewInvite')) {
         $firstName = $order['first_name'];
         $reviewUrl = buildReviewUrl($orderCode, $email);
 
-        // Save to review_invites
         $ins = $conn->prepare("
             INSERT INTO review_invites (order_id, review_url)
             VALUES (?, ?)
@@ -349,11 +295,9 @@ if (!function_exists('dispatchReviewInvite')) {
         $ins->execute();
         $ins->close();
 
-        // SMS
         $smsMsg  = "Hi {$firstName}! Order {$orderCode} has been delivered. How was it? Leave a review: {$reviewUrl} -SJFBI";
         $smsSent = !empty($phone) ? sendSms($phone, $smsMsg) : false;
 
-        // Email
         $emailSent = false;
         $safeFirst = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         $safeCode  = htmlspecialchars($orderCode, ENT_QUOTES, 'UTF-8');
@@ -368,14 +312,9 @@ if (!function_exists('dispatchReviewInvite')) {
           </div>
           <div style='background:white;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;'>
             <p style='font-size:16px;color:#374151;'>Hi <strong>{$safeFirst}</strong>,</p>
-            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>
-              Your order has been delivered! We would love to hear what you think.
-              Your honest feedback helps other buyers and helps us improve.
-            </p>
+            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>Your order has been delivered! We would love to hear what you think.</p>
             <div style='text-align:center;margin:32px 0;'>
-              <a href='{$safeUrl}' style='display:inline-block;background:#ea580c;color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;'>
-                Leave a Review
-              </a>
+              <a href='{$safeUrl}' style='display:inline-block;background:#ea580c;color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;'>Leave a Review</a>
             </div>
             <p style='font-size:12px;color:#9ca3af;text-align:center;margin:0;border-top:1px solid #f3f4f6;padding-top:16px;'>
               St. Joseph Fish Brokerage Inc. - Navotas City, Philippines<br>
@@ -393,7 +332,6 @@ if (!function_exists('dispatchReviewInvite')) {
             $mail->AltBody = "Hi {$firstName}, your order {$orderCode} was delivered! Leave a review: {$reviewUrl}";
             $mail->send();
             $emailSent = true;
-            error_log("[review_helper] Review invite email sent -> {$email}");
         } catch (MailerException $e) {
             error_log("[review_helper] Review invite email FAILED -> {$email}: " . $e->getMessage());
         }
@@ -419,15 +357,10 @@ if (!function_exists('dispatchReviewInvite')) {
 }
 
 // =============================================================================
-//  4.  ANY STATUS -> CANCELLED
+//  4.  CANCELLED
 // =============================================================================
 
 if (!function_exists('dispatchCancelledNotification')) {
-    /**
-     * Call inside the cancel_order block after updateOrderStatus() succeeds.
-     *
-     * @param string $reason  The cancellation reason shown to the customer
-     */
     function dispatchCancelledNotification($conn, int $orderId, string $reason = '', ?int $actorId = null, string $actorType = 'super_admin'): array {
         $order = fetchOrderForNotification($conn, $orderId);
         if (!$order) return ['success' => false, 'message' => 'Order not found.'];
@@ -438,11 +371,9 @@ if (!function_exists('dispatchCancelledNotification')) {
         $phone      = $order['phone_number'];
         $reasonText = !empty($reason) ? $reason : 'Your order has been cancelled.';
 
-        // SMS
         $smsMsg  = "Hi {$firstName}, order {$orderCode} has been cancelled. Reason: {$reasonText} Contact us for help. -SJFBI";
         $smsSent = !empty($phone) ? sendSms($phone, $smsMsg) : false;
 
-        // Email
         $emailSent  = false;
         $safeFirst  = htmlspecialchars($firstName,  ENT_QUOTES, 'UTF-8');
         $safeCode   = htmlspecialchars($orderCode,  ENT_QUOTES, 'UTF-8');
@@ -461,13 +392,8 @@ if (!function_exists('dispatchCancelledNotification')) {
             <div style='background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:20px 0;'>
               <p style='margin:0;font-size:13px;color:#991b1b;'><strong>Reason:</strong> {$safeReason}</p>
             </div>
-            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>
-              If you believe this is a mistake or would like to place a new order,
-              please do not hesitate to contact us.
-            </p>
-            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:24px 0 0;border-top:1px solid #f3f4f6;padding-top:16px;'>
-              St. Joseph Fish Brokerage Inc. - Navotas City, Philippines
-            </p>
+            <p style='font-size:15px;color:#6b7280;line-height:1.7;'>If you believe this is a mistake or would like to place a new order, please do not hesitate to contact us.</p>
+            <p style='font-size:12px;color:#9ca3af;text-align:center;margin:24px 0 0;border-top:1px solid #f3f4f6;padding-top:16px;'>St. Joseph Fish Brokerage Inc. - Navotas City, Philippines</p>
           </div>
         </div></body></html>";
 
@@ -480,7 +406,6 @@ if (!function_exists('dispatchCancelledNotification')) {
             $mail->AltBody = "Hi {$firstName}, order {$orderCode} has been cancelled. Reason: {$reasonText}";
             $mail->send();
             $emailSent = true;
-            error_log("[review_helper] Cancelled email sent -> {$email}");
         } catch (MailerException $e) {
             error_log("[review_helper] Cancelled email FAILED -> {$email}: " . $e->getMessage());
         }
@@ -490,65 +415,35 @@ if (!function_exists('dispatchCancelledNotification')) {
                 null, null, "Reason: {$reasonText} | SMS: " . ($smsSent ? 'OK' : 'failed') . " | Email: " . ($emailSent ? 'OK' : 'failed'),
                 $actorId, $actorType);
         }
-
         return ['success' => true, 'sms_sent' => $smsSent, 'email_sent' => $emailSent];
     }
 }
 
 // =============================================================================
-//  Review image upload helpers
+//  Review image upload helpers (no column changes needed)
 // =============================================================================
 
 if (!function_exists('uploadReviewImage')) {
-    /**
-     * Moves a single uploaded review photo to uploads/reviews/.
-     * Mirrors uploadSingleImage() from add.php (same 5MB limit, same ext list).
-     */
     function uploadReviewImage(array $file, int $reviewId, int $uploadOrder = 1): ?string {
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
-
         $tmp  = $file['tmp_name'];
         $mime = mime_content_type($tmp);
-
-        if (strpos($mime, 'image/') !== 0) {
-            error_log("[uploadReviewImage] Rejected - not an image (MIME: {$mime})");
-            return null;
-        }
-        if ($file['size'] > 5 * 1024 * 1024) {
-            error_log("[uploadReviewImage] Rejected - file too large ({$file['size']} bytes)");
-            return null;
-        }
-
+        if (strpos($mime, 'image/') !== 0) { error_log("[uploadReviewImage] Rejected - not an image (MIME: {$mime})"); return null; }
+        if ($file['size'] > 5 * 1024 * 1024) { error_log("[uploadReviewImage] Rejected - file too large"); return null; }
         $ext         = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (!in_array($ext, $allowedExts, true)) {
-            error_log("[uploadReviewImage] Rejected - disallowed extension (.{$ext})");
-            return null;
-        }
-
-        // superadmin/functions/ -> ../../uploads/reviews/ = project-root/uploads/reviews/
+        if (!in_array($ext, $allowedExts, true)) { error_log("[uploadReviewImage] Rejected - disallowed extension"); return null; }
         $uploadDir = __DIR__ . '/../../uploads/reviews/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-
         $filename = 'review_' . $reviewId . '_' . $uploadOrder . '_' . uniqid() . '.' . $ext;
-        if (!move_uploaded_file($tmp, $uploadDir . $filename)) {
-            error_log("[uploadReviewImage] move_uploaded_file failed -> {$uploadDir}{$filename}");
-            return null;
-        }
-
+        if (!move_uploaded_file($tmp, $uploadDir . $filename)) { error_log("[uploadReviewImage] move_uploaded_file failed"); return null; }
         return 'uploads/reviews/' . $filename;
     }
 }
 
 if (!function_exists('insertReviewAttachment')) {
-    /**
-     * Inserts one row into review_attachments after a successful uploadReviewImage() call.
-     */
     function insertReviewAttachment($conn, int $reviewId, string $relPath, string $fileName, int $fileSize, string $mimeType, int $uploadOrder = 1): bool {
-        $stmt = $conn->prepare("
-            INSERT INTO review_attachments (review_id, file_path, file_name, file_size, mime_type, upload_order)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
+        $stmt = $conn->prepare("INSERT INTO review_attachments (review_id, file_path, file_name, file_size, mime_type, upload_order) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param('issiis', $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrder);
         $ok = $stmt->execute();
         $stmt->close();

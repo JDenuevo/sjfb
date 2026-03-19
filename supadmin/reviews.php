@@ -20,7 +20,7 @@ $params = [];
 $types  = '';
 
 if (!empty($search)) {
-    $where   .= " AND (r.full_name LIKE ? OR r.feedback LIKE ? OR p.product_name LIKE ?)";
+    $where   .= " AND (r.reviewer_name LIKE ? OR r.feedback LIKE ? OR p.product_name LIKE ?)";
     $s        = "%$search%";
     $params   = array_merge($params, [$s, $s, $s]);
     $types   .= 'sss';
@@ -62,8 +62,8 @@ $offset = ($page - 1) * $perPage;
 $query  = "
     SELECT
         r.order_id,
-        r.full_name,
-        r.email,
+        r.reviewer_name,
+        r.reviewer_email,
         r.is_verified_purchase,
         r.created_at,
         COUNT(DISTINCT r.review_id)   AS review_count,
@@ -340,12 +340,12 @@ while ($p = $productsResult->fetch_assoc()) $allProducts[] = $p;
                     <div class="flex items-center gap-3">
                       <div class="size-9 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-sm uppercase select-none">
                         <?php
-                          $n = $row['full_name'];
+                          $n = $row['reviewer_name'];
                           echo htmlspecialchars(substr($n,0,1) . (strpos($n,' ')!==false ? substr(strrchr($n,' '),1,1) : ''));
                         ?>
                       </div>
                       <div>
-                        <p class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($row['full_name']) ?></p>
+                        <p class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($row['reviewer_name']) ?></p>
                         <p class="text-xs text-gray-400"><?= htmlspecialchars($row['email'] ?? '') ?></p>
                         <?php if ($row['is_verified_purchase']): ?>
                           <span class="text-xs text-green-600 font-medium">✓ Verified</span>

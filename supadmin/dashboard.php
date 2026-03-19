@@ -17,13 +17,13 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 $account_id = $_SESSION['account_id'];
 $role = $_SESSION['role']; // super_admin, admin, customer, rider
 
-// FIX: $adminName was never set — monitoring.php banner always showed "Admin" fallback
-$adminNameStmt = $conn->prepare("SELECT first_name, last_name FROM accounts WHERE account_id = ?");
+// FIX: $adminName was never set — monitoring.php banner always showed "Super Admin" fallback
+$adminNameStmt = $conn->prepare("SELECT account_first_name, account_last_name FROM accounts WHERE account_id = ?");
 $adminNameStmt->bind_param("i", $account_id);
 $adminNameStmt->execute();
 $adminNameRow = $adminNameStmt->get_result()->fetch_assoc();
 $adminNameStmt->close();
-$adminName = trim(($adminNameRow['first_name'] ?? '') . ' ' . ($adminNameRow['last_name'] ?? ''));
+$adminName = trim(($adminNameRow['account_first_name'] ?? '') . ' ' . ($adminNameRow['account_last_name'] ?? ''));
 if (empty($adminName)) $adminName = $_SESSION['username'] ?? 'Admin';
 
 // Pagination variables

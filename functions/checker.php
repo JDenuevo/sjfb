@@ -1,5 +1,4 @@
 <?php
-// functions/checker.php
 session_start();
 include '../conn.php';
 
@@ -13,9 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $errors = [];
 
 $input_username = strip_tags(trim($_POST['username'] ?? ''));
-$input_password = $_POST['password'] ?? '';
+$input_password = $_POST['password_hash'] ?? '';
 
-// ── Basic field validation ────────────────────────────────────────────────────
 if (empty($input_username)) {
     $errors[] = "Username is required.";
 }
@@ -29,16 +27,15 @@ if (!empty($errors)) {
     exit();
 }
 
-// ── Fetch account ─────────────────────────────────────────────────────────────
+// ── Fetch account — no column changes needed here (username, password_hash, role are unchanged)
 $stmt = $conn->prepare("
-    SELECT account_id, username, password_hash, role
+    SELECT account_id, username, password_hash, role, is_deleted
     FROM accounts
     WHERE username = ?
     LIMIT 1
 ");
 
 if (!$stmt) {
-    // DB prepare failed — don't leak internals
     $_SESSION['error_message'] = "A system error occurred. Please try again later.";
     header("Location: {$baseUrl}?showModal=true");
     exit();
@@ -49,7 +46,6 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if (!$result || $result->num_rows === 0) {
-    // User not found — use a generic message to avoid username enumeration
     $_SESSION['error_message'] = "Invalid username or password.";
     $stmt->close();
     header("Location: {$baseUrl}?showModal=true");
@@ -74,7 +70,7 @@ if (!password_verify($input_password, $row['password_hash'])) {
 }
 
 // ── Set session ───────────────────────────────────────────────────────────────
-session_regenerate_id(true); // prevent session fixation
+session_regenerate_id(true);
 
 $_SESSION['account_id'] = $row['account_id'];
 $_SESSION['username']   = $row['username'];
@@ -103,7 +99,6 @@ switch ($row['role']) {
         break;
 
     default:
-        // Unknown role — log out cleanly and show generic error
         session_unset();
         session_destroy();
         session_start();

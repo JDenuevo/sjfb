@@ -1,4 +1,5 @@
 
+<!-- fetch_products.php -->
 <?php
 session_start();
 include '../../conn.php';

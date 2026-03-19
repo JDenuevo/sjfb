@@ -1,27 +1,25 @@
 <?php
 // functions/order_helper.php
 
-// In /sjfbi-js/functions/order_helper.php
 if (!defined('STATUS_LABELS')) {
     define('STATUS_LABELS', [
-        'Paid' => 'Paid - Awaiting Approval',
-        'Pending' => 'Pending Payment',
-        'Processing' => 'Processing',
+        'Paid'           => 'Paid - Awaiting Approval',
+        'Pending'        => 'Pending Payment',
+        'Processing'     => 'Processing',
         'OutForDelivery' => 'Out for Delivery',
-        'Delivered' => 'Delivered',
-        'Cancelled' => 'Cancelled'
+        'Delivered'      => 'Delivered',
+        'Cancelled'      => 'Cancelled'
     ]);
 }
 
-// Define delivery status labels
 if (!defined('DELIVERY_STATUS_LABELS')) {
     define('DELIVERY_STATUS_LABELS', [
         'pending_acceptance' => 'Pending Acceptance',
-        'accepted' => 'Accepted',
-        'picked_up' => 'Picked Up',
-        'delivered' => 'Delivered',
-        'failed' => 'Failed',
-        'cancelled' => 'Cancelled'
+        'accepted'           => 'Accepted',
+        'picked_up'          => 'Picked Up',
+        'delivered'          => 'Delivered',
+        'failed'             => 'Failed',
+        'cancelled'          => 'Cancelled'
     ]);
 }
 
@@ -44,16 +42,16 @@ function generateOrderCode() {
  */
 function getOrderStatusBadge($status) {
     $badges = [
-        'Paid' => 'bg-green-100 text-green-800',
-        'Pending' => 'bg-yellow-100 text-yellow-800',
-        'Pending Payment' => 'bg-blue-100 text-blue-800',
-        'Processing' => 'bg-purple-100 text-purple-800',
+        'Paid'           => 'bg-green-100 text-green-800',
+        'Pending'        => 'bg-yellow-100 text-yellow-800',
+        'Pending Payment'=> 'bg-blue-100 text-blue-800',
+        'Processing'     => 'bg-purple-100 text-purple-800',
         'OutForDelivery' => 'bg-indigo-100 text-indigo-800',
-        'Delivered' => 'bg-green-100 text-green-800',
-        'Cancelled' => 'bg-red-100 text-red-800',
+        'Delivered'      => 'bg-green-100 text-green-800',
+        'Cancelled'      => 'bg-red-100 text-red-800',
         'Payment Failed' => 'bg-red-100 text-red-800'
     ];
-    
+
     $class = $badges[$status] ?? 'bg-gray-100 text-gray-800';
     return "<span class='px-2 py-1 text-xs font-medium rounded-full $class'>" . (STATUS_LABELS[$status] ?? $status) . "</span>";
 }
@@ -67,20 +65,32 @@ function formatCurrency($amount) {
 
 /**
  * Get full order details with rider info
+ * Uses renamed columns:
+ *   deliveries: delivery_status (was status)
+ *   riders:     rider_name (was full_name), rider_phone (was contact_number)
+ *   accounts:   account_phone (was phone_number)
  */
 function getOrderFull($order_id, $conn) {
     $stmt = $conn->prepare("
-        SELECT o.*, 
+        SELECT o.*,
                p.payment_status, p.paid_at,
-               r.rider_id, r.full_name AS rider_name, r.image AS rider_image,
-               r.vehicle_type, r.vehicle_plate_number, r.variant_color,
-               r.organization, r.contact_number AS rider_direct_phone,
-               a.phone_number AS rider_acct_phone,
-               d.delivery_id, d.status AS delivery_status,
-               d.is_third_party, d.third_party_name, d.delivery_link AS active_delivery_link
+               r.rider_id,
+               r.rider_name,
+               r.image          AS rider_image,
+               r.vehicle_type,
+               r.vehicle_plate_number,
+               r.variant_color,
+               r.organization,
+               r.rider_phone    AS rider_direct_phone,
+               a.account_phone  AS rider_acct_phone,
+               d.delivery_id,
+               d.delivery_status,
+               d.is_third_party,
+               d.third_party_name,
+               d.delivery_link  AS active_delivery_link
         FROM orders o
         LEFT JOIN (
-            SELECT p1.* 
+            SELECT p1.*
             FROM payments p1
             INNER JOIN (
                 SELECT order_id, MAX(created_at) AS max_created
@@ -123,11 +133,12 @@ function getOrderItems($order_id, $conn) {
 
 /**
  * Get order status history
+ * Uses renamed columns: account_first_name, account_last_name
  */
 function getOrderHistory($order_id, $conn) {
     $stmt = $conn->prepare("
-        SELECT h.*, 
-               CONCAT(a.first_name, ' ', a.last_name) AS first_name
+        SELECT h.*,
+               CONCAT(a.account_first_name, ' ', a.account_last_name) AS changed_by_name
         FROM order_status_history h
         LEFT JOIN accounts a ON a.account_id = h.changed_by_user_id
         WHERE h.order_id = ?
@@ -142,11 +153,13 @@ function getOrderHistory($order_id, $conn) {
 
 /**
  * Get delivery proofs
+ * Uses renamed column: riders.rider_name (was full_name)
+ *                      accounts.account_first_name / account_last_name
  */
 function getDeliveryProofs($order_id, $conn) {
     $stmt = $conn->prepare("
-        SELECT dp.*, 
-               COALESCE(r.full_name, CONCAT(a.first_name, ' ', a.last_name)) AS rider_name
+        SELECT dp.*,
+               COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS rider_name
         FROM delivery_proofs dp
         LEFT JOIN riders r ON r.rider_id = dp.rider_id
         LEFT JOIN accounts a ON a.account_id = r.account_id
@@ -162,13 +175,18 @@ function getDeliveryProofs($order_id, $conn) {
 
 /**
  * Get available riders list
+ * Uses renamed columns:
+ *   riders:   rider_name (was full_name)
+ *   accounts: account_first_name, account_last_name
+ *   deliveries: delivery_status (was status)
  */
 function getRidersList($conn) {
     $stmt = $conn->prepare("
-        SELECT r.rider_id, 
-               COALESCE(r.full_name, CONCAT(a.first_name, ' ', a.last_name)) AS display_name,
-               r.vehicle_type, r.organization,
-               (SELECT COUNT(*) FROM deliveries WHERE rider_id = r.rider_id AND status = 'pending_acceptance') AS active_deliveries
+        SELECT r.rider_id,
+               COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS display_name,
+               r.vehicle_type,
+               r.organization,
+               (SELECT COUNT(*) FROM deliveries WHERE rider_id = r.rider_id AND delivery_status = 'pending_acceptance') AS active_deliveries
         FROM riders r
         LEFT JOIN accounts a ON a.account_id = r.account_id
         WHERE r.is_deleted = 0 AND r.is_available = 1
@@ -186,8 +204,8 @@ function getRidersList($conn) {
 function getOrderCounts($conn) {
     $counts = [];
     $result = $conn->query("
-        SELECT order_status, COUNT(*) as cnt 
-        FROM orders 
+        SELECT order_status, COUNT(*) AS cnt
+        FROM orders
         GROUP BY order_status
     ");
     while ($row = $result->fetch_assoc()) {

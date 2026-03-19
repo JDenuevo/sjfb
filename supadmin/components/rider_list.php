@@ -59,7 +59,7 @@ $r = $conn->query("SELECT COUNT(*) as v FROM orders WHERE order_status='Delivere
       </thead>
       <tbody class="divide-y divide-gray-50">
         <?php foreach ($riders as $rider):
-          $initials = strtoupper(substr($rider['first_name'],0,1).substr($rider['last_name'],0,1));
+          $initials = strtoupper(substr($rider['account_first_name'],0,1).substr($rider['account_last_name'],0,1));
           
           // Get active delivery count + total delivered
           $adRes = $conn->prepare("SELECT COUNT(*) as cnt FROM orders WHERE assigned_rider_id=? AND order_status='OutForDelivery'");
@@ -80,8 +80,8 @@ $r = $conn->query("SELECT COUNT(*) as v FROM orders WHERE order_status='Delivere
                 <?= $initials ?>
               </div>
               <div>
-                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($rider['first_name'].' '.$rider['last_name']) ?></div>
-                <div class="text-xs text-gray-400"><?= htmlspecialchars($rider['email']) ?></div>
+                <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($rider['account_first_name'].' '.$rider['account_last_name']) ?></div>
+                <div class="text-xs text-gray-400"><?= htmlspecialchars($rider['account_email']) ?></div>
               </div>
             </div>
           </td>
@@ -217,7 +217,7 @@ $r = $conn->query("SELECT COUNT(*) as v FROM orders WHERE order_status='Delivere
         <select name="account_id" required class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
           <option value="">Select account to assign as rider</option>
           <?php foreach ($availableAccounts as $acc): ?>
-          <option value="<?= $acc['account_id'] ?>"><?= htmlspecialchars($acc['first_name'].' '.$acc['last_name'].' ('.$acc['email'].')') ?></option>
+          <option value="<?= $acc['account_id'] ?>"><?= htmlspecialchars($acc['account_first_name'].' '.$acc['account_last_name'].' ('.$acc['account_email'].')') ?></option>
           <?php endforeach; ?>
         </select>
       </div>

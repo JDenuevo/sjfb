@@ -1,3 +1,5 @@
+<!-- activity_log_helper.php -->
+
 <?php
 if (!function_exists('logActivity')) {
 

@@ -40,7 +40,7 @@ $offset = ($page-1)*$perPage;
 $lSt = $conn->prepare("
     SELECT al.log_id, al.entity_type, al.entity_id, al.user_type, al.action,
            al.old_value, al.new_value, al.details, al.created_at,
-           TRIM(CONCAT(COALESCE(a.first_name,''),' ',COALESCE(a.last_name,''))) AS user_name,
+           TRIM(CONCAT(COALESCE(a.account_first_name,''),' ',COALESCE(a.account_last_name,''))) AS user_name,
            o.order_code
     FROM activity_log al
     LEFT JOIN accounts a ON a.account_id = al.user_id

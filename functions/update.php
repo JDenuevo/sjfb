@@ -6,7 +6,6 @@ require_once __DIR__ . '/mail_functions.php';
 
 date_default_timezone_set('Asia/Manila');
 
-// ── Helper ────────────────────────────────────────────────────────────────────
 function redirectWithMessage($location, $message, $type = 'error') {
     $_SESSION[$type] = $message;
     header("Location: $location");
@@ -16,12 +15,13 @@ function redirectWithMessage($location, $message, $type = 'error') {
 /**
  * Generate + store a 6-digit OTP, then email it.
  * Returns true on success, false on mail failure.
+ * Uses renamed column: account_email (was email)
  */
 function sendOTP(string $email, mysqli $conn): bool {
     $otp        = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $otp_expiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
-    $stmt = $conn->prepare("UPDATE accounts SET reset_otp = ?, otp_expiry = ? WHERE email = ?");
+    $stmt = $conn->prepare("UPDATE accounts SET reset_otp = ?, otp_expiry = ? WHERE account_email = ?");
     if (!$stmt) return false;
 
     $stmt->bind_param("sss", $otp, $otp_expiry, $email);
@@ -34,26 +34,24 @@ function sendOTP(string $email, mysqli $conn): bool {
     return sendEmail($email, $subject, $message);
 }
 
-// ── Only handle POST ──────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: ../forgot_password.php");
     exit();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. SEND OTP  (forgot_password.php form)
+// 1. SEND OTP
 // ─────────────────────────────────────────────────────────────────────────────
 if (isset($_POST['send_otp'])) {
 
     $email = trim($_POST['email'] ?? '');
 
-    // Validate format first
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         redirectWithMessage('../forgot_password.php', "Please enter a valid email address.");
     }
 
-    // Check if account exists
-    $stmt = $conn->prepare("SELECT account_id, is_deleted FROM accounts WHERE email = ?");
+    // Uses renamed column: account_email (was email)
+    $stmt = $conn->prepare("SELECT account_id, is_deleted FROM accounts WHERE account_email = ?");
     if (!$stmt) {
         redirectWithMessage('../forgot_password.php', "A system error occurred. Please try again.");
     }
@@ -63,7 +61,6 @@ if (isset($_POST['send_otp'])) {
     $stmt->close();
 
     if ($result->num_rows === 0) {
-        // Security: don't reveal whether the email exists
         $_SESSION['success'] = "If your email is registered with us, you'll receive a reset code shortly.";
         header("Location: ../forgot_password.php");
         exit();
@@ -71,18 +68,16 @@ if (isset($_POST['send_otp'])) {
 
     $account = $result->fetch_assoc();
 
-    // Soft-deleted account — still use generic message
     if (!empty($account['is_deleted'])) {
         $_SESSION['success'] = "If your email is registered with us, you'll receive a reset code shortly.";
         header("Location: ../forgot_password.php");
         exit();
     }
 
-    // Send OTP
     if (sendOTP($email, $conn)) {
-        $_SESSION['email']              = $email;
-        $_SESSION['otp_sent']           = true;
-        $_SESSION['last_otp_resend']    = time();
+        $_SESSION['email']           = $email;
+        $_SESSION['otp_sent']        = true;
+        $_SESSION['last_otp_resend'] = time();
         header("Location: ../verify_otp.php");
         exit();
     } else {
@@ -91,16 +86,14 @@ if (isset($_POST['send_otp'])) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. VERIFY OTP  (verify_otp.php form)
+// 2. VERIFY OTP
 // ─────────────────────────────────────────────────────────────────────────────
 elseif (isset($_POST['submit_otp'])) {
 
-    // Session guard
     if (!isset($_SESSION['email'])) {
         redirectWithMessage('../forgot_password.php', "Session expired. Please start over.");
     }
 
-    // Combine the 6 individual digit fields OR accept full_otp hidden field
     $otp = '';
     if (!empty($_POST['full_otp']) && ctype_digit($_POST['full_otp']) && strlen($_POST['full_otp']) === 6) {
         $otp = $_POST['full_otp'];
@@ -116,11 +109,11 @@ elseif (isset($_POST['submit_otp'])) {
 
     $email = $_SESSION['email'];
 
-    // Validate against DB — must not be expired
+    // Uses renamed column: account_email (was email)
     $stmt = $conn->prepare("
         SELECT account_id
         FROM accounts
-        WHERE email = ?
+        WHERE account_email = ?
           AND reset_otp = ?
           AND otp_expiry > NOW()
         LIMIT 1
@@ -137,8 +130,8 @@ elseif (isset($_POST['submit_otp'])) {
         redirectWithMessage('../verify_otp.php', "Invalid or expired OTP. Please try again or request a new code.");
     }
 
-    // Mark verified & clear OTP so it can't be reused
-    $clear = $conn->prepare("UPDATE accounts SET reset_otp = NULL, otp_expiry = NULL WHERE email = ?");
+    // Uses renamed column: account_email (was email)
+    $clear = $conn->prepare("UPDATE accounts SET reset_otp = NULL, otp_expiry = NULL WHERE account_email = ?");
     $clear->bind_param("s", $email);
     $clear->execute();
     $clear->close();
@@ -148,7 +141,7 @@ elseif (isset($_POST['submit_otp'])) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. UPDATE ACCOUNT DETAILS  (details.php / profile form)
+// 3. UPDATE ACCOUNT DETAILS
 // ─────────────────────────────────────────────────────────────────────────────
 elseif (isset($_POST['update_new_account'])) {
 
@@ -164,7 +157,6 @@ elseif (isset($_POST['update_new_account'])) {
     $postal     = trim($_POST['postal_code']    ?? '');
     $city       = trim($_POST['city']           ?? '');
 
-    // Basic field guards
     if (empty($fname) || empty($lname)) {
         redirectWithMessage('../details.php', "First name and last name are required.");
     }
@@ -178,10 +170,15 @@ elseif (isset($_POST['update_new_account'])) {
         redirectWithMessage('../details.php', "Please enter a valid 4–6 digit postal code.");
     }
 
+    // Uses renamed columns: account_phone, account_first_name, account_last_name, account_address
     $stmt = $conn->prepare("
         UPDATE accounts
-        SET phone_number = ?, first_name = ?, last_name = ?,
-            address = ?, postal_code = ?, city = ?
+        SET account_phone        = ?,
+            account_first_name   = ?,
+            account_last_name    = ?,
+            account_address      = ?,
+            postal_code          = ?,
+            city                 = ?
         WHERE account_id = ?
     ");
     if (!$stmt) {
@@ -199,7 +196,7 @@ elseif (isset($_POST['update_new_account'])) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fallback — unknown POST action
+// Fallback
 // ─────────────────────────────────────────────────────────────────────────────
 else {
     header("Location: ../index.php");

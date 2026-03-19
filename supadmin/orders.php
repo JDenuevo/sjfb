@@ -29,7 +29,7 @@ if (!empty($_GET['status'])) {
 }
 if (!empty($_GET['search'])) {
     $s = '%' . $_GET['search'] . '%';
-    $whereConditions[] = "(o.order_code LIKE ? OR CONCAT(o.first_name,' ',o.last_name) LIKE ? OR o.email LIKE ?)";
+    "(o.order_code LIKE ? OR CONCAT(o.recipient_first_name,' ',o.recipient_last_name) LIKE ? OR o.recipient_email LIKE ?)";
     array_push($params, $s, $s, $s);
     $types .= 'sss';
 }
@@ -57,9 +57,9 @@ $totalPages = max(1, (int)ceil($totalItems / $perPage));
 // ── Main query ────────────────────────────────────────────────────────────
 $mainSQL = "SELECT o.order_id, o.order_code, o.order_date, o.order_status,
                o.total_price, o.payment_method, o.is_guest_order,
-               o.first_name, o.last_name, o.address, o.city, o.postal_code, o.email,
-               o.assigned_rider_id,
-               COALESCE(r.full_name, CONCAT(ra.first_name,' ',ra.last_name)) AS rider_name,
+               o.recipient_first_name, o.recipient_last_name, o.recipient_address, o.city, o.postal_code, o.recipient_email,
+               o.assigned_rider_id, o.delivery_fee,
+               COALESCE(r.rider_name, CONCAT(ra.account_first_name,' ',ra.account_last_name)) AS rider_name,
                p.payment_status, p.paid_at
             FROM orders o
             LEFT JOIN payments p ON p.order_id=o.order_id AND p.payment_id=(SELECT MAX(p2.payment_id) FROM payments p2 WHERE p2.order_id=o.order_id)
@@ -217,7 +217,7 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
             </td>
             <!-- Customer -->
             <td class="px-4 py-3">
-              <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+              <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['recipient_first_name'].' '.$row['recipient_last_name']) ?></div>
               <div class="text-xs text-gray-400"><?= $row['is_guest_order'] ? 'Guest' : 'Member' ?></div>
             </td>
             <!-- Order status -->
@@ -271,8 +271,8 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
                 <!-- Customer details -->
                 <div class="space-y-1.5">
                   <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Customer Details</p>
-                  <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['email']) ?></p>
-                  <p class="text-xs text-gray-600"><span class="font-medium">Address:</span> <?= htmlspecialchars($row['address'].', '.$row['city']) ?></p>
+                  <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['recipient_email']) ?></p>
+                  <p class="text-xs text-gray-600"><span class="font-medium">Address:</span> <?= htmlspecialchars($row['recipient_address'].', '.$row['city']) ?></p>
                   <p class="text-xs text-gray-600"><span class="font-medium">Type:</span> <?= $row['is_guest_order'] ? 'Guest' : 'Registered Member' ?></p>
                 </div>
                 <!-- Order items — fetched via get_order_detail -->
@@ -280,6 +280,13 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
                   <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Order Items</p>
                   <div id="items-<?= $row['order_id'] ?>" class="space-y-1 min-h-[32px]">
                     <div class="text-xs text-gray-400 italic">Loading…</div>
+                  </div>
+                  <!-- Delivery Fee (END / Summary Style) -->
+                  <div class="flex justify-between items-center mt-3 pt-2 border-t">
+                    <p class="text-xs font-medium text-gray-600">Delivery Fee</p>
+                    <p class="text-xs font-semibold text-gray-800">
+                      ₱<?= number_format($row['delivery_fee'], 2) ?>
+                    </p>
                   </div>
                   <div class="flex gap-2 mt-3">
                     <a href="order_manage.php?order_id=<?= $row['order_id'] ?>"

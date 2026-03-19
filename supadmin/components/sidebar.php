@@ -7,8 +7,10 @@ $navItems = [
 
   ['href' => 'orders.php',    'label' => 'Orders',    'icon' => 'orders',    'category' => 'Sales'],
   ['href' => 'payments.php',  'label' => 'Payments',  'icon' => 'payments',  'category' => 'Sales'],
+  ['href' => 'deliveries.php',  'label' => 'Deliveries',  'icon' => 'deliveries',  'category' => 'Sales'],
 
   ['href' => 'products.php',  'label' => 'Products',  'icon' => 'products',  'category' => 'Catalog'],
+  ['href' => 'discounts.php',   'label' => 'Discounts',   'icon' => 'discounts',   'category' => 'Catalog'],
   ['href' => 'category.php',  'label' => 'Categories','icon' => 'category',  'category' => 'Catalog'],
   ['href' => 'markets.php',   'label' => 'Markets',   'icon' => 'markets',   'category' => 'Catalog'],
 
@@ -89,7 +91,9 @@ $icons = [
   'dashboard' => '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   'orders'    => '<path d="M3.5 5.5l1.5 1.5l2.5-2.5"/><path d="M3.5 11.5l1.5 1.5l2.5-2.5"/><path d="M3.5 17.5l1.5 1.5l2.5-2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/>',
   'payments'  => '<path d="M17 8v-3a1 1 0 0 0-1-1h-10a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1-1 1h-12a2 2 0 0 1-2-2v-12"/><path d="M20 12v4h-4a2 2 0 0 1 0-4h4"/>',
+  'deliveries'=> '<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 17h-2v-4m-1 -8h11v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" /><path d="M3 9l4 0" />',
   'products'  => '<path d="M16.69 7.44a6.973 6.973 0 0 0-1.69 4.56c0 1.747.64 3.345 1.699 4.571"/><path d="M2 9.504c7.715 8.647 14.75 10.265 20 2.498c-5.25-7.761-12.285-6.142-20 2.504"/><path d="M18 11v.01"/><path d="M11.5 10.5c-.667 1-.667 2 0 3"/>',
+  'discounts' => '<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 15l6 -6" /><path d="M9 9.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0" fill="currentColor" /><path d="M14 14.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0" fill="currentColor" /><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />',
   'category'  => '<path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0"/>',
   'markets'   => '<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l18 0" /><path d="M3 7v1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1h-18l2 -4h14l2 4" /><path d="M5 21l0 -10.15" /><path d="M19 21l0 -10.15" /><path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />',
   'blogs'     => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
@@ -102,13 +106,20 @@ $icons = [
 
 // ── Badge color per page ──────────────────────────────────────────────────
 $badgeColor = [
-    'orders.php'    => 'bg-red-500',
-    'payments.php'  => 'bg-orange-500',
-    'reviews.php'   => 'bg-yellow-500',
-    'accounts.php'  => 'bg-blue-500',
-    'riders.php'    => 'bg-purple-500',
-    'inquiries.php' => 'bg-red-500',
-    'products.php'  => 'bg-amber-500',
+  'dashboard.php' => 'bg-gray-700',
+  'orders.php'    => 'bg-blue-500',
+  'payments.php'  => 'bg-green-500',
+  'deliveries.php' => 'bg-sky-500',
+  'products.php'  => 'bg-orange-500',
+  'discounts.php' => 'bg-pink-500',
+  'category.php'  => 'bg-indigo-500',
+  'markets.php'   => 'bg-teal-500',
+  'blogs.php'     => 'bg-purple-500',
+  'reviews.php'   => 'bg-yellow-500',
+  'cooking.php'   => 'bg-rose-500',
+  'accounts.php'  => 'bg-cyan-500',
+  'riders.php'    => 'bg-violet-500',
+  'inquiries.php' => 'bg-red-500',
 ];
 
 // ── Helper: format badge number (cap at 99) ───────────────────────────────

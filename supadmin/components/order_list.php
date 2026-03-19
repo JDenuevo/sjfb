@@ -61,7 +61,7 @@
           </td>
           <!-- Customer -->
           <td class="px-4 py-3">
-            <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+            <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['recipient_first_name'].' '.$row['recipient_last_name']) ?></div>
             <div class="text-xs text-gray-400"><?= $row['is_guest_order'] ? 'Guest' : 'Member' ?></div>
           </td>
           <!-- Payment -->
@@ -108,8 +108,8 @@
               <!-- Customer Info -->
               <div class="space-y-1">
                 <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Customer Details</p>
-                <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['email']) ?></p>
-                <p class="text-xs text-gray-600"><span class="font-medium">Delivery address:</span> <?= htmlspecialchars($row['address'].', '.$row['city']) ?></p>
+                <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['recipient_email']) ?></p>
+                <p class="text-xs text-gray-600"><span class="font-medium">Delivery address:</span> <?= htmlspecialchars($row['recipient_address'].', '.$row['city']) ?></p>
               </div>
               <!-- Order Items (loaded via JS) -->
               <div class="sm:col-span-2">

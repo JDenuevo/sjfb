@@ -143,7 +143,7 @@ $paymentMethods = $pmResult->fetch_all(MYSQLI_ASSOC);
 
 // ── Recent orders (latest 8) (FIX #3) ─────────────────────────────────────
 $recentOrders = $conn->query("
-    SELECT o.order_id, o.order_code, o.first_name, o.last_name,
+    SELECT o.order_id, o.order_code, o.recipient_first_name, o.recipient_last_name,
            o.order_status, o.total_price, o.order_date,
            o.payment_method, o.is_guest_order,
            p.payment_status
@@ -174,7 +174,7 @@ $topProducts = $conn->query("
 $recentActivity = $conn->query("
     SELECT al.*,
            o.order_code,
-           CONCAT(a.first_name,' ',a.last_name) AS user_name
+           CONCAT(a.account_first_name,' ',a.account_last_name) AS user_name
     FROM activity_log al
     LEFT JOIN orders   o ON al.entity_type='order' AND al.entity_id=o.order_id
     LEFT JOIN accounts a ON al.user_id = a.account_id
@@ -185,8 +185,8 @@ $recentActivity = $conn->query("
 // ── Rider status ───────────────────────────────────────────────────────────
 $riderStatus = $conn->query("
     SELECT r.rider_id, r.is_available, r.vehicle_type, r.image,
-           COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS display_name,
-           a.first_name, a.last_name,
+           COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS display_name,
+           a.account_first_name, a.account_last_name,
            (SELECT COUNT(*) FROM orders WHERE assigned_rider_id=r.rider_id AND order_status='OutForDelivery') AS active_deliveries
     FROM riders r
     JOIN accounts a ON r.account_id = a.account_id
@@ -488,7 +488,7 @@ function decodeLogDiff(?string $oldJson, ?string $newJson): ?array {
               <div class="text-xs text-gray-400 mt-0.5"><?= date('M j, g:i A', strtotime($ro['order_date'])) ?></div>
             </td>
             <td class="px-4 py-3">
-              <span class="text-xs font-medium text-gray-800"><?= htmlspecialchars($ro['first_name'].' '.$ro['last_name']) ?></span>
+              <span class="text-xs font-medium text-gray-800"><?= htmlspecialchars($ro['recipient_first_name'].' '.$ro['recipient_last_name']) ?></span>
               <?php if ($ro['is_guest_order']): ?>
               <div class="text-xs text-gray-400">Guest</div>
               <?php endif; ?>

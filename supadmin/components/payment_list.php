@@ -164,7 +164,7 @@ $methodIcons = [
           
           <!-- Customer -->
           <td class="px-4 py-4">
-            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></div>
+            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($row['recipient_first_name'].' '.$row['recipient_last_name']) ?></div>
             <div class="text-xs text-gray-400"><?= htmlspecialchars($row['billing_email'] ?? '—') ?></div>
           </td>
           

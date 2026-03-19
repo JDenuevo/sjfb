@@ -1,9 +1,9 @@
 <?php
-// ==================== admin/functions/update.php ====================
+// ==================== supadmin/functions/update.php ====================
 session_start();
 require '../../conn.php';
 include 'slug_helper.php';
-require_once 'activity_log_helper.php'; // ← shared logger
+require_once 'activity_log_helper.php';
 
 function redirectWithMessage($location, $message, $type) {
     $_SESSION['message'] = ['text' => $message, 'type' => $type];
@@ -13,73 +13,122 @@ function redirectWithMessage($location, $message, $type) {
 
 ['userId' => $actorId, 'userType' => $actorType] = getActorFromSession();
 
-// Function to clean content
 function cleanContent($content) {
     if (empty($content)) return '';
-    // Remove excessive escaping
-    $content = stripslashes($content);
-    return $content;
+    return stripslashes($content);
 }
 
-// ── UPDATE ACCOUNT (admin panel) ──────────────────────────────────────────────
+// ── UPDATE ACCOUNT ────────────────────────────────────────────────────────────
+// Uses renamed columns: account_email, account_phone, account_first_name,
+//                       account_last_name, account_address
 if (isset($_POST['update_account'])) {
-    $account_id  = intval($_POST['account_id']);
-    $username    = trim(htmlspecialchars($_POST['username']));
-    $role        = htmlspecialchars($_POST['role']);
-    $first_name  = trim(htmlspecialchars($_POST['first_name']));
-    $last_name   = trim(htmlspecialchars($_POST['last_name']));
-    $email       = trim(htmlspecialchars($_POST['email']));
-    $phone_number= trim(htmlspecialchars($_POST['phone_number']));
-    $address     = trim(htmlspecialchars($_POST['address']));
-    $city        = trim(htmlspecialchars($_POST['city']));
-    $postal_code = trim(htmlspecialchars($_POST['postal_code']));
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $account_id = (int)($_POST['account_id'] ?? 0);
+ 
+    // These names match the edit modal form inputs in accounts.php
+    $username    = trim($_POST['username']          ?? '');
+    $role        = trim($_POST['role']              ?? '');
+    $first_name  = trim($_POST['account_first_name']?? '');
+    $last_name   = trim($_POST['account_last_name'] ?? '');
+    $email       = trim($_POST['account_email']     ?? '');
+    $phone       = trim($_POST['account_phone']     ?? '');   // ← was 'phone_number' / 'account_phone_number'
+    $address     = trim($_POST['account_address']   ?? '');   // ← was 'address'
+    $city        = trim($_POST['city']              ?? '');
+    $postal_code = trim($_POST['postal_code']       ?? '');
+ 
+    if (!$account_id)
+        redirectWithMessage("../accounts.php", "Invalid account ID.", "error");
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
         redirectWithMessage("../accounts.php", "Invalid email format.", "error");
-    }
-
-    // Fetch old values for diff log
-    $old = $conn->prepare("SELECT username, role, email FROM accounts WHERE account_id = ?");
-    $old->bind_param("i", $account_id); $old->execute();
+ 
+    // Fetch old values for the activity log — uses renamed columns
+    $old = $conn->prepare("SELECT username, role, account_email FROM accounts WHERE account_id = ? LIMIT 1");
+    $old->bind_param("i", $account_id);
+    $old->execute();
     $oldData = $old->get_result()->fetch_assoc();
     $old->close();
-
-    if (!empty($_POST['password']) && !empty($_POST['confirm_password'])) {
-        $password = $_POST['password']; $confirm = $_POST['confirm_password'];
-        if ($password !== $confirm) redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
+ 
+    $password = trim($_POST['password']         ?? '');
+    $confirm  = trim($_POST['confirm_password'] ?? '');
+ 
+    if (!empty($password)) {
+        if ($password !== $confirm)
+            redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE accounts SET username=?,role=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=?,password_hash=? WHERE account_id=?");
-        $stmt->bind_param("ssssssssssi", $username,$role,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$hashed,$account_id);
+ 
+        $stmt = $conn->prepare("
+            UPDATE accounts
+            SET username = ?, role = ?,
+                account_first_name = ?, account_last_name = ?,
+                account_email = ?, account_phone = ?,
+                account_address = ?, city = ?, postal_code = ?,
+                password_hash = ?
+            WHERE account_id = ?
+        ");
+        $stmt->bind_param("ssssssssssi",
+            $username, $role,
+            $first_name, $last_name,
+            $email, $phone,
+            $address, $city, $postal_code,
+            $hashed, $account_id
+        );
     } else {
-        $stmt = $conn->prepare("UPDATE accounts SET username=?,role=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=? WHERE account_id=?");
-        $stmt->bind_param("sssssssssi", $username,$role,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$account_id);
+        $stmt = $conn->prepare("
+            UPDATE accounts
+            SET username = ?, role = ?,
+                account_first_name = ?, account_last_name = ?,
+                account_email = ?, account_phone = ?,
+                account_address = ?, city = ?, postal_code = ?
+            WHERE account_id = ?
+        ");
+        $stmt->bind_param("sssssssssi",
+            $username, $role,
+            $first_name, $last_name,
+            $email, $phone,
+            $address, $city, $postal_code,
+            $account_id
+        );
     }
-
+ 
     if ($stmt->execute()) {
         logActivity($conn, 'account', $account_id, 'Account updated',
-            json_encode(['username'=>$oldData['username'],'role'=>$oldData['role'],'email'=>$oldData['email']]),
-            json_encode(['username'=>$username,'role'=>$role,'email'=>$email]),
-            "Account ID {$account_id} updated by admin. Name: {$first_name} {$last_name}",
+            json_encode([
+                'username' => $oldData['username'],
+                'role'     => $oldData['role'],
+                'email'    => $oldData['account_email'],
+            ]),
+            json_encode([
+                'username' => $username,
+                'role'     => $role,
+                'email'    => $email,
+            ]),
+            "Account ID {$account_id} updated. Name: {$first_name} {$last_name}",
             $actorId, $actorType
         );
-        $stmt->close(); $conn->close();
-        redirectWithMessage("../accounts.php", "Account successfully updated!", "success");
+        $stmt->close();
+        redirectWithMessage("../accounts.php", "Account updated successfully!", "success");
     } else {
-        $stmt->close(); $conn->close();
-        redirectWithMessage("../accounts.php", "Failed to update account.", "error");
+        $err = $stmt->error;
+        $stmt->close();
+        redirectWithMessage("../accounts.php", "Failed to update account: {$err}", "error");
     }
 }
 
 // ── UPDATE PROFILE (self-service) ─────────────────────────────────────────────
 elseif (isset($_POST['update_profile'])) {
-    $account_id  = $_SESSION['account_id'];
-    $username    = $_POST['username'];   $first_name  = $_POST['first_name'];
-    $last_name   = $_POST['last_name'];  $email       = $_POST['email'];
-    $phone_number= $_POST['phone_number']; $address  = $_POST['address'];
-    $city        = $_POST['city'];       $postal_code = $_POST['postal_code'];
-    $password    = $_POST['password'];   $confirm     = $_POST['confirm_password'];
+    $account_id   = $_SESSION['account_id'];
+    $username     = $_POST['username'];
+    $first_name   = $_POST['first_name'];
+    $last_name    = $_POST['last_name'];
+    $email        = $_POST['email'];
+    $phone_number = $_POST['phone_number'];
+    $address      = $_POST['address'];
+    $city         = $_POST['city'];
+    $postal_code  = $_POST['postal_code'];
+    $password     = $_POST['password'];
+    $confirm      = $_POST['confirm_password'];
 
-    $ck = $conn->prepare("SELECT account_id FROM accounts WHERE email = ? AND account_id != ?");
+    // Uses renamed: account_email
+    $ck = $conn->prepare("SELECT account_id FROM accounts WHERE account_email = ? AND account_id != ?");
     $ck->bind_param("si", $email, $account_id); $ck->execute(); $ck->store_result();
     if ($ck->num_rows > 0) { $ck->close(); redirectWithMessage('../profile.php','Email already taken.','error'); }
     $ck->close();
@@ -92,11 +141,29 @@ elseif (isset($_POST['update_profile'])) {
     if (!empty($password) || !empty($confirm)) {
         if ($password !== $confirm) redirectWithMessage('../profile.php','Passwords do not match.','error');
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE accounts SET username=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=?,password_hash=? WHERE account_id=?");
-        $stmt->bind_param("sssssssssi",$username,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$hashed,$account_id);
+        $stmt = $conn->prepare("
+            UPDATE accounts
+            SET username=?, account_first_name=?, account_last_name=?,
+                account_email=?, account_phone=?, account_address=?,
+                city=?, postal_code=?, password_hash=?
+            WHERE account_id=?
+        ");
+        $stmt->bind_param("sssssssssi",
+            $username, $first_name, $last_name, $email,
+            $phone_number, $address, $city, $postal_code, $hashed, $account_id
+        );
     } else {
-        $stmt = $conn->prepare("UPDATE accounts SET username=?,first_name=?,last_name=?,email=?,phone_number=?,address=?,city=?,postal_code=? WHERE account_id=?");
-        $stmt->bind_param("ssssssssi",$username,$first_name,$last_name,$email,$phone_number,$address,$city,$postal_code,$account_id);
+        $stmt = $conn->prepare("
+            UPDATE accounts
+            SET username=?, account_first_name=?, account_last_name=?,
+                account_email=?, account_phone=?, account_address=?,
+                city=?, postal_code=?
+            WHERE account_id=?
+        ");
+        $stmt->bind_param("ssssssssi",
+            $username, $first_name, $last_name, $email,
+            $phone_number, $address, $city, $postal_code, $account_id
+        );
     }
 
     if ($stmt->execute()) {
@@ -126,7 +193,6 @@ elseif (isset($_POST['update_product'])) {
         redirectWithMessage("../products.php","Product name and at least one category are required.","error");
     }
 
-    // Fetch old name for log
     $op = $conn->prepare("SELECT product_name FROM products WHERE product_id = ?");
     $op->bind_param("i",$product_id); $op->execute();
     $oldProd = $op->get_result()->fetch_assoc(); $op->close();
@@ -177,7 +243,6 @@ elseif (isset($_POST['update_product'])) {
             }
         }
 
-        // Handle deleted images
         if (!empty($_POST['deleted_images'])) {
             $deletedImages = explode(',', $_POST['deleted_images']);
             $ck_p = $conn->prepare("SELECT image_id FROM product_images WHERE image_id IN (" . implode(',', array_fill(0,count($deletedImages),'?')) . ") AND is_primary=1");
@@ -272,7 +337,6 @@ elseif (isset($_POST['update_category'])) {
         $lv->close();
     }
 
-    // Fetch old for log
     $oc = $conn->prepare("SELECT category_name, is_active FROM product_categories WHERE category_id=?");
     $oc->bind_param("i",$category_id); $oc->execute();
     $oldCat = $oc->get_result()->fetch_assoc(); $oc->close();
@@ -318,123 +382,67 @@ elseif (isset($_POST['update_category'])) {
 
 // ── UPDATE BLOG ───────────────────────────────────────────────────────────────
 elseif (isset($_POST['update_blog'])) {
-    $blog_id = (int)$_POST['blog_id'];
-    $blog_title = trim($_POST['blog_title']);
-    $blog_content = cleanContent($_POST['blog_content']); // Clean the content
-    $blog_excerpt = trim($_POST['blog_excerpt']);
-    $blog_author = trim($_POST['blog_author']);
-    $blog_status = $_POST['blog_status'] ?? 'draft';
-    $blog_meta_title = trim($_POST['blog_meta_title'] ?? '');
+    $blog_id               = (int)$_POST['blog_id'];
+    $blog_title            = trim($_POST['blog_title']);
+    $blog_content          = cleanContent($_POST['blog_content']);
+    $blog_excerpt          = trim($_POST['blog_excerpt']);
+    $blog_author           = trim($_POST['blog_author']);
+    $blog_status           = $_POST['blog_status'] ?? 'draft';
+    $blog_meta_title       = trim($_POST['blog_meta_title'] ?? '');
     $blog_meta_description = trim($_POST['blog_meta_description'] ?? '');
-    $blog_meta_keywords = trim($_POST['blog_meta_keywords'] ?? '');
-    
-    // Get current blog data to check for existing image and title
+    $blog_meta_keywords    = trim($_POST['blog_meta_keywords'] ?? '');
+
     $current_query = $conn->prepare("SELECT blog_slug, blog_featured_image, blog_title FROM blogs WHERE blog_id = ?");
     $current_query->bind_param("i", $blog_id);
     $current_query->execute();
-    $current_result = $current_query->get_result();
-    $current_blog = $current_result->fetch_assoc();
+    $current_blog = $current_query->get_result()->fetch_assoc();
     $current_query->close();
-    
+
     if (!$current_blog) {
         $_SESSION['message'] = ['type' => 'error', 'text' => 'Blog post not found.'];
         header("Location: ../blogs.php");
         exit;
     }
-    
-    // Generate new slug if title changed
-    if ($current_blog['blog_title'] !== $blog_title) {
-        $blog_slug = getUniqueSlug($conn, $blog_title, 'blogs', $blog_id);
-    } else {
-        $blog_slug = $current_blog['blog_slug'];
-    }
-    
+
+    $blog_slug = ($current_blog['blog_title'] !== $blog_title)
+        ? getUniqueSlug($conn, $blog_title, 'blogs', $blog_id)
+        : $current_blog['blog_slug'];
+
     $conn->begin_transaction();
-    
     try {
-        // Start with base update query (without image)
-        $query = "UPDATE blogs SET 
-            blog_title = ?, 
-            blog_slug = ?, 
-            blog_content = ?, 
-            blog_excerpt = ?, 
-            blog_author = ?, 
-            blog_status = ?, 
-            blog_meta_title = ?, 
-            blog_meta_description = ?, 
-            blog_meta_keywords = ?";
-        
-        $params = [$blog_title, $blog_slug, $blog_content, $blog_excerpt, $blog_author, 
-                   $blog_status, $blog_meta_title, $blog_meta_description, $blog_meta_keywords];
-        $types = "sssssssss";
-        
-        // Check if new image is uploaded
+        $query  = "UPDATE blogs SET blog_title=?,blog_slug=?,blog_content=?,blog_excerpt=?,blog_author=?,blog_status=?,blog_meta_title=?,blog_meta_description=?,blog_meta_keywords=?";
+        $params = [$blog_title,$blog_slug,$blog_content,$blog_excerpt,$blog_author,$blog_status,$blog_meta_title,$blog_meta_description,$blog_meta_keywords];
+        $types  = "sssssssss";
+
         $new_image_uploaded = isset($_FILES['blog_featured_image']) && $_FILES['blog_featured_image']['error'] === UPLOAD_ERR_OK;
-        
-        if ($new_image_uploaded) {
-            $query .= ", blog_featured_image = ?";
-        }
-        
+        if ($new_image_uploaded) { $query .= ", blog_featured_image = ?"; }
         $query .= " WHERE blog_id = ?";
-        
-        if ($new_image_uploaded) {
-            $types .= "si"; // Add string for image, int for blog_id
-        } else {
-            $types .= "i"; // Just int for blog_id
-        }
-        
+        $types .= $new_image_uploaded ? "si" : "i";
+
         $stmt = $conn->prepare($query);
-        
-        // Bind parameters dynamically
         if ($new_image_uploaded) {
-            // Handle image upload first
             $target_dir = "../../uploads/blogs/";
-            if (!file_exists($target_dir)) {
-                mkdir($target_dir, 0777, true);
-            }
-            
+            if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
             $file_type = mime_content_type($_FILES['blog_featured_image']['tmp_name']);
-            if (strpos($file_type, 'image/') !== 0) {
-                throw new Exception("Only image files are allowed");
-            }
-            
-            if ($_FILES['blog_featured_image']['size'] > 5 * 1024 * 1024) {
-                throw new Exception("File size must be less than 5MB");
-            }
-            
+            if (strpos($file_type, 'image/') !== 0) throw new Exception("Only image files are allowed");
+            if ($_FILES['blog_featured_image']['size'] > 5 * 1024 * 1024) throw new Exception("File size must be less than 5MB");
             $file_ext = strtolower(pathinfo($_FILES['blog_featured_image']['name'], PATHINFO_EXTENSION));
             $filename = uniqid() . '_' . time() . '.' . $file_ext;
             $target_path = $target_dir . $filename;
-            
             if (move_uploaded_file($_FILES['blog_featured_image']['tmp_name'], $target_path)) {
                 $blog_featured_image = '/sjfbi-js/uploads/blogs/' . $filename;
-                
-                // Add image to params
                 $params[] = $blog_featured_image;
-            } else {
-                throw new Exception("Failed to upload image");
-            }
+            } else throw new Exception("Failed to upload image");
         }
-        
-        // Add blog_id to params
         $params[] = $blog_id;
-        
-        // Bind all parameters
         $stmt->bind_param($types, ...$params);
-        
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to update blog: " . $stmt->error);
-        }
-        
-        // If new image was uploaded successfully, delete the old one
+        if (!$stmt->execute()) throw new Exception("Failed to update blog: " . $stmt->error);
+
         if ($new_image_uploaded && !empty($current_blog['blog_featured_image'])) {
             $old_image_path = $_SERVER['DOCUMENT_ROOT'] . $current_blog['blog_featured_image'];
-            if (file_exists($old_image_path)) {
-                unlink($old_image_path);
-            }
+            if (file_exists($old_image_path)) unlink($old_image_path);
         }
-        
-        // Log activity
+
         $actorData = getActorFromSession();
         logActivity($conn, 'blog', $blog_id, 'Blog updated',
             json_encode(['old_title' => $current_blog['blog_title']]),
@@ -442,19 +450,14 @@ elseif (isset($_POST['update_blog'])) {
             "Blog '{$blog_title}' updated. Status: {$blog_status}",
             $actorData['userId'], $actorData['userType']
         );
-        
+
         $conn->commit();
         $_SESSION['message'] = ['type' => 'success', 'text' => 'Blog post updated successfully!'];
-        
     } catch (Exception $e) {
         $conn->rollback();
-        // If new image was uploaded but transaction failed, delete the new image
-        if (isset($target_path) && file_exists($target_path)) {
-            unlink($target_path);
-        }
+        if (isset($target_path) && file_exists($target_path)) unlink($target_path);
         $_SESSION['message'] = ['type' => 'error', 'text' => 'Error: ' . $e->getMessage()];
     }
-    
     header("Location: ../blogs.php");
     exit;
 }
@@ -478,7 +481,6 @@ elseif (isset($_POST['update_suggestion'])) {
     if ($ck->get_result()->num_rows > 0) redirectWithMessage("../cooking_suggestions.php","Dish name already exists for that product.","error");
     $ck->close();
 
-    // Fetch old for log
     $os = $conn->prepare("SELECT dish_name, difficulty_level FROM product_cooking_suggestions WHERE suggestion_id=?");
     $os->bind_param("i",$suggestion_id); $os->execute();
     $oldSug = $os->get_result()->fetch_assoc(); $os->close();
@@ -504,30 +506,30 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_id'], $_PO
     $review_id = intval($_POST['review_id']);
     $status    = $_POST['status'];
     $allowed   = ['pending','approved','rejected','spam'];
-    
-    if (!in_array($status, $allowed, true)) { redirectWithMessage("../reviews.php", "Invalid status.", "error"); }
-    $or = $conn->prepare("SELECT status FROM reviews WHERE review_id = ?");
-    $or->bind_param("i", $review_id);
-    $or->execute();
-    $oldReview = $or->get_result()->fetch_assoc();
-    $or->close();
+    if (!in_array($status, $allowed, true)) redirectWithMessage("../reviews.php", "Invalid status.", "error");
 
-    if (!$oldReview) {
-        redirectWithMessage("../reviews.php", "Review not found.", "error");
-    }
+    $or = $conn->prepare("SELECT status FROM reviews WHERE review_id = ?");
+    $or->bind_param("i", $review_id); $or->execute();
+    $oldReview = $or->get_result()->fetch_assoc(); $or->close();
+    if (!$oldReview) redirectWithMessage("../reviews.php", "Review not found.", "error");
+
     $stmt = $conn->prepare("UPDATE reviews SET status = ? WHERE review_id = ?");
     $stmt->bind_param("si", $status, $review_id);
-
-    if ($stmt->execute()) { logActivity( $conn, 'review', $review_id, 'Review status updated', $oldReview['status'], $status, "Review ID {$review_id} status changed from '{$oldReview['status']}' to '{$status}'.", $actorId, $actorType ); redirectWithMessage( "../reviews.php", "Review marked as " . ucfirst($status) . ".", "success" );
+    if ($stmt->execute()) {
+        logActivity($conn,'review',$review_id,'Review status updated',
+            $oldReview['status'], $status,
+            "Review ID {$review_id} status changed from '{$oldReview['status']}' to '{$status}'.",
+            $actorId, $actorType
+        );
+        redirectWithMessage("../reviews.php", "Review marked as " . ucfirst($status) . ".", "success");
     } else {
-        redirectWithMessage( "../reviews.php", "Failed to update review status.", "error" );
+        redirectWithMessage("../reviews.php", "Failed to update review status.", "error");
     }
     $stmt->close();
 }
 
-// ── UPDATE MARKET ──────────────────────────────────────────────────────
+// ── UPDATE MARKET ─────────────────────────────────────────────────────────────
 elseif (isset($_POST['update_market'])) {
-
     $marketsDir = "../../uploads/markets/";
     $membersDir = "../../uploads/members/";
 
@@ -544,7 +546,6 @@ elseif (isset($_POST['update_market'])) {
     $highlights_lines = explode("\n", trim($_POST['highlights']));
     $highlights_json  = json_encode(array_values(array_filter(array_map('trim', $highlights_lines))));
 
-    // ── Shared single-file upload helper (local scope) ─────────────────────
     $doUpload = function (array $file, string $dir, string $suffix = ''): ?string {
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
         $mime = mime_content_type($file['tmp_name']);
@@ -566,69 +567,49 @@ elseif (isset($_POST['update_market'])) {
     };
 
     $conn->begin_transaction();
-
     try {
-        // ── Basic info ──────────────────────────────────────────────────────
         $stmt = $conn->prepare("
             UPDATE markets
             SET market_name=?, location_short=?, location_full=?, description=?,
                 highlights=?, stall_count=?, map_embed=?, accent_color=?, display_order=?
             WHERE market_id=?
         ");
-        $stmt->bind_param(
-            "sssssisssi",   // NOTE: 12 type chars + trailing i for market_id = 13 total — added light_bg/badge/tag
-            $market_name, $location_short, $location_full, $description, $highlights_json, 
+        $stmt->bind_param("sssssisssi",
+            $market_name, $location_short, $location_full, $description, $highlights_json,
             $stall_count, $map_embed, $accent_color, $display_order, $market_id
         );
         if (!$stmt->execute()) throw new Exception("Update market info failed: " . $stmt->error);
         $stmt->close();
 
-        // ── Main image ──────────────────────────────────────────────────────
         if (!empty($_FILES['main_image']['name'])) {
             $saved = $doUpload($_FILES['main_image'], $marketsDir, 'main');
-            if ($saved === null) throw new Exception("Main image upload failed. Use JPG/PNG/WEBP under 5 MB.");
-
-            // Delete old main image file
+            if ($saved === null) throw new Exception("Main image upload failed.");
             $old = $conn->prepare("SELECT main_image FROM markets WHERE market_id=?");
-            $old->bind_param("i", $market_id);
-            $old->execute();
-            $oldImg = $old->get_result()->fetch_assoc()['main_image'] ?? null;
-            $old->close();
+            $old->bind_param("i", $market_id); $old->execute();
+            $oldImg = $old->get_result()->fetch_assoc()['main_image'] ?? null; $old->close();
             if ($oldImg && file_exists($marketsDir . $oldImg)) unlink($marketsDir . $oldImg);
-
             $s = $conn->prepare("UPDATE markets SET main_image=? WHERE market_id=?");
-            $s->bind_param("si", $saved, $market_id);
-            $s->execute();
-            $s->close();
+            $s->bind_param("si", $saved, $market_id); $s->execute(); $s->close();
         }
 
-        // ── Gallery images (append) ─────────────────────────────────────────
         if (!empty($_FILES['gallery_images']['name'][0])) {
-            // Load existing gallery
             $gq = $conn->prepare("SELECT gallery_images FROM markets WHERE market_id=?");
-            $gq->bind_param("i", $market_id);
-            $gq->execute();
-            $row = $gq->get_result()->fetch_assoc();
-            $gq->close();
+            $gq->bind_param("i", $market_id); $gq->execute();
+            $row = $gq->get_result()->fetch_assoc(); $gq->close();
             $existing_gallery = !empty($row['gallery_images']) ? (json_decode($row['gallery_images'], true) ?: []) : [];
-
             $count = count($_FILES['gallery_images']['tmp_name']);
             for ($i = 0; $i < $count; $i++) {
                 $saved = $doUploadIndexed($_FILES['gallery_images'], $i, $marketsDir, "gallery_{$i}");
                 if ($saved) $existing_gallery[] = $saved;
             }
-
             $gallery_json = json_encode(array_values($existing_gallery));
             $s = $conn->prepare("UPDATE markets SET gallery_images=? WHERE market_id=?");
-            $s->bind_param("si", $gallery_json, $market_id);
-            $s->execute();
-            $s->close();
+            $s->bind_param("si", $gallery_json, $market_id); $s->execute(); $s->close();
         }
 
-        // ── Update EXISTING team members ────────────────────────────────────
+        // Update EXISTING team members — uses renamed column: member_name (was name)
         if (isset($_POST['member_id'])) {
             $memberFilesByKey = [];
-            // Reformat $_FILES['member_image_file'] into per-key sub-arrays
             if (!empty($_FILES['member_image_file'])) {
                 foreach ($_FILES['member_image_file']['error'] as $memberId => $err) {
                     $memberFilesByKey[$memberId] = [
@@ -642,77 +623,61 @@ elseif (isset($_POST['update_market'])) {
 
             foreach ($_POST['member_id'] as $idx => $member_id) {
                 $member_id = intval($member_id);
-                $name      = htmlspecialchars(trim($_POST['member_name'][$idx]    ?? ''));
+                $name      = htmlspecialchars(trim($_POST['member_name'][$idx]     ?? ''));
                 $position  = htmlspecialchars(trim($_POST['member_position'][$idx] ?? ''));
-                $order     = intval($_POST['member_order'][$idx]                  ?? 0);
+                $order     = intval($_POST['member_order'][$idx]                   ?? 0);
 
-                // FIXED: check $_FILES, not $_POST, for the new photo
                 $new_image_url = null;
-                if (isset($memberFilesByKey[$member_id])
-                    && $memberFilesByKey[$member_id]['error'] === UPLOAD_ERR_OK) {
-
+                if (isset($memberFilesByKey[$member_id]) && $memberFilesByKey[$member_id]['error'] === UPLOAD_ERR_OK) {
                     $saved = $doUpload($memberFilesByKey[$member_id], $membersDir, "member_{$member_id}");
                     if ($saved) {
-                        // Delete old photo
                         $og = $conn->prepare("SELECT image_url FROM market_members WHERE member_id=?");
-                        $og->bind_param("i", $member_id);
-                        $og->execute();
-                        $oldPhoto = $og->get_result()->fetch_assoc()['image_url'] ?? null;
-                        $og->close();
+                        $og->bind_param("i", $member_id); $og->execute();
+                        $oldPhoto = $og->get_result()->fetch_assoc()['image_url'] ?? null; $og->close();
                         if ($oldPhoto && file_exists($membersDir . $oldPhoto)) unlink($membersDir . $oldPhoto);
                         $new_image_url = $saved;
                     }
                 }
 
+                // Uses renamed column: member_name (was name)
                 if ($new_image_url !== null) {
-                    // Update with new photo
-                    $s = $conn->prepare("UPDATE market_members SET name=?, position=?, image_url=?, display_order=? WHERE member_id=? AND market_id=?");
+                    $s = $conn->prepare("UPDATE market_members SET member_name=?, position=?, image_url=?, display_order=? WHERE member_id=? AND market_id=?");
                     $s->bind_param("sssiii", $name, $position, $new_image_url, $order, $member_id, $market_id);
                 } else {
-                    // No new photo — keep existing
-                    $s = $conn->prepare("UPDATE market_members SET name=?, position=?, display_order=? WHERE member_id=? AND market_id=?");
+                    $s = $conn->prepare("UPDATE market_members SET member_name=?, position=?, display_order=? WHERE member_id=? AND market_id=?");
                     $s->bind_param("ssiii", $name, $position, $order, $member_id, $market_id);
                 }
-                $s->execute();
-                $s->close();
+                $s->execute(); $s->close();
             }
         }
 
-        // ── Add NEW team members ────────────────────────────────────────────
-        // FIXED: reads from $_FILES['new_member_image_file'][], NOT $_POST URL
+        // Add NEW team members — uses renamed column: member_name (was name)
         if (!empty($_POST['new_member_name'])) {
             $newMemberFiles = $_FILES['new_member_image_file'] ?? null;
-
             foreach ($_POST['new_member_name'] as $i => $name) {
                 $name = htmlspecialchars(trim($name));
                 if (empty($name)) continue;
-
                 $position  = htmlspecialchars(trim($_POST['new_member_position'][$i] ?? ''));
                 $order     = intval($_POST['new_member_order'][$i] ?? 0);
                 $image_url = null;
-
                 if ($newMemberFiles && isset($newMemberFiles['tmp_name'][$i])
                     && ($newMemberFiles['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-
                     $saved = $doUploadIndexed($newMemberFiles, $i, $membersDir, "newmember_{$i}");
                     if ($saved) $image_url = $saved;
                 }
-
-                $s = $conn->prepare("INSERT INTO market_members (market_id, name, position, image_url, display_order) VALUES (?, ?, ?, ?, ?)");
+                // Uses renamed column: member_name (was name)
+                $s = $conn->prepare("INSERT INTO market_members (market_id, member_name, position, image_url, display_order) VALUES (?, ?, ?, ?, ?)");
                 $s->bind_param("isssi", $market_id, $name, $position, $image_url, $order);
-                $s->execute();
-                $s->close();
+                $s->execute(); $s->close();
             }
         }
 
-        // ── Product links ───────────────────────────────────────────────────
+        // Product links — uses renamed PK: market_product_id (was id)
         if (isset($_POST['product_link_id'])) {
             foreach ($_POST['product_link_id'] as $i => $link_id) {
                 $order = intval($_POST['product_order'][$i] ?? 0);
-                $s = $conn->prepare("UPDATE market_products SET display_order=? WHERE id=?");
-                $s->bind_param("ii", $order, $link_id);
-                $s->execute();
-                $s->close();
+                $s = $conn->prepare("UPDATE market_products SET display_order=? WHERE market_product_id=?");
+                $s->bind_param("ii", $order, $link_id); $s->execute(); $s->close();
             }
         }
 
@@ -720,21 +685,18 @@ elseif (isset($_POST['update_market'])) {
             $new_order = intval($_POST['new_products_order'] ?? 0);
             foreach ($_POST['new_product_ids'] as $product_id) {
                 if (empty($product_id)) continue;
-                $ck = $conn->prepare("SELECT id FROM market_products WHERE market_id=? AND product_id=?");
-                $ck->bind_param("ii", $market_id, $product_id);
-                $ck->execute();
+                $ck = $conn->prepare("SELECT market_product_id FROM market_products WHERE market_id=? AND product_id=?");
+                $ck->bind_param("ii", $market_id, $product_id); $ck->execute();
                 if ($ck->get_result()->num_rows === 0) {
                     $s = $conn->prepare("INSERT INTO market_products (market_id, product_id, display_order) VALUES (?, ?, ?)");
                     $s->bind_param("iii", $market_id, $product_id, $new_order);
-                    $s->execute();
-                    $s->close();
+                    $s->execute(); $s->close();
                     $new_order++;
                 }
                 $ck->close();
             }
         }
 
-        // ── Log ─────────────────────────────────────────────────────────────
         logActivity($conn, 'market', $market_id, 'Market updated',
             null,
             json_encode(['market_name' => $market_name]),
@@ -744,7 +706,6 @@ elseif (isset($_POST['update_market'])) {
 
         $conn->commit();
         redirectWithMessage("../markets.php", "Market '{$market_name}' updated successfully!", "success");
-
     } catch (Exception $e) {
         $conn->rollback();
         error_log("Error updating market: " . $e->getMessage());
@@ -752,6 +713,8 @@ elseif (isset($_POST['update_market'])) {
     }
 }
 
+// ── UPDATE RIDER ──────────────────────────────────────────────────────────────
+// Uses renamed columns: rider_name (was full_name), rider_phone (was contact_number)
 elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
 
     $rider_id      = (int)($_POST['rider_id']            ?? 0);
@@ -763,18 +726,15 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
     $full_name     = trim($_POST['full_name']             ?? '');
     $is_available  = (int)($_POST['is_available']        ?? 1);
 
-    // Validate
     if (!$rider_id || !$vehicle_type || !$variant_color || !$plate || !$contact || !$organization) {
         $_SESSION['message'] = ['type' => 'error', 'text' => 'All required fields must be filled.'];
         header('Location: ../riders.php');
         exit;
     }
 
-    // Block offline if actively delivering
     if ($is_available === 0) {
         $ca = $conn->prepare("SELECT COUNT(*) AS cnt FROM orders WHERE assigned_rider_id = ? AND order_status = 'OutForDelivery'");
-        $ca->bind_param('i', $rider_id);
-        $ca->execute();
+        $ca->bind_param('i', $rider_id); $ca->execute();
         if ((int)$ca->get_result()->fetch_assoc()['cnt'] > 0) {
             $_SESSION['message'] = ['type' => 'error', 'text' => 'Cannot mark rider as offline while they have active deliveries.'];
             header('Location: ../riders.php');
@@ -782,10 +742,8 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
         }
     }
 
-    // Fetch current row for log + image fallback
     $ov = $conn->prepare("SELECT * FROM riders WHERE rider_id = ? LIMIT 1");
-    $ov->bind_param('i', $rider_id);
-    $ov->execute();
+    $ov->bind_param('i', $rider_id); $ov->execute();
     $old = $ov->get_result()->fetch_assoc();
     if (!$old) {
         $_SESSION['message'] = ['type' => 'error', 'text' => 'Rider not found.'];
@@ -793,7 +751,6 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
         exit;
     }
 
-    // Handle new photo (keep existing if none uploaded)
     $image_path = $old['image'];
     if (!empty($_FILES['image']['tmp_name'])) {
         $mime = mime_content_type($_FILES['image']['tmp_name']);
@@ -812,19 +769,17 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'update_rider') {
         $dir   = __DIR__ . '/../../uploads/riders/';
         if (!is_dir($dir)) mkdir($dir, 0755, true);
         if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
-            // Remove old photo file
-            if ($old['image'] && file_exists(__DIR__ . '/../../' . $old['image'])) {
-                unlink(__DIR__ . '/../../' . $old['image']);
-            }
+            if ($old['image'] && file_exists(__DIR__ . '/../../' . $old['image'])) unlink(__DIR__ . '/../../' . $old['image']);
             $image_path = 'uploads/riders/' . $fname;
         }
     }
 
     $fnVal = $full_name ?: null;
-    $stmt  = $conn->prepare("
+    // Uses renamed columns: rider_name (was full_name), rider_phone (was contact_number)
+    $stmt = $conn->prepare("
         UPDATE riders SET
-            image = ?, full_name = ?, vehicle_type = ?, vehicle_plate_number = ?,
-            variant_color = ?, contact_number = ?, organization = ?,
+            image = ?, rider_name = ?, vehicle_type = ?, vehicle_plate_number = ?,
+            variant_color = ?, rider_phone = ?, organization = ?,
             is_available = ?, updated_at = NOW()
         WHERE rider_id = ?
     ");

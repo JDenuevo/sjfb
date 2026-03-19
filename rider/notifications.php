@@ -1,11 +1,9 @@
 <?php
 /**
  * rider/notifications.php
- *
- * Shows all notifications for this rider.
- * Scope: target_role='rider' AND (target_user_id = account_id OR target_user_id IS NULL).
- * Marks ALL as read on page open.
- * Riders CANNOT see other riders' notifications.
+ * Column renames applied:
+ *   riders:   rider_name (was full_name)
+ *   accounts: account_first_name, account_last_name
  */
 session_start();
 require_once '../conn.php';
@@ -19,10 +17,12 @@ if ($_SESSION['role'] !== 'rider') { header('Location: ../index.php'); exit; }
 $rider_account_id = (int)$_SESSION['account_id'];
 
 // ── Rider profile ──────────────────────────────────────────────────────────
+// Uses renamed columns: rider_name, account_first_name, account_last_name
 $rq = $conn->prepare("
     SELECT r.rider_id, r.image, r.is_available,
-           COALESCE(r.full_name, CONCAT(a.first_name,' ',a.last_name)) AS display_name,
-           a.first_name, a.last_name
+           COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS display_name,
+           a.account_first_name AS first_name,
+           a.account_last_name  AS last_name
     FROM riders r
     JOIN accounts a ON a.account_id = r.account_id
     WHERE r.account_id = ? AND r.is_deleted = 0
@@ -45,7 +45,7 @@ $cntStmt->bind_param('i', $rider_account_id);
 $cntStmt->execute();
 $unreadCount = (int)$cntStmt->get_result()->fetch_assoc()['cnt'];
 
-// ── Mark ALL as read now that rider has opened the page ────────────────────
+// ── Mark ALL as read ───────────────────────────────────────────────────────
 $markStmt = $conn->prepare("
     UPDATE order_notifications
     SET is_read = 1
@@ -56,15 +56,10 @@ $markStmt = $conn->prepare("
 $markStmt->bind_param('i', $rider_account_id);
 $markStmt->execute();
 
-// ── Fetch ALL notifications for this rider (newest first, max 200) ─────────
+// ── Fetch ALL notifications (newest first, max 200) ────────────────────────
 $nStmt = $conn->prepare("
-    SELECT n.notif_id,
-           n.message,
-           n.is_read,
-           n.created_at,
-           o.order_code,
-           o.order_status,
-           o.total_price
+    SELECT n.notif_id, n.message, n.is_read, n.created_at,
+           o.order_code, o.order_status, o.total_price
     FROM order_notifications n
     JOIN orders o ON o.order_id = n.order_id
     WHERE n.target_role = 'rider'
@@ -76,7 +71,6 @@ $nStmt->bind_param('i', $rider_account_id);
 $nStmt->execute();
 $notifications = $nStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ── Icon + ring color per message content ─────────────────────────────────
 function notifStyle(string $msg): array {
     $m = strtolower($msg);
     if (str_contains($m, 'assigned') || str_contains($m, 'new delivery'))
@@ -90,7 +84,7 @@ function notifStyle(string $msg): array {
     if (str_contains($m, 'delivered'))
         return ['icon'=>'✅','ring'=>'border-green-200 bg-green-50'];
     if (str_contains($m, 'cancel'))
-        return ['icon'=>'✕', 'ring'=>'border-red-200 bg-red-50'];
+        return ['icon'=>'✕','ring'=>'border-red-200 bg-red-50'];
     if (str_contains($m, 'proof'))
         return ['icon'=>'📷','ring'=>'border-teal-200 bg-teal-50'];
     if (str_contains($m, 'reassign'))
@@ -124,7 +118,6 @@ $orderStatusBadge = [
 </head>
 <body class="bg-gray-50">
 
-<!-- Header -->
 <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
   <div class="flex items-center gap-3">
     <?php if (!empty($rider['image'])): ?>

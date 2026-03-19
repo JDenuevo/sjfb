@@ -3,124 +3,203 @@
 session_start();
 require '../../conn.php';
 include 'slug_helper.php';
-require_once 'activity_log_helper.php'; // ← shared logger
-require_once 'review_helper.php'; // ← shared logger
-
+require_once 'activity_log_helper.php';
+require_once 'review_helper.php';
+ 
 function redirectWithMessage($location, $message, $type) {
     $_SESSION['message'] = ['text' => $message, 'type' => $type];
     header("Location: $location");
     exit();
 }
-
+ 
 function uploadImage(array $fileArray, int $index, string $dir, string $suffix = ''): ?string {
     if (($fileArray['error'][$index] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
-
     $tmp      = $fileArray['tmp_name'][$index];
     $origName = $fileArray['name'][$index];
     $size     = $fileArray['size'][$index];
     $mime     = mime_content_type($tmp);
-
-    if (strpos($mime, 'image/') !== 0)   return null;  // not an image
-    if ($size > 5 * 1024 * 1024)         return null;  // > 5 MB
-
+    if (strpos($mime, 'image/') !== 0)   return null;
+    if ($size > 5 * 1024 * 1024)         return null;
     $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
     $filename = uniqid() . ($suffix ? "_{$suffix}" : '') . '.' . $ext;
-
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-
     return move_uploaded_file($tmp, $dir . $filename) ? $filename : null;
 }
-
-/** Single-file variant of uploadImage (uses error/tmp_name/name/size scalars) */
+ 
 function uploadSingleImage(array $file, string $dir, string $suffix = ''): ?string {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
-
     $tmp  = $file['tmp_name'];
     $mime = mime_content_type($tmp);
     if (strpos($mime, 'image/') !== 0)    return null;
     if ($file['size'] > 5 * 1024 * 1024) return null;
-
     $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $filename = uniqid() . ($suffix ? "_{$suffix}" : '') . '.' . $ext;
-
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-
-    return move_uploaded_file($tmp, $dir . $filename) ? $filename : null;
+    return move_uploaded_file($file['tmp_name'], $dir . $filename) ? $filename : null;
 }
-
-// Resolve acting user once for the whole file
+ 
 ['userId' => $actorId, 'userType' => $actorType] = getActorFromSession();
-
+ 
 // ── ADD ACCOUNT ───────────────────────────────────────────────────────────────
+// All field names match the form in accounts.php exactly.
 if (isset($_POST['add_account'])) {
-    $username         = trim($_POST['username'] ?? '');
-    $role             = $_POST['role'] ?? '';
-    $password         = trim($_POST['password'] ?? '');
+ 
+    $username         = trim($_POST['username']         ?? '');
+    $role             = trim($_POST['role']             ?? '');
+    $password         = trim($_POST['password']         ?? '');
     $confirm_password = trim($_POST['confirm_password'] ?? '');
-    $first_name       = trim($_POST['first_name'] ?? '');
-    $last_name        = trim($_POST['last_name'] ?? '');
-    $email            = trim($_POST['email'] ?? '');
-    $phone_number     = trim($_POST['phone_number'] ?? '');
-    $address          = trim($_POST['address'] ?? '');
-    $city             = trim($_POST['city'] ?? '');
-    $postal_code      = trim($_POST['postal'] ?? '');
-
-    $required = ['username'=>$username,'role'=>$role,'password'=>$password,
-                 'first_name'=>$first_name,'last_name'=>$last_name,'email'=>$email];
-    foreach ($required as $field => $value) {
-        if (empty($value)) redirectWithMessage("../accounts.php", "Field '$field' is required.", "error");
-    }
-    if ($password !== $confirm_password) {
+ 
+    // These match the form input names in accounts.php
+    $first_name  = trim($_POST['account_first_name'] ?? '');
+    $last_name   = trim($_POST['account_last_name']  ?? '');
+    $email       = trim($_POST['account_email']      ?? '');
+    $phone       = trim($_POST['account_phone']      ?? '');
+    $address     = trim($_POST['account_address']    ?? '');
+    $city        = trim($_POST['city']               ?? '');
+    $postal_code = trim($_POST['postal_code']        ?? '');
+ 
+    // Required fields
+    if (empty($username))   redirectWithMessage("../accounts.php", "Username is required.", "error");
+    if (empty($role))       redirectWithMessage("../accounts.php", "Role is required.", "error");
+    if (empty($password))   redirectWithMessage("../accounts.php", "Password is required.", "error");
+    if (empty($first_name)) redirectWithMessage("../accounts.php", "First name is required.", "error");
+    if (empty($last_name))  redirectWithMessage("../accounts.php", "Last name is required.", "error");
+    if (empty($email))      redirectWithMessage("../accounts.php", "Email is required.", "error");
+ 
+    if ($password !== $confirm_password)
         redirectWithMessage("../accounts.php", "Passwords do not match.", "error");
-    }
-
-    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-    $checkStmt = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? OR email = ?");
-    $checkStmt->bind_param("ss", $username, $email);
-    $checkStmt->execute();
-    if ($checkStmt->get_result()->num_rows > 0) {
-        redirectWithMessage("../accounts.php", "Username or Email already exists.", "error");
-    }
-
+ 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+        redirectWithMessage("../accounts.php", "Invalid email format.", "error");
+ 
+    $hashed = password_hash($password, PASSWORD_DEFAULT);
+ 
+    // Check for duplicates — uses renamed columns: username, account_email
+    $ck = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? OR account_email = ? LIMIT 1");
+    $ck->bind_param("ss", $username, $email);
+    $ck->execute();
+    if ($ck->get_result()->num_rows > 0)
+        redirectWithMessage("../accounts.php", "Username or email already exists.", "error");
+    $ck->close();
+ 
     $conn->begin_transaction();
     try {
-        $stmt = $conn->prepare("INSERT INTO accounts (username, role, password_hash, first_name, last_name, email, phone_number, address, city, postal_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssssssss", $username, $role, $hashed_password, $first_name, $last_name, $email, $phone_number, $address, $city, $postal_code);
-        if (!$stmt->execute()) throw new Exception("Failed to insert account: " . $stmt->error);
-
-        $new_account_id = $conn->insert_id;
-        if ($new_account_id === 0) {
-            $gid = $conn->prepare("SELECT account_id FROM accounts WHERE username=? AND email=? ORDER BY account_id DESC LIMIT 1");
-            $gid->bind_param("ss", $username, $email);
-            $gid->execute();
-            $r = $gid->get_result();
-            if ($r->num_rows > 0) $new_account_id = $r->fetch_assoc()['account_id'];
-            else throw new Exception("Could not retrieve new account ID");
-        }
-
+        // INSERT uses all renamed columns
+        $stmt = $conn->prepare("
+            INSERT INTO accounts
+                (username, role, password_hash,
+                 account_first_name, account_last_name, account_email,
+                 account_phone, account_address, city, postal_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->bind_param("ssssssssss",
+            $username, $role, $hashed,
+            $first_name, $last_name, $email,
+            $phone, $address, $city, $postal_code
+        );
+        if (!$stmt->execute()) throw new Exception("Failed to create account: " . $stmt->error);
+        $new_id = $conn->insert_id;
+        $stmt->close();
+ 
+        // If role is rider, create a riders record too
         if ($role === 'rider') {
-            $riderStmt = $conn->prepare("INSERT INTO riders (account_id, vehicle_type, license_number, is_available) VALUES (?, 'motorcycle', 'PENDING', 1)");
-            $riderStmt->bind_param("i", $new_account_id);
-            if (!$riderStmt->execute()) throw new Exception("Failed to create rider record: " . $riderStmt->error);
+            $rStmt = $conn->prepare("INSERT INTO riders (account_id, vehicle_type, is_available) VALUES (?, 'motorcycle', 1)");
+            $rStmt->bind_param("i", $new_id);
+            if (!$rStmt->execute()) throw new Exception("Failed to create rider record: " . $rStmt->error);
+            $rStmt->close();
         }
-
-        // ── LOG ──
-        logActivity($conn, 'account', $new_account_id, 'Account created',
+ 
+        logActivity($conn, 'account', $new_id, 'Account created',
             null,
-            json_encode(['username'=>$username,'role'=>$role,'email'=>$email]),
+            json_encode(['username' => $username, 'role' => $role, 'email' => $email]),
             "Admin created account. Name: {$first_name} {$last_name} | Role: {$role}",
             $actorId, $actorType
         );
-
+ 
         $conn->commit();
-        redirectWithMessage("../accounts.php", "Account successfully created! ID: $new_account_id", "success");
-
+        redirectWithMessage("../accounts.php", "Account '{$username}' created successfully! (ID: {$new_id})", "success");
+ 
     } catch (Exception $e) {
         $conn->rollback();
         error_log("Account creation error: " . $e->getMessage());
         redirectWithMessage("../accounts.php", "Error: " . $e->getMessage(), "error");
     }
+}
+
+elseif (isset($_POST['manage_account_groups'])) {
+    header('Content-Type: application/json; charset=utf-8');
+ 
+    if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !== true) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized.']);
+        exit;
+    }
+ 
+    $account_id = (int)($_POST['account_id'] ?? 0);
+    $group_ids  = array_map('intval', (array)($_POST['group_ids'] ?? []));
+    $expires_at = !empty($_POST['expires_at']) ? trim($_POST['expires_at']) : null;
+ 
+    if ($account_id <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid account ID.']);
+        exit;
+    }
+ 
+    // Validate expiry format if provided
+    if ($expires_at && !strtotime($expires_at)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid expiry date format.']);
+        exit;
+    }
+ 
+    $conn->begin_transaction();
+    try {
+        // Remove all existing active group assignments for this account
+        $del = $conn->prepare("DELETE FROM account_groups WHERE account_id = ?");
+        $del->bind_param('i', $account_id);
+        if (!$del->execute()) throw new Exception("Failed to clear existing groups: " . $conn->error);
+        $del->close();
+ 
+        // Insert newly selected groups
+        if (!empty($group_ids)) {
+            $ins = $conn->prepare("
+                INSERT INTO account_groups (account_id, group_id, assigned_by, expires_at)
+                VALUES (?, ?, ?, ?)
+            ");
+            foreach ($group_ids as $gid) {
+                if ($gid <= 0) continue;
+                $ins->bind_param('iiis', $account_id, $gid, $actorId, $expires_at);
+                if (!$ins->execute()) throw new Exception("Failed to assign group {$gid}: " . $conn->error);
+            }
+            $ins->close();
+        }
+ 
+        // Fetch group names for the log
+        $groupNames = [];
+        if (!empty($group_ids)) {
+            $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
+            $types        = str_repeat('i', count($group_ids));
+            $gnStmt = $conn->prepare("SELECT group_name FROM customer_groups WHERE group_id IN ({$placeholders})");
+            $gnStmt->bind_param($types, ...$group_ids);
+            $gnStmt->execute();
+            $gnRes = $gnStmt->get_result();
+            while ($gn = $gnRes->fetch_assoc()) $groupNames[] = $gn['group_name'];
+            $gnStmt->close();
+        }
+ 
+        logActivity($conn, 'account', $account_id, 'Account groups updated',
+            null,
+            json_encode(['groups' => $groupNames, 'expires_at' => $expires_at]),
+            "Account ID {$account_id} groups updated to: " . (empty($groupNames) ? 'none' : implode(', ', $groupNames)),
+            $actorId, $actorType
+        );
+ 
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Groups updated successfully.']);
+ 
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Group management error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
 }
 
 // ── ADD PRODUCT ───────────────────────────────────────────────────────────────
@@ -178,13 +257,13 @@ elseif (isset($_POST['add_product'])) {
         }
 
         if (!empty($_POST['variant_name'])) {
-            $variant_names   = $_POST['variant_name'];
-            $unit_types      = $_POST['unit_type'];
-            $minimum_orders  = $_POST['minimum_order'];
-            $order_increments= $_POST['order_increment'];
-            $stock_quantities= $_POST['stock_quantity'];
-            $variant_prices  = $_POST['variant_price'];
-            $discount_prices = $_POST['discount_price'] ?? [];
+            $variant_names    = $_POST['variant_name'];
+            $unit_types       = $_POST['unit_type'];
+            $minimum_orders   = $_POST['minimum_order'];
+            $order_increments = $_POST['order_increment'];
+            $stock_quantities = $_POST['stock_quantity'];
+            $variant_prices   = $_POST['variant_price'];
+            $discount_prices  = $_POST['discount_price'] ?? [];
             $variant_categories = $_POST['variant_categories'] ?? [];
 
             $active_categories = [];
@@ -193,14 +272,14 @@ elseif (isset($_POST['add_product'])) {
 
             $existing_variants = [];
             for ($i = 0; $i < count($variant_names); $i++) {
-                $variant_name   = htmlspecialchars(trim($variant_names[$i]));
-                $unit_type      = $unit_types[$i];
-                $minimum_order  = floatval($minimum_orders[$i]);
-                $order_increment= floatval($order_increments[$i]);
-                $stock_quantity = intval($stock_quantities[$i]);
-                $variant_price  = floatval($variant_prices[$i]);
-                $discount_price = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
-                $variant_key    = $variant_name . '|' . $unit_type;
+                $variant_name    = htmlspecialchars(trim($variant_names[$i]));
+                $unit_type       = $unit_types[$i];
+                $minimum_order   = floatval($minimum_orders[$i]);
+                $order_increment = floatval($order_increments[$i]);
+                $stock_quantity  = intval($stock_quantities[$i]);
+                $variant_price   = floatval($variant_prices[$i]);
+                $discount_price  = !empty($discount_prices[$i]) ? floatval($discount_prices[$i]) : null;
+                $variant_key     = $variant_name . '|' . $unit_type;
 
                 if (in_array($variant_key, $existing_variants)) {
                     $conn->rollback();
@@ -259,7 +338,6 @@ elseif (isset($_POST['add_product'])) {
             }
         }
 
-        // ── LOG ──
         logActivity($conn, 'product', $product_id, 'Product created',
             null,
             json_encode(['product_name'=>$product_name,'unit'=>$product_unit]),
@@ -325,7 +403,6 @@ elseif (isset($_POST['add_category'])) {
     $stmt->bind_param("ssssiii", $category_name, $category_slug, $category_description, $category_image, $parent_id, $category_level, $sort_order);
     if ($stmt->execute()) {
         $new_cat_id = $conn->insert_id;
-        // ── LOG ──
         logActivity($conn, 'category', $new_cat_id, 'Category created',
             null,
             json_encode(['name'=>$category_name,'slug'=>$category_slug]),
@@ -382,7 +459,6 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_blog'])) {
             }
         }
 
-        // ── LOG ──
         logActivity($conn, 'blog', $blog_id, 'Blog post created',
             null,
             json_encode(['title'=>$blog_title,'slug'=>$blog_slug,'status'=>$blog_status]),
@@ -397,7 +473,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_blog'])) {
         if (!empty($blog_featured_image)) { $fp = $_SERVER['DOCUMENT_ROOT'] . $blog_featured_image; if (file_exists($fp)) unlink($fp); }
         $_SESSION['message'] = ['type'=>'error','text'=>"Error: " . $e->getMessage()];
     }
-    header("Location: ../blogs.php"); 
+    header("Location: ../blogs.php");
     exit;
 }
 
@@ -426,7 +502,6 @@ elseif (isset($_POST['add_suggestion'])) {
     $stmt->bind_param("isssiis", $product_id, $dish_name, $ingredients, $steps, $prep_time, $cook_time, $difficulty);
     if ($stmt->execute()) {
         $new_sug_id = $conn->insert_id;
-        // ── LOG ──
         logActivity($conn, 'cooking_suggestion', $new_sug_id, 'Cooking suggestion created',
             null,
             json_encode(['dish'=>$dish_name,'difficulty'=>$difficulty]),
@@ -440,13 +515,12 @@ elseif (isset($_POST['add_suggestion'])) {
     $stmt->close();
 }
 
+// ── ADD MARKET ────────────────────────────────────────────────────────────────
 elseif (isset($_POST['add_market'])) {
 
-    // Upload directories
     $marketsDir = "../../uploads/markets/";
     $membersDir = "../../uploads/members/";
 
-    // Basic fields
     $market_key    = strtolower(trim(preg_replace('/[^a-zA-Z0-9-]+/', '-', $_POST['market_key'])));
     $market_name   = htmlspecialchars(trim($_POST['market_name']));
     $location_short= htmlspecialchars(trim($_POST['location_short']));
@@ -457,11 +531,9 @@ elseif (isset($_POST['add_market'])) {
     $accent_color  = $_POST['accent_color'] ?? '#f97316';
     $display_order = intval($_POST['display_order'] ?? 0);
 
-    // Highlights
     $highlights_lines = explode("\n", trim($_POST['highlights']));
     $highlights_json  = json_encode(array_values(array_filter(array_map('trim', $highlights_lines))));
 
-    // Guard: unique key
     $check = $conn->prepare("SELECT market_id FROM markets WHERE market_key = ?");
     $check->bind_param("s", $market_key);
     $check->execute();
@@ -471,9 +543,7 @@ elseif (isset($_POST['add_market'])) {
     $check->close();
 
     $conn->begin_transaction();
-
     try {
-        // ── Main image ──────────────────────────────────────────────────────
         $main_image = null;
         if (!empty($_FILES['main_image']['name'])) {
             $saved = uploadSingleImage($_FILES['main_image'], $marketsDir, 'main');
@@ -481,7 +551,6 @@ elseif (isset($_POST['add_market'])) {
             $main_image = $saved;
         }
 
-        // ── Gallery images ──────────────────────────────────────────────────
         $gallery_images = [];
         if (!empty($_FILES['gallery_images']['name'][0])) {
             $count = count($_FILES['gallery_images']['tmp_name']);
@@ -492,7 +561,6 @@ elseif (isset($_POST['add_market'])) {
         }
         $gallery_json = !empty($gallery_images) ? json_encode($gallery_images) : null;
 
-        // ── Insert market ───────────────────────────────────────────────────
         $stmt = $conn->prepare("
             INSERT INTO markets
                 (market_key, market_name, location_short, location_full, description,
@@ -510,33 +578,29 @@ elseif (isset($_POST['add_market'])) {
         $market_id = $conn->insert_id;
         $stmt->close();
 
-        // ── Team members (added during creation) ────────────────────────────
-        // FIXED: was completely missing from original add_market block.
-        // Reads name/position/order from POST and photo from FILES.
+        // Uses renamed column: member_name (was name)
         if (!empty($_POST['new_member_name'])) {
-            $memberNames    = $_POST['new_member_name'];
-            $memberPositions= $_POST['new_member_position'] ?? [];
-            $memberOrders   = $_POST['new_member_order']    ?? [];
-
+            $memberNames     = $_POST['new_member_name'];
+            $memberPositions = $_POST['new_member_position'] ?? [];
+            $memberOrders    = $_POST['new_member_order']    ?? [];
             $memberFileInput = $_FILES['new_member_image_file'] ?? null;
 
             foreach ($memberNames as $i => $name) {
                 $name = htmlspecialchars(trim($name));
                 if (empty($name)) continue;
-
                 $position  = htmlspecialchars(trim($memberPositions[$i] ?? ''));
                 $order     = intval($memberOrders[$i] ?? 0);
                 $image_url = null;
 
-                // Upload member photo → uploads/members/
                 if ($memberFileInput && isset($memberFileInput['tmp_name'][$i])
                     && $memberFileInput['error'][$i] === UPLOAD_ERR_OK) {
                     $saved = uploadImage($memberFileInput, $i, $membersDir, "member_{$i}");
                     if ($saved) $image_url = $saved;
                 }
 
+                // Uses renamed column: member_name (was name)
                 $ms = $conn->prepare("
-                    INSERT INTO market_members (market_id, name, position, image_url, display_order)
+                    INSERT INTO market_members (market_id, member_name, position, image_url, display_order)
                     VALUES (?, ?, ?, ?, ?)
                 ");
                 $ms->bind_param("isssi", $market_id, $name, $position, $image_url, $order);
@@ -545,7 +609,6 @@ elseif (isset($_POST['add_market'])) {
             }
         }
 
-        // ── Log ─────────────────────────────────────────────────────────────
         logActivity($conn, 'market', $market_id, 'Market created',
             null,
             json_encode(['market_name' => $market_name, 'market_key' => $market_key]),
@@ -558,22 +621,16 @@ elseif (isset($_POST['add_market'])) {
 
     } catch (Exception $e) {
         $conn->rollback();
-
-        // Clean up any files that were uploaded before the failure
-        if (!empty($main_image) && file_exists($marketsDir . $main_image)) {
-            unlink($marketsDir . $main_image);
-        }
-        foreach ($gallery_images ?? [] as $f) {
-            if (file_exists($marketsDir . $f)) unlink($marketsDir . $f);
-        }
-
+        if (!empty($main_image) && file_exists($marketsDir . $main_image)) unlink($marketsDir . $main_image);
+        foreach ($gallery_images ?? [] as $f) { if (file_exists($marketsDir . $f)) unlink($marketsDir . $f); }
         error_log("Error adding market: " . $e->getMessage());
         redirectWithMessage("../markets.php", "Failed to add market: " . $e->getMessage(), "error");
     }
 }
 
+// ── ADD RIDER ─────────────────────────────────────────────────────────────────
 elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
- 
+
     $account_id    = (int)($_POST['account_id']          ?? 0);
     $vehicle_type  = trim($_POST['vehicle_type']         ?? '');
     $variant_color = trim($_POST['variant_color']        ?? '');
@@ -581,8 +638,7 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
     $contact       = trim($_POST['contact_number']       ?? '');
     $organization  = trim($_POST['organization']         ?? '');
     $full_name     = trim($_POST['full_name']             ?? '');
- 
-    // Validate
+
     $errors = [];
     if ($account_id <= 0)      $errors[] = 'Please select a valid account.';
     if (empty($vehicle_type))  $errors[] = 'Vehicle type is required.';
@@ -595,8 +651,7 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
         header('Location: ../riders.php');
         exit;
     }
- 
-    // Image upload (required)
+
     $image_path = null;
     if (!empty($_FILES['image']['tmp_name'])) {
         $mime = mime_content_type($_FILES['image']['tmp_name']);
@@ -625,33 +680,30 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
         header('Location: ../riders.php');
         exit;
     }
- 
+
     $conn->begin_transaction();
     try {
-        // Check account exists and is eligible
         $ck = $conn->prepare("SELECT role FROM accounts WHERE account_id = ? AND is_deleted = 0 LIMIT 1");
         $ck->bind_param('i', $account_id);
         $ck->execute();
         $acc = $ck->get_result()->fetch_assoc();
         if (!$acc) throw new Exception('Selected account does not exist.');
         if (in_array($acc['role'], ['admin', 'super_admin'], true)) throw new Exception('Admin accounts cannot be made riders.');
- 
-        // Not already a rider
+
         $cr = $conn->prepare("SELECT rider_id FROM riders WHERE account_id = ? AND is_deleted = 0 LIMIT 1");
         $cr->bind_param('i', $account_id);
         $cr->execute();
         if ($cr->get_result()->num_rows > 0) throw new Exception('This account is already registered as a rider.');
- 
-        // Promote account role
+
         $ur = $conn->prepare("UPDATE accounts SET role = 'rider' WHERE account_id = ?");
         $ur->bind_param('i', $account_id);
         if (!$ur->execute()) throw new Exception('Failed to update account role.');
- 
-        // Insert rider row with all new columns
+
+        // Uses renamed columns: rider_name (was full_name), rider_phone (was contact_number)
         $ir = $conn->prepare("
             INSERT INTO riders
-                (account_id, image, full_name, vehicle_type, vehicle_plate_number,
-                 variant_color, contact_number, organization, is_available, is_deleted)
+                (account_id, image, rider_name, vehicle_type, vehicle_plate_number,
+                 variant_color, rider_phone, organization, is_available, is_deleted)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
         ");
         $fnVal = $full_name ?: null;
@@ -662,32 +714,29 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'add_rider') {
         );
         if (!$ir->execute()) throw new Exception('Failed to create rider record.');
         $new_rider_id = (int)$conn->insert_id;
- 
-        // Name for activity log
-        $na = $conn->prepare("SELECT first_name, last_name FROM accounts WHERE account_id = ?");
+
+        // Uses renamed columns: account_first_name, account_last_name
+        $na = $conn->prepare("SELECT account_first_name, account_last_name FROM accounts WHERE account_id = ?");
         $na->bind_param('i', $account_id);
         $na->execute();
         $nameRow = $na->get_result()->fetch_assoc();
-        $nameStr = $nameRow ? "{$nameRow['first_name']} {$nameRow['last_name']}" : "Account #{$account_id}";
- 
+        $nameStr = $nameRow ? "{$nameRow['account_first_name']} {$nameRow['account_last_name']}" : "Account #{$account_id}";
+
         logActivity($conn, 'rider', $new_rider_id, 'Rider created',
             null,
             json_encode(['vehicle_type' => $vehicle_type, 'plate' => $plate, 'org' => $organization]),
             "Rider created for {$nameStr}. Vehicle: {$vehicle_type} ({$plate}), Org: {$organization}",
             $actorId, $actorType
         );
- 
+
         $conn->commit();
         $_SESSION['message'] = ['type' => 'success', 'text' => "Rider {$nameStr} added successfully!"];
         header('Location: ../riders.php');
         exit;
- 
+
     } catch (Exception $e) {
         $conn->rollback();
-        // Remove uploaded image on DB failure
-        if ($image_path && file_exists(__DIR__ . '/../../' . $image_path)) {
-            unlink(__DIR__ . '/../../' . $image_path);
-        }
+        if ($image_path && file_exists(__DIR__ . '/../../' . $image_path)) unlink(__DIR__ . '/../../' . $image_path);
         $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
         header('Location: ../riders.php');
         exit;
