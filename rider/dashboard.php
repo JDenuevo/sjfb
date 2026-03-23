@@ -1,11 +1,6 @@
 <?php
 /**
  * rider/dashboard.php
- * Column renames applied:
- *   riders:     rider_name (was full_name), rider_phone (was contact_number)
- *   accounts:   account_first_name/last_name/email/phone
- *   orders:     recipient_first_name/last_name/address/phone (was first_name etc.)
- *   deliveries: delivery_status (was status)
  */
 session_start();
 require_once '../conn.php';
@@ -22,7 +17,6 @@ if ($_SESSION['role'] !== 'rider') {
 
 $rider_account_id = (int)$_SESSION['account_id'];
 
-// ── Rider profile ──────────────────────────────────────────────────────────
 $rq = $conn->prepare("
     SELECT r.rider_id, r.image, r.vehicle_type, r.vehicle_plate_number,
            r.variant_color, r.organization,
@@ -43,9 +37,6 @@ if (!$rider) { header('Location: ../index.php'); exit; }
 
 $rider_id = (int)$rider['rider_id'];
 
-// ── Active deliveries — extended query to include payment info ─────────────
-// We re-query here instead of using getRiderPendingDeliveries() so we can
-// also pull payment_method and payment_status for the COD button logic.
 $dlStmt = $conn->prepare("
     SELECT d.delivery_id, d.order_id, d.delivery_status AS status,
            d.assigned_at,
@@ -80,8 +71,6 @@ $dlStmt->bind_param('i', $rider_account_id);
 $dlStmt->execute();
 $deliveries = $dlStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ── Also include Delivered orders that are COD-unpaid ─────────────────────
-// Rider still needs to collect payment → show "Payment Received" button
 $codPendingStmt = $conn->prepare("
     SELECT d.delivery_id, d.order_id, d.delivery_status AS status,
            d.assigned_at,
@@ -119,7 +108,6 @@ $codPendingStmt->bind_param('i', $rider_account_id);
 $codPendingStmt->execute();
 $codPendingOrders = $codPendingStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ── Completed deliveries (last 20) ─────────────────────────────────────────
 $doneStmt = $conn->prepare("
     SELECT d.delivery_id, d.order_id, d.delivered_at,
            o.order_code,
@@ -150,7 +138,6 @@ $doneStmt->bind_param('i', $rider_account_id);
 $doneStmt->execute();
 $completed = $doneStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Proof counts per order
 $proofCounts = [];
 $allOrderIds = array_unique(array_merge(
     array_column($deliveries, 'order_id'),
@@ -199,7 +186,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     .proof-thumb { position:relative;width:76px;height:76px;border-radius:.5rem;overflow:hidden;border:2px solid #e5e7eb;flex-shrink:0;cursor:default; }
     .proof-thumb img { width:100%;height:100%;object-fit:cover; }
     .proof-thumb .rm { position:absolute;top:2px;right:2px;background:rgba(239,68,68,.9);color:#fff;border:none;border-radius:9999px;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:700; }
-    /* Status flow indicator */
     .flow-step { display:flex;align-items:center;gap:.375rem;font-size:.65rem;font-weight:600; }
     .flow-step .dot { width:8px;height:8px;border-radius:9999px;flex-shrink:0; }
     .flow-step.done .dot  { background:#f97316; }
@@ -209,13 +195,53 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     .flow-step.idle .dot  { background:#d1d5db; }
     .flow-step.idle span  { color:#9ca3af; }
     .flow-sep { color:#d1d5db;font-size:.6rem; }
-    /* Disabled button state */
     .btn-done { background:#f3f4f6 !important;color:#9ca3af !important;cursor:default !important;pointer-events:none; }
+
+    /* ════ TOAST ════ */
+    #toast-wrap {
+      position:fixed; bottom:5.5rem; right:1.25rem;
+      display:flex; flex-direction:column; align-items:flex-end; gap:.5rem;
+      z-index:9999; pointer-events:none;
+    }
+    @media(min-width:640px){ #toast-wrap { right:1.5rem; } }
+    .toast {
+      pointer-events:auto;
+      display:flex; align-items:flex-start; gap:.75rem;
+      min-width:230px; max-width:340px;
+      padding:.8rem 1rem;
+      border-radius:.875rem; border-left:4px solid currentColor;
+      background:#fff;
+      box-shadow:0 8px 28px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+      position:relative; overflow:hidden;
+      animation:tIn .28s cubic-bezier(.34,1.4,.64,1) both;
+    }
+    .toast::after {
+      content:''; position:absolute; bottom:0; left:0;
+      height:2px; width:100%; background:currentColor; opacity:.2;
+      transform-origin:left; animation:tBar 4.5s linear forwards;
+    }
+    @keyframes tIn  { from{opacity:0;transform:translateX(24px) scale(.96)} to{opacity:1;transform:translateX(0) scale(1)} }
+    @keyframes tOut { to{opacity:0;transform:translateX(24px) scale(.94);max-height:0;padding:0;margin:0} }
+    @keyframes tBar { from{transform:scaleX(1)} to{transform:scaleX(0)} }
+    .toast.t-success { color:#16a34a; }
+    .toast.t-error   { color:#dc2626; }
+    .toast.t-info    { color:#ea580c; }
+    .toast.t-warning { color:#d97706; }
+    .toast-icon  { font-size:1rem; flex-shrink:0; margin-top:.05rem; line-height:1; }
+    .toast-body  { flex:1; min-width:0; }
+    .toast-title { font-size:.8125rem; font-weight:700; color:#111827; line-height:1.3; }
+    .toast-msg   { font-size:.75rem; color:#6b7280; margin-top:.15rem; line-height:1.4; }
+    .toast-close {
+      background:none; border:none; padding:0; color:#9ca3af;
+      cursor:pointer; font-size:.875rem; flex-shrink:0; line-height:1;
+      transition:color .1s;
+    }
+    .toast-close:hover { color:#111827; }
+    .toast.leaving { animation:tOut .22s ease forwards; }
   </style>
 </head>
 <body class="bg-gray-50">
 
-<!-- Top nav -->
 <header class="bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
   <div class="flex items-center gap-3">
     <img src="../assets/icons/logo.svg" class="size-8" onerror="this.style.display='none'">
@@ -240,11 +266,9 @@ $dlLabels = DELIVERY_STATUS_LABELS;
   </div>
 </header>
 
-<div id="toast-wrap" class="fixed bottom-5 right-5 flex flex-col gap-2 z-[60]"></div>
+<div id="toast-wrap"></div>
 
-<!-- ══════════════════════════════════════════════════
-     PROOF UPLOAD MODAL
-══════════════════════════════════════════════════ -->
+<!-- PROOF UPLOAD MODAL -->
 <div id="proof-modal" class="modal-overlay">
   <div class="modal-box">
     <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
@@ -300,7 +324,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
   </div>
 </div>
 
-<!-- Main content -->
 <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
   <!-- Rider profile card -->
@@ -333,7 +356,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     </div>
   </div>
 
-  <!-- ══ COD AWAITING PAYMENT ══════════════════════════════════════════════ -->
+  <!-- COD AWAITING PAYMENT -->
   <?php if (!empty($codPendingOrders)): ?>
   <div>
     <div class="flex items-center justify-between mb-3">
@@ -346,8 +369,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         $proofs = $proofCounts[$d['order_id']] ?? 0;
       ?>
       <div class="delivery-card bg-white rounded-2xl p-5 border border-green-200 cod-pending-card shadow-sm">
-
-        <!-- Header -->
         <div class="flex items-start justify-between gap-2 mb-3">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -362,8 +383,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
             <div class="text-xs text-gray-400">to collect</div>
           </div>
         </div>
-
-        <!-- Customer info -->
         <div class="bg-green-50 rounded-xl p-3 mb-3 space-y-1.5 text-xs">
           <div class="flex items-center gap-2">
             <svg class="size-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -377,21 +396,13 @@ $dlLabels = DELIVERY_STATUS_LABELS;
             <span class="text-gray-600"><?= htmlspecialchars($addr) ?></span>
           </div>
         </div>
-
-        <!-- Amount reminder -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-3 flex items-center justify-between">
-          <div class="text-xs text-amber-700">
-            <span class="font-semibold">Collect from customer:</span> This is a Cash on Delivery order.
-          </div>
+          <div class="text-xs text-amber-700"><span class="font-semibold">Collect from customer:</span> This is a Cash on Delivery order.</div>
           <span class="text-base font-bold text-amber-700">₱<?= number_format($d['total_price'], 2) ?></span>
         </div>
-
-        <!-- Payment Received button -->
         <button onclick="markCODPaymentReceived(<?= $d['order_id'] ?>, this)"
                 class="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold bg-green-600 hover:bg-green-500 active:scale-95 text-white rounded-xl transition-all">
-          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
+          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           ✓ Payment Received from Customer
         </button>
       </div>
@@ -400,13 +411,12 @@ $dlLabels = DELIVERY_STATUS_LABELS;
   </div>
   <?php endif; ?>
 
-  <!-- ══ ACTIVE DELIVERIES ══════════════════════════════════════════════════ -->
+  <!-- ACTIVE DELIVERIES -->
   <div>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-base font-semibold text-gray-800">Active Deliveries</h3>
       <span class="text-xs bg-orange-100 text-orange-700 font-semibold px-2.5 py-0.5 rounded-full"><?= count($deliveries) ?></span>
     </div>
-
     <div class="space-y-4">
       <?php if (empty($deliveries)): ?>
       <div class="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
@@ -420,15 +430,11 @@ $dlLabels = DELIVERY_STATUS_LABELS;
         $border  = $pending ? 'border-orange-300 pending-card' : 'border-gray-100';
         $proofs  = $proofCounts[$d['order_id']] ?? 0;
         $addr    = $d['delivery_address'] ?: ($d['address'].', '.$d['city']);
-
-        // Flow step states: done / active / idle
-        $flowMap = ['pending_acceptance'=>0, 'accepted'=>1, 'picked_up'=>2, 'in_transit'=>2, 'delivered'=>3];
+        $flowMap = ['pending_acceptance'=>0,'accepted'=>1,'picked_up'=>2,'in_transit'=>2,'delivered'=>3];
         $flowIdx = $flowMap[$d['status']] ?? 0;
         $flowClass = fn(int $step) => $step < $flowIdx ? 'done' : ($step === $flowIdx ? 'active' : 'idle');
       ?>
       <div class="delivery-card bg-white rounded-2xl p-5 border <?= $border ?> shadow-sm">
-
-        <!-- Header -->
         <div class="flex items-start justify-between gap-2 mb-3">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -445,8 +451,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           </div>
           <div class="text-sm font-bold text-gray-800 shrink-0">₱<?= number_format($d['total_price'], 2) ?></div>
         </div>
-
-        <!-- Progress flow indicator -->
         <div class="flex items-center gap-1.5 mb-3 flex-wrap">
           <div class="flow-step <?= $flowClass(0) ?>"><span class="dot"></span><span>Assigned</span></div>
           <span class="flow-sep">→</span>
@@ -460,8 +464,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           <div class="flow-step idle"><span class="dot"></span><span>Paid</span></div>
           <?php endif; ?>
         </div>
-
-        <!-- Customer info -->
         <div class="bg-gray-50 rounded-xl p-3 mb-3 space-y-1.5 text-xs">
           <div class="flex items-center gap-2">
             <svg class="size-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -488,20 +490,14 @@ $dlLabels = DELIVERY_STATUS_LABELS;
           </a>
           <?php endif; ?>
         </div>
-
-        <!-- Action buttons — context-aware per status -->
         <div class="flex flex-wrap gap-2">
-
           <?php if ($d['status'] === 'pending_acceptance'): ?>
-          <!-- ── PENDING: Only Accept is available ── -->
           <button onclick="riderAction('rider_accept',<?= $d['delivery_id'] ?>,<?= $d['order_id'] ?>,this)"
                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition-colors">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Accept Delivery
           </button>
-
           <?php elseif ($d['status'] === 'accepted'): ?>
-          <!-- ── ACCEPTED: Accept is done, Pick Up is next ── -->
           <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Accepted ✓
@@ -515,16 +511,12 @@ $dlLabels = DELIVERY_STATUS_LABELS;
                   class="flex items-center gap-1.5 px-3 py-2.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors">
             📷<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
           </button>
-
           <?php elseif (in_array($d['status'], ['picked_up','in_transit'])): ?>
-          <!-- ── PICKED UP: Accept + Pickup done, Deliver is next ── -->
           <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Accepted ✓
           </div>
-          <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">
-            📦 Picked Up ✓
-          </div>
+          <div class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-400 rounded-xl btn-done">📦 Picked Up ✓</div>
           <button onclick="riderAction('mark_delivered',null,<?= $d['order_id'] ?>,this)"
                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-green-600 hover:bg-green-500 text-white rounded-xl transition-colors">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
@@ -534,7 +526,6 @@ $dlLabels = DELIVERY_STATUS_LABELS;
                   class="flex items-center gap-1.5 px-3 py-2.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors">
             📷<?php if ($proofs > 0): ?> (<?= $proofs ?>)<?php endif; ?>
           </button>
-
           <?php endif; ?>
         </div>
       </div>
@@ -542,7 +533,7 @@ $dlLabels = DELIVERY_STATUS_LABELS;
     </div>
   </div>
 
-  <!-- ══ COMPLETED DELIVERIES ══════════════════════════════════════════════ -->
+  <!-- COMPLETED DELIVERIES -->
   <?php if (!empty($completed)): ?>
   <div>
     <h3 class="text-base font-semibold text-gray-800 mb-3">Recent Completed</h3>
@@ -577,15 +568,44 @@ $dlLabels = DELIVERY_STATUS_LABELS;
 <script>
 const PROCESS = '../supadmin/functions/order_process.php';
 
-// ── Toast ──────────────────────────────────────────────────────────────────
-function toast(msg, type = 'info') {
-  const c = { success:'bg-teal-600', error:'bg-red-600', info:'bg-gray-800', warning:'bg-orange-500' };
-  const el = document.createElement('div');
-  el.className = `${c[type]||c.info} text-white text-sm px-4 py-3 rounded-xl shadow-lg flex items-start gap-2 min-w-56 max-w-sm`;
-  el.innerHTML = `<span class="flex-1">${msg}</span><button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100 text-lg leading-none shrink-0">✕</button>`;
-  document.getElementById('toast-wrap').prepend(el);
-  setTimeout(() => el?.remove(), 5000);
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+var _TOAST_META = {
+  success: { icon:'✓', title:'Success', cls:'t-success' },
+  error:   { icon:'✕', title:'Error',   cls:'t-error'   },
+  info:    { icon:'ℹ', title:'Notice',  cls:'t-info'    },
+  warning: { icon:'⚠', title:'Warning', cls:'t-warning' },
+};
+function showToast(msg, type, title) {
+  type  = type  || 'info';
+  var m  = _TOAST_META[type] || _TOAST_META.info;
+  title  = title || m.title;
+  var wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
+  var t = document.createElement('div');
+  t.className = 'toast ' + m.cls;
+  t.innerHTML =
+    '<span class="toast-icon">' + m.icon + '</span>' +
+    '<div class="toast-body">' +
+      '<p class="toast-title">' + _escT(title) + '</p>' +
+      '<p class="toast-msg">'   + msg           + '</p>' +
+    '</div>' +
+    '<button class="toast-close" aria-label="Dismiss">✕</button>';
+  t.querySelector('.toast-close').addEventListener('click', function(){ _dismissToast(t); });
+  wrap.appendChild(t);
+  t._timer = setTimeout(function(){ _dismissToast(t); }, 4500);
 }
+function _dismissToast(el) {
+  if (!el || el._gone) return; el._gone = true;
+  clearTimeout(el._timer);
+  el.classList.add('leaving');
+  el.addEventListener('animationend', function(){ el.remove(); }, { once:true });
+}
+function _escT(v) {
+  return v == null ? '' : String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* legacy alias — keeps all existing toast('msg','type') calls working */
+function toast(msg, type) { showToast(msg, type); }
+
 function openModal(id) {
   document.querySelectorAll('.modal-overlay.modal-open').forEach(m => m.classList.remove('modal-open'));
   document.getElementById(id).classList.add('modal-open');
@@ -595,15 +615,14 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) { m.classList.remove('modal-open'); stopCamera(); } });
 });
 
-// ── Rider actions ──────────────────────────────────────────────────────────
 async function postAction(data, onSuccess) {
   const fd = new FormData();
   Object.entries(data).forEach(([k,v]) => { if (v !== null && v !== undefined) fd.append(k,v); });
   try {
     const r = await fetch(PROCESS, { method:'POST', body:fd });
     const d = await r.json();
-    if (d.ok) onSuccess(d); else toast('⚠️ ' + d.msg, 'error');
-  } catch { toast('Network error. Please try again.', 'error'); }
+    if (d.ok) onSuccess(d); else showToast('⚠️ ' + d.msg, 'error');
+  } catch { showToast('Network error. Please try again.', 'error'); }
 }
 
 function riderAction(action, deliveryId, orderId, btn) {
@@ -619,24 +638,23 @@ function riderAction(action, deliveryId, orderId, btn) {
   if (deliveryId) data.delivery_id = deliveryId;
   if (orderId)    data.order_id    = orderId;
   postAction(data, () => {
-    toast(labels[action] || 'Done.', 'success');
+    showToast(labels[action] || 'Done.', 'success');
     setTimeout(() => location.reload(), 800);
   });
   setTimeout(() => { if (btn) { btn.disabled=false; btn.innerHTML=original; } }, 5000);
 }
 
-// ── COD Payment Received ───────────────────────────────────────────────────
 function markCODPaymentReceived(orderId, btn) {
   if (!confirm('Confirm you have collected the cash payment from the customer?')) return;
   btn.disabled = true;
   btn.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Processing…';
   postAction({ action: 'mark_cod_payment_received', order_id: orderId }, () => {
-    toast('✅ COD payment collected and recorded!', 'success');
+    showToast('COD payment collected and recorded!', 'success');
     setTimeout(() => location.reload(), 800);
   });
 }
 
-// ── Proof upload ───────────────────────────────────────────────────────────
+// Proof upload
 let proofQueue = [];
 let cameraStream = null;
 let activeProofOrderId = null;
@@ -663,8 +681,8 @@ function switchTab(tab) {
 
 function handleFileSelect(input) {
   Array.from(input.files).forEach(file => {
-    if (file.size > 8 * 1024 * 1024) { toast(`${file.name} exceeds 8MB`, 'warning'); return; }
-    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { toast(`${file.name} is not a valid image`, 'warning'); return; }
+    if (file.size > 8 * 1024 * 1024) { showToast(file.name + ' exceeds 8MB', 'warning'); return; }
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { showToast(file.name + ' is not a valid image', 'warning'); return; }
     const reader = new FileReader();
     reader.onload = e => { proofQueue.push({ blob:file, name:file.name, preview:e.target.result }); renderQueue(); };
     reader.readAsDataURL(file);
@@ -676,7 +694,7 @@ async function startCamera() {
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
     document.getElementById('camera-preview').srcObject = cameraStream;
-  } catch(e) { toast('Camera error: ' + e.message, 'error'); }
+  } catch(e) { showToast('Camera error: ' + e.message, 'error'); }
 }
 function stopCamera() {
   if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
@@ -686,14 +704,14 @@ function stopCamera() {
 function capturePhoto() {
   const video  = document.getElementById('camera-preview');
   const canvas = document.getElementById('capture-canvas');
-  if (!cameraStream || !video.videoWidth) { toast('Start the camera first.', 'warning'); return; }
+  if (!cameraStream || !video.videoWidth) { showToast('Start the camera first.', 'warning'); return; }
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
   canvas.toBlob(blob => {
-    const name = `capture_${Date.now()}.jpg`;
+    const name = 'capture_' + Date.now() + '.jpg';
     proofQueue.push({ blob, name, preview: canvas.toDataURL('image/jpeg') });
     renderQueue();
-    toast('📸 Photo captured!', 'success');
+    showToast('Photo captured!', 'success');
   }, 'image/jpeg', 0.92);
 }
 
@@ -717,14 +735,13 @@ function clearQueue() { proofQueue = []; renderQueue(); }
 
 let uploadPending = false;
 async function submitProofs() {
-  if (proofQueue.length === 0) { toast('Add at least one photo first.', 'warning'); return; }
+  if (proofQueue.length === 0) { showToast('Add at least one photo first.', 'warning'); return; }
   const caption = document.getElementById('proof-caption').value.trim();
   const orderId = activeProofOrderId;
   const btn     = document.getElementById('upload-btn');
   btn.disabled  = true;
   btn.textContent = 'Uploading…';
   uploadPending = true;
-
   let uploaded = 0, failed = 0;
   for (const item of proofQueue) {
     const fd = new FormData();
@@ -735,24 +752,22 @@ async function submitProofs() {
     try {
       const resp = await fetch(PROCESS, { method:'POST', body:fd });
       const data = await resp.json();
-      if (data.ok) uploaded++; else { failed++; toast('⚠️ ' + data.msg, 'error'); }
+      if (data.ok) uploaded++; else { failed++; showToast('⚠️ ' + data.msg, 'error'); }
     } catch { failed++; }
   }
-
   uploadPending = false;
   btn.disabled = false;
-  btn.innerHTML = `Upload (<span id="upload-count">${proofQueue.length}</span>)`;
-
+  btn.innerHTML = 'Upload (<span id="upload-count">' + proofQueue.length + '</span>)';
   if (uploaded > 0) {
-    toast(`✅ ${uploaded} proof photo${uploaded>1?'s':''} uploaded!`, 'success');
+    showToast(uploaded + ' proof photo' + (uploaded>1?'s':'') + ' uploaded!', 'success');
     proofQueue = []; renderQueue();
     closeProofModal();
     setTimeout(() => location.reload(), 800);
   }
-  if (failed > 0) toast(`${failed} photo(s) failed.`, 'error');
+  if (failed > 0) showToast(failed + ' photo(s) failed.', 'error');
 }
 
-// ── GPS ────────────────────────────────────────────────────────────────────
+// GPS
 let gpsActive   = false;
 let gpsInterval = null;
 const GPS_KEY   = 'sjfbi_gps_on';
@@ -760,8 +775,8 @@ let currentDeliveryId = <?= !empty($deliveries) ? (int)$deliveries[0]['delivery_
 
 function toggleGPS() { gpsActive ? stopGPS() : startGPS(); }
 function startGPS(silent = false) {
-  if (!navigator.geolocation) { toast('Geolocation not supported.', 'warning'); return; }
-  if (!currentDeliveryId)     { toast('No active delivery to track.', 'warning'); return; }
+  if (!navigator.geolocation) { showToast('Geolocation not supported.', 'warning'); return; }
+  if (!currentDeliveryId)     { showToast('No active delivery to track.', 'warning'); return; }
   gpsActive = true;
   localStorage.setItem(GPS_KEY, '1');
   document.getElementById('gps-dot').className     = 'size-2 rounded-full bg-green-500 animate-pulse inline-block';
@@ -769,7 +784,7 @@ function startGPS(silent = false) {
   document.getElementById('gps-btn').classList.add('border-green-400','text-green-600');
   pushLocation();
   gpsInterval = setInterval(pushLocation, 15000);
-  if (!silent) toast('📍 GPS tracking started', 'success');
+  if (!silent) showToast('GPS tracking started', 'success');
 }
 function stopGPS() {
   gpsActive = false;
@@ -799,11 +814,10 @@ function pushLocation() {
   }
 })();
 
-// ── Poll for new assignments ───────────────────────────────────────────────
+// Poll for new assignments
 let seenNotifIds = new Set();
-
 (function seedSeenIds() {
-  fetch(`${PROCESS}?action=poll_notifications`)
+  fetch(PROCESS + '?action=poll_notifications')
     .then(r => r.json())
     .then(data => {
       if (data.ok && data.items) data.items.forEach(n => seenNotifIds.add(n.notif_id ?? String(n.created_at)));
@@ -813,8 +827,7 @@ let seenNotifIds = new Set();
 setInterval(() => {
   const modalOpen = document.getElementById('proof-modal')?.classList.contains('modal-open');
   if (uploadPending || modalOpen) return;
-
-  fetch(`${PROCESS}?action=poll_notifications`)
+  fetch(PROCESS + '?action=poll_notifications')
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
@@ -823,7 +836,6 @@ setInterval(() => {
         return !seenNotifIds.has(id);
       });
       (data.items || []).forEach(n => { seenNotifIds.add(n.notif_id ?? String(n.created_at)); });
-
       if (data.count > 0) {
         const badge = document.getElementById('notif-count');
         badge.textContent = data.count;
@@ -832,14 +844,12 @@ setInterval(() => {
       } else {
         document.getElementById('notif-count').classList.add('hidden');
       }
-
       const hasNewAssignment = newItems.some(n => {
         const msg = (n.message ?? '').toLowerCase();
         return msg.includes('new delivery') || msg.includes('delivery assigned');
       });
-
       if (hasNewAssignment) {
-        toast('🛵 New delivery assigned to you!', 'info');
+        showToast('New delivery assigned to you!', 'info');
         setTimeout(() => location.reload(), 2000);
       }
     }).catch(() => {});

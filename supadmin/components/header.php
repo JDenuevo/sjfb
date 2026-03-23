@@ -18,7 +18,7 @@ $pageLabels = [
   'accounts.php'            => 'Accounts',
   'riders.php'              => 'Riders',
   'inquiries.php'              => 'Inquiries',
-  'profile.php'             => 'Profile',
+  'my-profile.php'             => 'My Profile',
 ];
 $pageTitle = $pageLabels[$currentPage] ?? 'Super Admin';
 
@@ -71,7 +71,7 @@ if (isset($_SESSION['account_id'])) {
       </div>
 
       <!-- Profile button -->
-      <a href="profile.php"
+      <a href="my-profile.php"
         class="relative group size-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-colors"
         title="Profile">
         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

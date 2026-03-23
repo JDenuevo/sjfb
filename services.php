@@ -36,7 +36,7 @@ while ($market = mysqli_fetch_assoc($markets_result)) {
         : '';
 
     // Get team members for this market
-    $team_query = "SELECT name, position, image_url FROM market_members
+    $team_query = "SELECT member_name, position, image_url FROM market_members
                    WHERE market_id = $market_id AND is_active = 1
                    ORDER BY display_order";
     $team_result = mysqli_query($conn, $team_query);
@@ -311,15 +311,15 @@ while ($market = mysqli_fetch_assoc($markets_result)) {
             <?php if (!empty($member['image_url'])): ?>
               <!-- FIXED: $member['image_url'] already has path prepended in PHP above -->
               <img src="<?= htmlspecialchars($member['image_url']) ?>"
-                   alt="<?= htmlspecialchars($member['name']) ?>"
+                   alt="<?= htmlspecialchars($member['member_name']) ?>"
                    class="member-avatar"
                    loading="lazy"
                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <div class="member-initial" style="display:none"><?= strtoupper(substr($member['name'], 0, 1)) ?></div>
+              <div class="member-initial" style="display:none"><?= strtoupper(substr($member['member_name'], 0, 1)) ?></div>
             <?php else: ?>
-              <div class="member-initial"><?= strtoupper(substr($member['name'], 0, 1)) ?></div>
+              <div class="member-initial"><?= strtoupper(substr($member['member_name'], 0, 1)) ?></div>
             <?php endif; ?>
-            <p class="font-semibold text-gray-900 text-sm"><?= htmlspecialchars($member['name']) ?></p>
+            <p class="font-semibold text-gray-900 text-sm"><?= htmlspecialchars($member['member_name']) ?></p>
             <p class="text-xs text-gray-400 mt-0.5"><?= htmlspecialchars($member['position']) ?></p>
           </div>
           <?php endforeach; ?>

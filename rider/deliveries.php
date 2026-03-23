@@ -82,17 +82,7 @@ $totalPages    = (int)ceil($filteredTotal / $perPage);
 //   delivery_status (was status),
 //   recipient_first_name/last_name/address (was first_name/last_name/address)
 $dStmt = $conn->prepare("
-    SELECT d.delivery_id,
-           d.order_id,
-           d.delivery_status,
-           d.is_third_party,
-           d.third_party_name,
-           d.assigned_at,
-           d.accepted_at,
-           d.picked_up_at,
-           d.delivered_at,
-           d.estimated_time,
-           d.estimated_distance,
+    SELECT d.*,
            o.order_code,
            o.order_status,
            o.recipient_first_name AS first_name,

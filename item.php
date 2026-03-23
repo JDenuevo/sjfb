@@ -1,7 +1,7 @@
 <?php
 include 'conn.php';
 
-$pageTitle = 'Shop';
+$pageTitle = 'Item';
 $currentPage = '';
 $showCategories = false;
 $showMobileCategories = false;

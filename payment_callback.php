@@ -57,69 +57,134 @@ try {
     $isGuest   = $accountId ? 0 : 1;
     $orderCode = generateOrderCode();
 
-    // Pull pricing fields — these were saved by add.php after server-side verification
-    $serverSubtotal      = (float)($cd['subtotal']        ?? $cd['total_amount'] ?? 0);
-    $deliveryFee         = (float)($cd['delivery_fee']    ?? 0);
-    $discountAmount      = (float)($cd['discount_amount'] ?? 0);
-    $voucherCode         = trim($cd['voucher_code']       ?? '');
-    $totalAmount         = (float)($cd['total_amount']    ?? 0);
+    // Pull server-verified pricing saved by add.php
+    // These were already server-validated before the PayMongo session was created
+    $serverSubtotal  = (float)($cd['subtotal']        ?? 0);
+    $deliveryFee     = (float)($cd['delivery_fee']    ?? 0);
+    $discountAmount  = (float)($cd['discount_amount'] ?? 0);
+    $voucherCode     = trim($cd['voucher_code']       ?? '');
+    $totalAmount     = (float)($cd['total_amount']    ?? 0);
 
-    // Re-verify delivery fee server-side (guard against session tampering)
+    // ── Re-verify delivery fee (guard against session tampering) ─────────
     $serverDeliveryFee = round(getDeliveryFee($cd['city'], $serverSubtotal, $conn), 2);
     if (abs($serverDeliveryFee - $deliveryFee) > 1.00) {
         error_log("Callback delivery fee mismatch — session: {$deliveryFee}, server: {$serverDeliveryFee}. Using server.");
         $deliveryFee = $serverDeliveryFee;
+        // Recalculate total keeping existing discount intact
         $totalAmount = round($serverSubtotal - $discountAmount + $deliveryFee, 2);
     }
 
-    // ── Insert order using RENAMED columns ───────────────────────────────
+    // ── Resolve voucher_id from code ──────────────────────────────────────
+    $verifiedVoucherId = null;
+    if (!empty($voucherCode)) {
+        $vStmt = $conn->prepare("SELECT voucher_id FROM vouchers WHERE code = ? AND is_active = 1 LIMIT 1");
+        $vStmt->bind_param('s', $voucherCode);
+        $vStmt->execute();
+        $vRow = $vStmt->get_result()->fetch_assoc();
+        $vStmt->close();
+        if ($vRow) $verifiedVoucherId = (int)$vRow['voucher_id'];
+    }
+
+    // ── Resolve promotion_id (same logic as add.php) ──────────────────────
+    // The promotion was already validated and applied in add.php.
+    // We just need to find the same promotion to record the FK.
+    $verifiedPromoId = null;
+    $userGroups = getUserGroups($accountId, $conn);
+
+    // Check if a stackable voucher allows promo stacking, or no voucher was used
+    $voucherIsStackable = false;
+    if ($verifiedVoucherId) {
+        $ckStack = $conn->prepare("SELECT toggle_stackable FROM vouchers WHERE voucher_id = ? LIMIT 1");
+        $ckStack->bind_param('i', $verifiedVoucherId);
+        $ckStack->execute();
+        $stackRow = $ckStack->get_result()->fetch_assoc();
+        $ckStack->close();
+        $voucherIsStackable = !empty($stackRow['toggle_stackable']);
+    }
+
+    if ($verifiedVoucherId === null || $voucherIsStackable) {
+        $promoStmt = $conn->prepare("
+            SELECT p.promotion_id
+            FROM promotions p
+            WHERE p.is_active         = 1
+              AND p.toggle_auto_apply = 1
+              AND NOW() BETWEEN p.start_date AND p.end_date
+              AND p.minimum_order     <= ?
+              AND (
+                  p.applicable_to = 'all'
+                  OR (
+                      p.applicable_to = 'specific_groups'
+                      AND EXISTS (
+                          SELECT 1 FROM promotion_groups pg
+                          JOIN account_groups ag ON ag.group_id = pg.group_id
+                          WHERE pg.promotion_id = p.promotion_id
+                            AND ag.account_id   = ?
+                      )
+                  )
+              )
+            ORDER BY p.discount_value DESC
+            LIMIT 1
+        ");
+        $promoStmt->bind_param('di', $serverSubtotal, $accountId);
+        $promoStmt->execute();
+        $promoRow = $promoStmt->get_result()->fetch_assoc();
+        $promoStmt->close();
+        if ($promoRow) $verifiedPromoId = (int)$promoRow['promotion_id'];
+    }
+
+    // ── Insert order ──────────────────────────────────────────────────────
+    // Matches add.php INSERT exactly — same columns, same bind_param
+    // "isssssssdddsiidsiss" (19 params)
+    //   account_id(i) email(s) phone(s) first(s) last(s)
+    //   address(s) postal(s) city(s)
+    //   subtotal(d) delivery_fee(d) discount(d) voucher_code(s)
+    //   voucher_id(i) promotion_id(i)
+    //   total_price(d) payment_method(s)
+    //   is_guest(i) order_code(s) delivery_notes(s)
     $stmt = $conn->prepare("
         INSERT INTO orders (
             account_id,
             recipient_email, recipient_phone,
             recipient_first_name, recipient_last_name,
             recipient_address, postal_code, city,
-            subtotal, delivery_fee, discount_amount, voucher_code,
+            subtotal, delivery_fee, discount_amount, voucher_code, voucher_id, promotion_id,
             total_price, payment_method,
             is_guest_order, order_code, delivery_notes,
             order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid')
     ");
-
-    $stmt->bind_param("isssssssdddsdsiss",
+    $stmt->bind_param("isssssssdddsiidsiss",
         $accountId,
-        $cd['email'],           // not recipient_email
-        $cd['phone_number'],    // not recipient_phone
-        $cd['first_name'],      // not recipient_first_name
-        $cd['last_name'],       // not recipient_last_name
-        $cd['address'],         // not recipient_address
+        $cd['email'],
+        $cd['phone_number'],
+        $cd['first_name'],
+        $cd['last_name'],
+        $cd['address'],
         $cd['postal_code'],
         $cd['city'],
         $serverSubtotal,
         $deliveryFee,
         $discountAmount,
         $voucherCode,
+        $verifiedVoucherId,
+        $verifiedPromoId,
         $totalAmount,
         $cd['payment_method'],
         $isGuest,
         $orderCode,
         $cd['delivery_notes']
     );
-
-    if (!$stmt->execute()) {
-        throw new Exception("Failed to create order: " . $conn->error);
-    }
+    if (!$stmt->execute()) throw new Exception("Failed to create order: " . $conn->error);
     $orderId = $conn->insert_id;
     $stmt->close();
 
-    // ── Insert order items + deduct stock ────────────────────────────────
+    // ── Insert order items + deduct stock ─────────────────────────────────
     $itemStmt = $conn->prepare(
         "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)"
     );
     $itemSummary = [];
 
     foreach ($cd['cart'] as $item) {
-        // Last-second availability check
         $chk = $conn->prepare(
             "SELECT variant_id FROM product_variants WHERE variant_id = ? AND stock_status = 'In Stock' LIMIT 1"
         );
@@ -132,17 +197,11 @@ try {
         $chk->close();
 
         $itemStmt->bind_param("iiiid",
-            $orderId,
-            $item['product_id'],
-            $item['variant_id'],
-            $item['quantity'],
-            $item['price']
+            $orderId, $item['product_id'], $item['variant_id'],
+            $item['quantity'], $item['price']
         );
-        if (!$itemStmt->execute()) {
-            throw new Exception("Failed to insert order item: " . $conn->error);
-        }
+        if (!$itemStmt->execute()) throw new Exception("Failed to insert order item: " . $conn->error);
 
-        // Deduct stock
         $stock = $conn->prepare("
             UPDATE product_variants
             SET stock_quantity = stock_quantity - ?,
@@ -150,33 +209,25 @@ try {
             WHERE variant_id = ? AND stock_quantity >= ?
         ");
         $stock->bind_param("didi", $item['quantity'], $item['quantity'], $item['variant_id'], $item['quantity']);
-        if (!$stock->execute() || $stock->affected_rows === 0) {
+        if (!$stock->execute() || $stock->affected_rows === 0)
             throw new Exception("Stock deduction failed for \"{$item['product_name']}\".");
-        }
         $stock->close();
 
         $itemSummary[] = "{$item['product_name']} x{$item['quantity']}";
     }
     $itemStmt->close();
 
-    // ── Record voucher usage ─────────────────────────────────────────────
-    if (!empty($voucherCode) && $discountAmount > 0) {
-        $vStmt = $conn->prepare("SELECT voucher_id FROM vouchers WHERE code = ? AND is_active = 1 LIMIT 1");
-        $vStmt->bind_param("s", $voucherCode);
-        $vStmt->execute();
-        $vRow = $vStmt->get_result()->fetch_assoc();
-        $vStmt->close();
-        if ($vRow) {
-            $vuStmt = $conn->prepare(
-                "INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount) VALUES (?, ?, ?, ?)"
-            );
-            $vuStmt->bind_param("iiid", $vRow['voucher_id'], $accountId, $orderId, $discountAmount);
-            $vuStmt->execute();
-            $vuStmt->close();
-        }
+    // ── Record voucher usage ──────────────────────────────────────────────
+    if ($verifiedVoucherId && $discountAmount > 0) {
+        $vuStmt = $conn->prepare(
+            "INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount) VALUES (?, ?, ?, ?)"
+        );
+        $vuStmt->bind_param("iiid", $verifiedVoucherId, $accountId, $orderId, $discountAmount);
+        $vuStmt->execute();
+        $vuStmt->close();
     }
 
-    // ── Insert payment record ────────────────────────────────────────────
+    // ── Insert payment record ─────────────────────────────────────────────
     $billingName = trim($cd['first_name'] . ' ' . $cd['last_name']);
     $payStmt = $conn->prepare("
         INSERT INTO payments (
@@ -186,39 +237,47 @@ try {
             source_type, created_at
         ) VALUES (?, 'PHP', ?, 'Paid', 'live', ?, ?, ?, ?, ?, ?, 'PH', ?, NOW())
     ");
-    // 9 ? placeholders → 9 values → "idsssssss" (i=order_id, d=amount, 7×s)
+    // i=order_id d=amount s×7=name,email,phone,address,city,postal,method
     $payStmt->bind_param("idsssssss",
-        $orderId,           // i
-        $totalAmount,       // d
-        $billingName,       // s — billing_name
-        $cd['email'],       // s — billing_email
-        $cd['phone_number'],// s — billing_phone
-        $cd['address'],     // s — billing_line1
-        $cd['city'],        // s — billing_city
-        $cd['postal_code'], // s — billing_postal_code
-        $cd['payment_method'] // s — source_type
+        $orderId,
+        $totalAmount,
+        $billingName,
+        $cd['email'],
+        $cd['phone_number'],
+        $cd['address'],
+        $cd['city'],
+        $cd['postal_code'],
+        $cd['payment_method']
     );
-    if (!$payStmt->execute()) {
+    if (!$payStmt->execute())
         error_log("Payment record insert error: " . $payStmt->error);
-    }
     $payStmt->close();
 
-    // ── Log activity ─────────────────────────────────────────────────────
+    // ── Log activity ──────────────────────────────────────────────────────
+    $discountSummary = '';
+    if ($discountAmount > 0) {
+        $parts = [];
+        if (!empty($voucherCode))  $parts[] = "Voucher: {$voucherCode}";
+        if ($verifiedPromoId)      $parts[] = "Promo ID: {$verifiedPromoId}";
+        $discountSummary = " | Discount: -₱".number_format($discountAmount, 2)
+            . (!empty($parts) ? " (".implode(', ', $parts).")" : '');
+    }
+
     logActivity(
         $conn, 'order', $orderId, 'Order created after payment', null, 'Paid',
         "Order #{$orderCode} | Method: {$cd['payment_method']}" .
-        " | Subtotal: ₱" . number_format($serverSubtotal, 2) .
-        ($discountAmount > 0 ? " | Discount: -₱" . number_format($discountAmount, 2) : '') .
-        " | Delivery: ₱" . number_format($deliveryFee, 2) .
-        " | Total: ₱" . number_format($totalAmount, 2) .
-        " | Items: " . implode(', ', $itemSummary),
+        " | Subtotal: ₱".number_format($serverSubtotal, 2) .
+        $discountSummary .
+        " | Delivery: ₱".number_format($deliveryFee, 2) .
+        " | Total: ₱".number_format($totalAmount, 2) .
+        " | Items: ".implode(', ', $itemSummary),
         $accountId,
         $accountId ? 'customer' : 'guest'
     );
 
     $conn->commit();
 
-    // ── Clean up session ─────────────────────────────────────────────────
+    // ── Clean up session ──────────────────────────────────────────────────
     unset(
         $_SESSION['pending_checkout'],
         $_SESSION['temp_checkout_ref'],

@@ -67,54 +67,22 @@ if (!$delivery_id) {
 
 // ── 1. Core delivery + order + rider ──────────────────────────────────────
 $stmt = $conn->prepare("
-    SELECT
-        d.delivery_id,
-        d.order_id,
-        d.rider_id,
-        d.delivery_status,
-        d.is_third_party,
-        d.third_party_name,
-        d.delivery_link,
-        d.notes,
-        d.assigned_at,
-        d.accepted_at,
-        d.picked_up_at,
-        d.delivered_at,
-        d.estimated_time,
-        d.estimated_distance,
-        o.order_code,
-        o.order_status,
-        o.payment_method,
-        o.total_price,
-        o.subtotal,
-        o.delivery_fee,
-        o.discount_amount,
-        o.voucher_code,
-        o.recipient_first_name,
-        o.recipient_last_name,
-        o.recipient_email,
-        o.recipient_phone,
-        o.recipient_address,
-        o.city,
-        o.postal_code,
-        o.delivery_notes,
-        o.delivery_address,
-        o.delivery_latitude,
-        o.delivery_longitude,
-        o.order_date,
-
-        COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS rider_name,
+    SELECT 
+        d.*,
+        o.*,
         r.rider_phone,
         r.vehicle_type,
         r.vehicle_plate_number,
-        r.image        AS rider_image,
-        r.current_lat  AS rider_lat,
-        r.current_lng  AS rider_lng,
-        r.is_available AS rider_available
+        r.image AS rider_image,
+        r.current_lat AS rider_lat,
+        r.current_lng AS rider_lng,
+        r.is_available AS rider_available,
+
+        COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS rider_name
 
     FROM deliveries d
-    JOIN   orders   o ON o.order_id   = d.order_id
-    LEFT JOIN riders   r ON r.rider_id   = d.rider_id
+    JOIN orders o ON o.order_id = d.order_id
+    LEFT JOIN riders r ON r.rider_id = d.rider_id
     LEFT JOIN accounts a ON a.account_id = r.account_id
     WHERE d.delivery_id = ?
     LIMIT 1

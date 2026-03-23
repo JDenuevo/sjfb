@@ -19,8 +19,6 @@ function redirectWithMessage($location, $message, $type = 'error') {
 
 /**
  * Validate every cart item against current DB state.
- * Returns array of error objects: [['product_name'=>…, 'variant_name'=>…, 'message'=>…], …]
- * Empty array means all items are orderable.
  */
 function validateCartItems(mysqli $conn, array $cart): array {
     $errors = [];
@@ -51,53 +49,32 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $stmt->close();
 
         if (!$row) {
-            $errors[] = [
-                'product_name' => $name,
-                'variant_name' => $varName,
-                'message'      => "\"$name\" no longer exists. Please remove it to proceed.",
-            ];
+            $errors[] = ['product_name'=>$name,'variant_name'=>$varName,
+                'message'=>"\"$name\" no longer exists. Please remove it to proceed."];
             continue;
         }
-
         if ($row['is_deleted']) {
-            $errors[] = [
-                'product_name' => $name,
-                'variant_name' => $varName,
-                'message'      => "\"$name\" has been removed from our store. Please remove it to proceed.",
-            ];
+            $errors[] = ['product_name'=>$name,'variant_name'=>$varName,
+                'message'=>"\"$name\" has been removed from our store. Please remove it to proceed."];
             continue;
         }
-
         if ($row['variant_id'] === null) {
-            $errors[] = [
-                'product_name' => $name,
-                'variant_name' => $varName,
-                'message'      => "The selected size/variant of \"$name\" is no longer available. Please remove it to proceed.",
-            ];
+            $errors[] = ['product_name'=>$name,'variant_name'=>$varName,
+                'message'=>"The selected size/variant of \"$name\" is no longer available. Please remove it to proceed."];
             continue;
         }
-
         if ($row['stock_status'] !== 'In Stock') {
             $vLabel = $varName ? " ($varName)" : '';
-            $errors[] = [
-                'product_name' => $name,
-                'variant_name' => $varName,
-                'message'      => "\"$name{$vLabel}\" is currently out of stock. Please remove it to proceed.",
-            ];
+            $errors[] = ['product_name'=>$name,'variant_name'=>$varName,
+                'message'=>"\"$name{$vLabel}\" is currently out of stock. Please remove it to proceed."];
             continue;
         }
-
         $stock = floatval($row['stock_quantity']);
         if ($stock < $qty) {
-            $vLabel  = $varName ? " ($varName)" : '';
-            $avail   = $stock > 0
-                ? "Only " . number_format($stock, 0) . " available."
-                : "No stock available.";
-            $errors[] = [
-                'product_name' => $name,
-                'variant_name' => $varName,
-                'message'      => "\"$name{$vLabel}\" — not enough stock. $avail Please update your quantity or remove it to proceed.",
-            ];
+            $vLabel = $varName ? " ($varName)" : '';
+            $avail  = $stock > 0 ? "Only ".number_format($stock,0)." available." : "No stock available.";
+            $errors[] = ['product_name'=>$name,'variant_name'=>$varName,
+                'message'=>"\"$name{$vLabel}\" — not enough stock. $avail Please update your quantity or remove it to proceed."];
         }
     }
     return $errors;
@@ -121,37 +98,25 @@ function validateCartItems(mysqli $conn, array $cart): array {
         $confirm_password = trim($_POST['confirm_password'] ?? '');
         $role             = 'customer';
 
-        if (empty($email) || empty($username) || empty($password) || empty($confirm_password)) {
+        if (empty($email) || empty($username) || empty($password) || empty($confirm_password))
             redirectWithMessage('../register.php', "All fields are required.");
-        }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL))
             redirectWithMessage('../register.php', "Please enter a valid email address.");
-        }
 
-        if (!preg_match('/^[a-zA-Z0-9_]{5,}$/', $username)) {
+        if (!preg_match('/^[a-zA-Z0-9_]{5,}$/', $username))
             redirectWithMessage('../register.php', "Username must be at least 5 characters and contain only letters, numbers, or underscores.");
-        }
 
-        if (
-            strlen($password) < 8          ||
-            !preg_match('/[A-Z]/', $password) ||
-            !preg_match('/[0-9]/', $password) ||
-            !preg_match('/[\W_]/',  $password)
-        ) {
+        if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) ||
+            !preg_match('/[0-9]/', $password) || !preg_match('/[\W_]/', $password))
             redirectWithMessage('../register.php', "Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
-        }
 
-        if ($password !== $confirm_password) {
+        if ($password !== $confirm_password)
             redirectWithMessage('../register.php', "Passwords do not match.");
-        }
 
-        // ── Duplicate checks ──────────────────────────────────────────────────────
-        // Uses account_email (renamed from email)
         $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE account_email = ? LIMIT 1");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
+        $stmt->bind_param("s", $email); $stmt->execute();
         if ($stmt->get_result()->num_rows > 0) {
             $stmt->close();
             redirectWithMessage('../register.php', "That email address is already registered.");
@@ -160,52 +125,37 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
         $stmt = $conn->prepare("SELECT account_id FROM accounts WHERE username = ? LIMIT 1");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
+        $stmt->bind_param("s", $username); $stmt->execute();
         if ($stmt->get_result()->num_rows > 0) {
             $stmt->close();
             redirectWithMessage('../register.php', "That username is already taken.");
         }
         $stmt->close();
 
-        // ── Insert new account ────────────────────────────────────────────────────
-        // Uses account_email (renamed from email)
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-
-        $stmt = $conn->prepare("
-            INSERT INTO accounts (account_email, username, password_hash, role)
-            VALUES (?, ?, ?, ?)
-        ");
+        $stmt = $conn->prepare("INSERT INTO accounts (account_email, username, password_hash, role) VALUES (?, ?, ?, ?)");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
         $stmt->bind_param("ssss", $email, $username, $hashed, $role);
-
         if (!$stmt->execute()) {
             error_log("Register error: " . $stmt->error);
             $stmt->close();
             redirectWithMessage('../register.php', "Registration failed. Please try again.");
         }
-
         $newAccountId = $stmt->insert_id;
         $stmt->close();
 
         if (function_exists('logActivity')) {
-            logActivity(
-                $conn, 'account', $newAccountId,
-                'Account registered', null, null,
+            logActivity($conn, 'account', $newAccountId, 'Account registered', null, null,
                 "New customer account. Username: {$username} | Email: {$email}",
-                $newAccountId, 'customer'
-            );
+                $newAccountId, 'customer');
         }
 
         session_regenerate_id(true);
-
-        $_SESSION['account_id']      = $newAccountId;
-        $_SESSION['username']        = $username;
-        $_SESSION['role']            = 'customer';
-        $_SESSION['loggedinasuser']  = true;
-
+        $_SESSION['account_id']     = $newAccountId;
+        $_SESSION['username']       = $username;
+        $_SESSION['role']           = 'customer';
+        $_SESSION['loggedinasuser'] = true;
         $conn->close();
-
         redirectWithMessage('../account/shop.php', "Welcome aboard, {$username}! Your account has been created.", 'success');
     }
 
@@ -254,19 +204,17 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 throw new Exception("Invalid payment method selected.");
 
             // ── Pricing inputs from checkout form ──────────────────────────────
-            // These come from the hidden fields written by to_checkout.php JS
-            $submittedSubtotal     = round((float)($_POST['subtotal']         ?? 0), 2);
-            $submittedDeliveryFee  = round((float)($_POST['delivery_fee']     ?? 0), 2);
-            $submittedDiscount     = round((float)($_POST['discount_amount']  ?? 0), 2);
-            $voucherCode           = trim($_POST['voucher_code'] ?? '');
+            $submittedSubtotal    = round((float)($_POST['subtotal']        ?? 0), 2);
+            $submittedDeliveryFee = round((float)($_POST['delivery_fee']    ?? 0), 2);
+            $submittedDiscount    = round((float)($_POST['discount_amount'] ?? 0), 2);
+            // applied_voucher_code is the hidden mirror — always submitted even when input is readonly
+            $voucherCode          = trim($_POST['applied_voucher_code'] ?? $_POST['voucher_code'] ?? '');
 
             // ── Server-side subtotal verification ─────────────────────────────
-            // Always recalculate subtotal from cart — never trust the client value
             $serverSubtotal = round(array_sum(
                 array_map(fn($i) => (float)$i['price'] * (float)$i['quantity'], $cart)
             ), 2);
 
-            // Reject if client subtotal differs by more than ₱1 (float rounding buffer)
             if (abs($serverSubtotal - $submittedSubtotal) > 1.00) {
                 error_log("Subtotal mismatch — client: {$submittedSubtotal}, server: {$serverSubtotal}");
                 throw new Exception("Order total mismatch. Please refresh and try again.");
@@ -275,21 +223,21 @@ function validateCartItems(mysqli $conn, array $cart): array {
             // ── Server-side delivery fee verification ──────────────────────────
             require_once '../functions/discount_helper.php';
             $serverDeliveryFee = round(getDeliveryFee($city, $serverSubtotal, $conn), 2);
-
-            // If client sent a different fee, use the server-calculated one
             if (abs($serverDeliveryFee - $submittedDeliveryFee) > 1.00) {
                 error_log("Delivery fee mismatch — client: {$submittedDeliveryFee}, server: {$serverDeliveryFee}. Using server value.");
                 $submittedDeliveryFee = $serverDeliveryFee;
             }
 
-            // ── Server-side voucher verification ──────────────────────────────
-            $verifiedDiscount = 0.00;
+            // ── Server-side voucher + promotion verification ───────────────────
+            $verifiedDiscount  = 0.00;
             $verifiedVoucherId = null;
+            $verifiedPromoId   = null;
+
+            $accountId  = $_SESSION['account_id'] ?? null;
+            $userGroups = getUserGroups($accountId, $conn);
 
             if (!empty($voucherCode)) {
-                $accountId  = $_SESSION['account_id'] ?? null;
-                $userGroups = getUserGroups($accountId, $conn);
-                $voucher    = validateVoucher($voucherCode, $serverSubtotal, $userGroups, $accountId, $conn);
+                $voucher = validateVoucher($voucherCode, $serverSubtotal, $userGroups, $accountId, $conn);
 
                 if ($voucher && !isset($voucher['error'])) {
                     $verifiedDiscount  = calculateDiscount(
@@ -300,12 +248,12 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     );
                     $verifiedVoucherId = (int)$voucher['voucher_id'];
 
-                    // If voucher grants free shipping, override delivery fee
+                    // Voucher-triggered free shipping
                     if (!empty($voucher['free_shipping']) || $verifiedDiscount >= $serverSubtotal) {
                         $submittedDeliveryFee = 0.00;
                     }
 
-                    // Check free shipping rules too
+                    // Free shipping rules (checked against subtotal after voucher discount)
                     $freeShippingRule = checkFreeShipping(
                         $serverSubtotal - $verifiedDiscount,
                         $userGroups,
@@ -316,24 +264,84 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         $submittedDeliveryFee = 0.00;
                     }
                 } else {
-                    // Voucher was submitted but is no longer valid — reject the order
-                    // so client can't sneak a stale discount through
-                    $voucherCode = ''; // clear it — don't block order, just ignore discount
+                    // Server-side validation failed — log for debugging
+                    // The client showed a discount but server re-validated and rejected it
+                    $voucherError = $voucher['error'] ?? 'Unknown validation failure';
+                    error_log("Voucher '{$voucherCode}' rejected server-side: {$voucherError}. Discount cleared.");
+                    $voucherCode      = '';
                     $verifiedDiscount = 0.00;
                 }
             } else {
-                // No voucher — still check auto free shipping rules
-                $accountId  = $_SESSION['account_id'] ?? null;
-                $userGroups = getUserGroups($accountId, $conn);
+                // No voucher — check free shipping rules against full subtotal
                 $freeShippingRule = checkFreeShipping($serverSubtotal, $userGroups, $city, $conn);
                 if ($freeShippingRule) {
                     $submittedDeliveryFee = 0.00;
                 }
             }
 
+            // ── Auto-apply promotions ──────────────────────────────────────────
+            // Apply if: no voucher, OR voucher is stackable (toggle_stackable = 1)
+            $voucherIsStackable = false;
+            if ($verifiedVoucherId) {
+                $ckStack = $conn->prepare("SELECT toggle_stackable FROM vouchers WHERE voucher_id = ? LIMIT 1");
+                $ckStack->bind_param('i', $verifiedVoucherId);
+                $ckStack->execute();
+                $stackRow = $ckStack->get_result()->fetch_assoc();
+                $ckStack->close();
+                $voucherIsStackable = !empty($stackRow['toggle_stackable']);
+            }
+
+            if ($verifiedVoucherId === null || $voucherIsStackable) {
+                // Find best active auto-apply promotion eligible for this order
+                $promoStmt = $conn->prepare("
+                    SELECT p.*
+                    FROM promotions p
+                    WHERE p.is_active         = 1
+                      AND p.toggle_auto_apply = 1
+                      AND NOW() BETWEEN p.start_date AND p.end_date
+                      AND p.minimum_order     <= ?
+                      AND (
+                          p.applicable_to = 'all'
+                          OR (
+                              p.applicable_to = 'specific_groups'
+                              AND EXISTS (
+                                  SELECT 1 FROM promotion_groups pg
+                                  JOIN account_groups ag ON ag.group_id = pg.group_id
+                                  WHERE pg.promotion_id = p.promotion_id
+                                    AND ag.account_id   = ?
+                              )
+                          )
+                      )
+                    ORDER BY p.discount_value DESC
+                    LIMIT 1
+                ");
+                $promoStmt->bind_param('di', $serverSubtotal, $accountId);
+                $promoStmt->execute();
+                $bestPromo = $promoStmt->get_result()->fetch_assoc();
+                $promoStmt->close();
+
+                if ($bestPromo) {
+                    $promoDiscount = calculateDiscount(
+                        $bestPromo['discount_type'],
+                        $bestPromo['discount_value'],
+                        $serverSubtotal,
+                        $bestPromo['max_discount'] ?? null
+                    );
+                    if ($promoDiscount > 0) {
+                        $verifiedDiscount += $promoDiscount;
+                        $verifiedPromoId   = (int)$bestPromo['promotion_id'];
+                    }
+                }
+            }
+
+            // Cap discount — never exceed subtotal
+            $verifiedDiscount = min($verifiedDiscount, $serverSubtotal);
+
             // ── Final total (server-authoritative) ────────────────────────────
             $totalAmount = round($serverSubtotal - $verifiedDiscount + $submittedDeliveryFee, 2);
-            if ($totalAmount <= 0) throw new Exception("Invalid order total.");
+            if ($totalAmount < 0) $totalAmount = 0.00;
+            if ($totalAmount <= 0 && $verifiedDiscount < $serverSubtotal)
+                throw new Exception("Invalid order total.");
 
             // ── Cart validation ────────────────────────────────────────────────
             $cartErrors = validateCartItems($conn, $cart);
@@ -350,21 +358,30 @@ function validateCartItems(mysqli $conn, array $cart): array {
             $orderCode = generateOrderCode();
 
             // ── Insert order ───────────────────────────────────────────────────
+            // Columns: added voucher_id, promotion_id vs original
+            // bind_param: "isssssssdddsiidsiss" (19 params)
+            //   account_id(i) email(s) phone(s) first(s) last(s)
+            //   address(s) postal(s) city(s)
+            //   subtotal(d) delivery_fee(d) discount(d) voucher_code(s)
+            //   voucher_id(i) promotion_id(i)
+            //   total_price(d) payment_method(s)
+            //   is_guest(i) order_code(s) delivery_notes(s)
             $stmt = $conn->prepare("
                 INSERT INTO orders (
                     account_id, recipient_email, recipient_phone,
                     recipient_first_name, recipient_last_name,
                     recipient_address, postal_code, city,
-                    subtotal, delivery_fee, discount_amount, voucher_code,
+                    subtotal, delivery_fee, discount_amount, voucher_code, voucher_id, promotion_id,
                     total_price, payment_method,
                     is_guest_order, order_code, delivery_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("isssssssdddsdsiss",
+            $stmt->bind_param("isssssssdddsiidsiss",
                 $accountId, $email, $phoneNumber,
                 $firstName, $lastName,
                 $address, $postalCode, $city,
                 $serverSubtotal, $submittedDeliveryFee, $verifiedDiscount, $voucherCode,
+                $verifiedVoucherId, $verifiedPromoId,
                 $totalAmount, $paymentMethod,
                 $isGuest, $orderCode, $deliveryNotes
             );
@@ -378,7 +395,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
             );
             $itemSummary = [];
             foreach ($cart as $item) {
-                // Last-second stock check per item
                 $chk = $conn->prepare(
                     "SELECT variant_id FROM product_variants WHERE variant_id = ? AND stock_status = 'In Stock' LIMIT 1"
                 );
@@ -409,24 +425,46 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
             // ── Record voucher usage ───────────────────────────────────────────
             if ($verifiedVoucherId && $verifiedDiscount > 0) {
+                // Only log the voucher portion of the discount if promo also applied
+                $voucherDiscountOnly = $verifiedPromoId
+                    ? calculateDiscount(
+                        $voucher['discount_type'] ?? 'fixed',
+                        $voucher['discount_value'] ?? 0,
+                        $serverSubtotal,
+                        $voucher['max_discount'] ?? null
+                      )
+                    : $verifiedDiscount;
+
                 $vuStmt = $conn->prepare(
                     "INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount) VALUES (?, ?, ?, ?)"
                 );
-                $vuStmt->bind_param("iiid", $verifiedVoucherId, $accountId, $orderId, $verifiedDiscount);
+                $vuStmt->bind_param("iiid", $verifiedVoucherId, $accountId, $orderId, $voucherDiscountOnly);
                 $vuStmt->execute();
                 $vuStmt->close();
             }
 
+            // ── Build discount summary for activity log ────────────────────────
+            $discountSummary = '';
+            if ($verifiedDiscount > 0) {
+                $parts = [];
+                if ($verifiedVoucherId && !empty($voucherCode))
+                    $parts[] = "Voucher: {$voucherCode}";
+                if ($verifiedPromoId)
+                    $parts[] = "Promotion ID: {$verifiedPromoId}";
+                $discountSummary = " | Discount: -₱".number_format($verifiedDiscount, 2)." (".implode(', ', $parts).")";
+            }
+
             logActivity(
-                $conn, 'order', $orderId, 'Order created', null, 'Pending',
+                $conn, 'order', $orderId, 'Order created', null,
+                $paymentMethod === 'cod' ? 'Pending' : 'Paid',
                 "Order #{$orderCode} created. " .
-                ($isGuest ? "Guest" : "Account #{$accountId}") .
+                ($isGuest ? "Guest" : "Account ID: {$accountId}") .
                 " | Payment: {$paymentMethod}" .
-                " | Subtotal: ₱" . number_format($serverSubtotal, 2) .
-                ($verifiedDiscount > 0 ? " | Discount: -₱" . number_format($verifiedDiscount, 2) . " ({$voucherCode})" : '') .
-                " | Delivery: ₱" . number_format($submittedDeliveryFee, 2) .
-                " | Total: ₱" . number_format($totalAmount, 2) .
-                " | Items: " . implode(', ', $itemSummary),
+                " | Subtotal: ₱".number_format($serverSubtotal, 2) .
+                $discountSummary .
+                " | Delivery: ₱".number_format($submittedDeliveryFee, 2) .
+                " | Total: ₱".number_format($totalAmount, 2) .
+                " | Items: ".implode(', ', $itemSummary),
                 $accountId, 'customer'
             );
 
@@ -451,7 +489,6 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 'is_guest'        => $isGuest,
                 'created_at'      => time(),
             ];
-            // Also persist city separately for the input field restore
             $_SESSION['last_checkout_city'] = $city;
 
             // ── Online payment ─────────────────────────────────────────────────
@@ -462,7 +499,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
                 $tempReference = 'TMP_' . uniqid() . '_' . time();
                 $_SESSION['temp_checkout_ref']   = $tempReference;
-                $_SESSION['paymongo_session_id'] = null; // will be set below
+                $_SESSION['paymongo_session_id'] = null;
 
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
@@ -508,8 +545,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $_SESSION['paymongo_session_id'] = $response['data']['id'];
                 error_log("Payment initiated — Ref: {$tempReference}, Order: {$orderCode}, Method: {$paymentMethod}");
 
-                // Rollback the DB order — it will be re-created in payment_callback.php
-                // after PayMongo confirms payment. This prevents phantom unpaid orders.
+                // Rollback DB order — will be re-created in payment_callback.php
                 $conn->rollback();
 
                 header("Location: " . $response['data']['attributes']['checkout_url']);
@@ -539,14 +575,14 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
                 logActivity(
                     $conn, 'payment', $orderId, 'COD order placed', null, 'Pending',
-                    "COD order #{$orderCode}. Total: ₱" . number_format($totalAmount, 2),
+                    "COD order #{$orderCode}. Total: ₱".number_format($totalAmount, 2),
                     $accountId, 'customer'
                 );
 
                 $conn->commit();
 
-                // Clean up session
-                unset($_SESSION['cart'], $_SESSION['cart_errors'], $_SESSION['pending_checkout'], $_SESSION['last_checkout_city']);
+                unset($_SESSION['cart'], $_SESSION['cart_errors'],
+                      $_SESSION['pending_checkout'], $_SESSION['last_checkout_city']);
                 $_SESSION['order_id']   = $orderId;
                 $_SESSION['order_code'] = $orderCode;
 
@@ -557,10 +593,8 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 throw new Exception("Unsupported payment method: " . $paymentMethod);
             }
 
-        } catch (Exception $e) { 
-            if (isset($conn)) {
-                $conn->rollback(); 
-            }
+        } catch (Exception $e) {
+            if (isset($conn)) $conn->rollback();
             error_log("Order processing error: " . $e->getMessage());
             $_SESSION['error'] = $e->getMessage();
             header("Location: ../checkout.php");
@@ -581,31 +615,25 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
         $redirectBase = "../review.php?order={$orderCode}&token={$token}";
 
-        // ── Fetch order — uses renamed recipient_email column
         $stmt = $conn->prepare("
             SELECT o.*
             FROM orders o
             WHERE o.order_code = ? AND o.order_status = 'Delivered'
             LIMIT 1
         ");
-        $stmt->bind_param('s', $orderCode);
-        $stmt->execute();
+        $stmt->bind_param('s', $orderCode); $stmt->execute();
         $order = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        if (!$order) {
+        if (!$order)
             redirectWithMessage($redirectBase, 'Order not found or not yet delivered.', 'error');
-        }
 
-        // Validate token — uses recipient_email (renamed from email)
         $expectedToken = generateReviewToken($orderCode, $order['recipient_email']);
-        if (!hash_equals($expectedToken, strtoupper($token))) {
+        if (!hash_equals($expectedToken, strtoupper($token)))
             redirectWithMessage($redirectBase, 'Invalid review token.', 'error');
-        }
 
-        if (strtoupper($_POST['token']) !== strtoupper($token)) {
+        if (strtoupper($_POST['token']) !== strtoupper($token))
             redirectWithMessage($redirectBase, 'Security check failed.', 'error');
-        }
 
         $iStmt = $conn->prepare("
             SELECT oi.*, p.product_name, p.product_id,
@@ -615,14 +643,12 @@ function validateCartItems(mysqli $conn, array $cart): array {
             LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
             WHERE oi.order_id = ? AND oi.is_reviewed = 0
         ");
-        $iStmt->bind_param('i', $order['order_id']);
-        $iStmt->execute();
+        $iStmt->bind_param('i', $order['order_id']); $iStmt->execute();
         $orderItems = $iStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $iStmt->close();
 
         $validationErrors = [];
         $reviewedCount    = 0;
-
         $reviewerPosition = trim($_POST['position'] ?? '');
         $reviewerCompany  = trim($_POST['company']  ?? '');
 
@@ -635,21 +661,19 @@ function validateCartItems(mysqli $conn, array $cart): array {
             if (!$rating && !$feedback) continue;
 
             if ($rating < 1 || $rating > 5) {
-                $validationErrors[] = "Please select a star rating for " . htmlspecialchars($item['product_name']);
+                $validationErrors[] = "Please select a star rating for ".htmlspecialchars($item['product_name']);
                 continue;
             }
             if (strlen($feedback) < 10) {
-                $validationErrors[] = "Review for \"" . htmlspecialchars($item['product_name']) . "\" must be at least 10 characters.";
+                $validationErrors[] = "Review for \"".htmlspecialchars($item['product_name'])."\" must be at least 10 characters.";
                 continue;
             }
 
-            // Uses renamed columns: recipient_first_name, recipient_last_name, recipient_email
-            $fullName = trim($order['recipient_first_name'] . ' ' . $order['recipient_last_name']);
+            $fullName = trim($order['recipient_first_name'].' '.$order['recipient_last_name']);
             $email    = $order['recipient_email'];
             $ip       = $_SERVER['REMOTE_ADDR'] ?? null;
             $ua       = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-            // INSERT — uses renamed columns: reviewer_name, reviewer_email
             $rStmt = $conn->prepare("
                 INSERT INTO reviews
                     (order_id, order_item_id, product_id,
@@ -672,9 +696,8 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
                 $photoKey = "photos_{$itemId}";
                 if (!empty($_FILES[$photoKey]['name'][0])) {
-                    $uploadDir = __DIR__ . '/../uploads/reviews/';
+                    $uploadDir    = __DIR__ . '/../uploads/reviews/';
                     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-
                     $allowedMimes = ['image/jpeg','image/png','image/webp','image/gif'];
                     foreach ($_FILES[$photoKey]['tmp_name'] as $idx => $tmpPath) {
                         if (!is_uploaded_file($tmpPath)) continue;
@@ -682,41 +705,30 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         $fileSize = $_FILES[$photoKey]['size'][$idx];
                         if ($fileSize > 5 * 1024 * 1024)        continue;
                         if (!in_array($mimeType, $allowedMimes)) continue;
-
                         $origName = $_FILES[$photoKey]['name'][$idx];
                         $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                        $fileName = 'review_' . $reviewId . '_' . $idx . '_' . uniqid() . '.' . $ext;
+                        $fileName = 'review_'.$reviewId.'_'.$idx.'_'.uniqid().'.'.$ext;
                         $destPath = $uploadDir . $fileName;
-
                         if (move_uploaded_file($tmpPath, $destPath)) {
-                            $relPath   = 'uploads/reviews/' . $fileName;
+                            $relPath   = 'uploads/reviews/'.$fileName;
                             $uploadOrd = $idx + 1;
                             $aStmt = $conn->prepare("
                                 INSERT INTO review_attachments
                                     (review_id, file_path, file_name, file_size, mime_type, upload_order)
                                 VALUES (?, ?, ?, ?, ?, ?)
                             ");
-                            $aStmt->bind_param('issiis',
-                                $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
-                            );
-                            $aStmt->execute();
-                            $aStmt->close();
+                            $aStmt->bind_param('issiis', $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd);
+                            $aStmt->execute(); $aStmt->close();
                         }
                     }
                 }
 
-                $uStmt = $conn->prepare("
-                    UPDATE order_items SET is_reviewed = 1, review_id = ?
-                    WHERE order_item_id = ?
-                ");
-                $uStmt->bind_param('ii', $reviewId, $itemId);
-                $uStmt->execute();
-                $uStmt->close();
-
+                $uStmt = $conn->prepare("UPDATE order_items SET is_reviewed = 1, review_id = ? WHERE order_item_id = ?");
+                $uStmt->bind_param('ii', $reviewId, $itemId); $uStmt->execute(); $uStmt->close();
                 $reviewedCount++;
             } else {
                 $rStmt->close();
-                $validationErrors[] = "Failed to save review for \"" . htmlspecialchars($item['product_name']) . "\".";
+                $validationErrors[] = "Failed to save review for \"".htmlspecialchars($item['product_name'])."\".";
             }
         }
 
@@ -725,10 +737,8 @@ function validateCartItems(mysqli $conn, array $cart): array {
             header("Location: ../review.php?order={$orderCode}&token={$token}");
             exit();
         }
-
-        if (empty($validationErrors) && $reviewedCount === 0) {
+        if (empty($validationErrors) && $reviewedCount === 0)
             $validationErrors[] = "Please fill in at least one product review before submitting.";
-        }
 
         $_SESSION['review_errors'] = $validationErrors;
         header("Location: ../review.php?order={$orderCode}&token={$token}");

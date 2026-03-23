@@ -1,6 +1,6 @@
 <?php
 /**
- * rider/nav.php
+ * rider/navigation.php
  * Shared bottom navigation — include at the bottom of every rider page body.
  * Highlights the active tab based on the current file.
  */

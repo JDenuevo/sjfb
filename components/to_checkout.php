@@ -401,7 +401,7 @@ function getFormValue($field, $userDetails, $savedData) {
 
             <div class="flex justify-between text-sm text-gray-500">
               <span>Delivery Fee</span>
-              <span id="delivery-fee-display" class="font-semibold text-gray-400">0.00</span>
+              <span id="delivery-fee-display" class="font-semibold text-gray-400">Enter city first</span>
             </div>
 
             <!-- Discount (hidden until a voucher is applied) -->
@@ -449,6 +449,8 @@ function getFormValue($field, $userDetails, $savedData) {
             <input type="hidden" name="delivery_fee"     id="delivery_fee_input"     value="0">
             <input type="hidden" name="subtotal"         id="subtotal_input"         value="<?= number_format($cartTotal, 2, '.', '') ?>">
             <input type="hidden" name="discount_amount"  id="discount_amount_input"  value="0">
+            <!-- Mirror of applied voucher code — always submitted even when input is readonly -->
+            <input type="hidden" name="applied_voucher_code" id="applied_voucher_code_input" value="">
           </div>
         </div>
       </div>
@@ -591,6 +593,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var da = document.getElementById('discount-amount');
         if (da) da.textContent = '-₱' + parseFloat(data.discount_amount).toFixed(2);
 
+        // Mirror applied code in hidden input — ensures it submits even when input is readonly
+        var mirrorInp = document.getElementById('applied_voucher_code_input');
+        if (mirrorInp) mirrorInp.value = data.voucher.code;
+
         _showAppliedVoucher(data);
         _showVoucherMsg(data.message, 'success');
         reload(); // reload with discount applied
@@ -609,7 +615,7 @@ document.addEventListener('DOMContentLoaded', function () {
       currentVoucher = null;
       window.currentDiscount = 0;
       if (appliedVoucher) appliedVoucher.classList.add('hidden');
-      if (voucherInput) { voucherInput.value = ''; voucherInput.disabled = false; }
+      if (voucherInput) { voucherInput.value = ''; voucherInput.readOnly = false; voucherInput.style.opacity = ''; }
       document.getElementById('discount_amount_input').value = '0';
       var dl = document.getElementById('discount-line-container');
       if (dl) dl.classList.add('hidden');
@@ -625,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ? data.voucher.discount_value + '% off'
         : '₱' + parseFloat(data.voucher.discount_value).toFixed(2) + ' off');
     if (appliedVoucher) appliedVoucher.classList.remove('hidden');
-    if (voucherInput) voucherInput.disabled = true;
+    if (voucherInput) { voucherInput.readOnly = true; voucherInput.style.opacity = "0.6"; }
   }
 
   function _showVoucherMsg(msg, type) {

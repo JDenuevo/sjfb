@@ -96,11 +96,27 @@ function _cart_fmt(string $u): string {
                 </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <p class="text-center text-gray-400 py-12 text-sm">Your cart is empty.</p>
+                <!-- [ADDED] Nicer empty state — replaced plain "Your cart is empty." text -->
+                <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mb-4">
+                        <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#f97316" stroke-width="1.5">
+                            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <path d="M16 10a4 4 0 0 1-8 0"/>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-700">Your cart is empty</p>
+                    <p class="text-xs text-gray-400 mt-1">Add some fresh seafood to get started!</p>
+                    <a href="<?= $baseUrl ?>shop.php"
+                       onclick="closeOffCanvas()"
+                       class="mt-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors">
+                        Browse Products
+                    </a>
+                </div>
             <?php endif; ?>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer — unchanged -->
         <div class="px-5 py-4 border-t border-gray-100 shrink-0 space-y-3">
             <div class="flex justify-between items-center">
                 <span class="font-bold text-gray-800">Subtotal:</span>
@@ -118,10 +134,7 @@ function _cart_fmt(string $u): string {
                 Checkout
             </a>
             <div class="text-center">
-                <button type="button" onclick="closeOffCanvas()"
-                        class="text-sm text-orange-500 hover:text-orange-600 hover:underline transition-colors">
-                    Continue Shopping
-                </button>
+                <a href="<?= $baseUrl ?>shop.php" class="text-sm text-orange-500 hover:text-orange-600 hover:underline">← Continue Shopping</a>
             </div>
         </div>
     </div>
@@ -133,26 +146,39 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:
 .cart-item input.quantity:focus { outline:2px solid #f97316; outline-offset:1px; border-radius:2px; }
 
 @media (max-width: 768px) {
-    #sidebar-white-bg {
-        width: 100%;
-    }
-    }
+    #sidebar-white-bg { width: 100%; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+    #sidebar-white-bg { width: 50%; }
+}
+@media (min-width: 1025px) {
+    #sidebar-white-bg { width: 33.3333%; }
+}
 
-    @media (min-width: 769px) and (max-width: 1024px) {
-    #sidebar-white-bg {
-        width: 50%;
-    }
-    }
+/* [ADDED] Subtle entrance animation per cart item */
+@keyframes cartItemIn {
+    from { opacity: 0; transform: translateX(6px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.cart-item { animation: cartItemIn .18s ease both; }
 
-    @media (min-width: 1025px) {
-    #sidebar-white-bg {
-        width: 33.3333%;
-    }
-    }
+/* [ADDED] Thin custom scrollbar on the items list */
+#cart-items-list::-webkit-scrollbar       { width: 4px; }
+#cart-items-list::-webkit-scrollbar-track { background: transparent; }
+#cart-items-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+#cart-items-list::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+/* [ADDED] Smooth remove animation — cart_process.js adds .removing before DOM removal */
+.cart-item.removing {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: opacity .18s ease, transform .18s ease;
+    pointer-events: none;
+}
 </style>
 
 <script>
-// ── Off-canvas open/close ──────────────────────────────────────────────────────
+// ── Off-canvas open/close — ORIGINAL, unchanged ───────────────────────────────
 function openOffCanvas() {
     document.getElementById('hs-cart-sidebar').classList.remove('hidden');
     requestAnimationFrame(function () {
@@ -169,15 +195,22 @@ function closeOffCanvas() {
     }, 310);
 }
 
-// Close on overlay click
+// Close on overlay click — original
 document.getElementById('hs-cart-sidebar').addEventListener('click', function (e) {
     if (e.target === this) closeOffCanvas();
 });
 
-// Wire [data-cart-toggle] buttons
+// Wire [data-cart-toggle] buttons — original
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-cart-toggle]').forEach(function (btn) {
         btn.addEventListener('click', openOffCanvas);
     });
+});
+
+// [ADDED] Close on Escape key
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !document.getElementById('hs-cart-sidebar').classList.contains('hidden')) {
+        closeOffCanvas();
+    }
 });
 </script>

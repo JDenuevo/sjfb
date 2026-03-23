@@ -181,12 +181,32 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
     .track-input::placeholder { color:#64748b; }
     .track-input:hover { background:rgba(255,255,255,.9); }
     .track-input:focus { border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.15); }
-    .step-connector { position:absolute;top:20px;height:2px;z-index:0; }
-    .step-connector-fill { height:100%;background:linear-gradient(to right,#f97316,#fb923c);transition:width .8s cubic-bezier(.4,0,.2,1); }
-    .step-bubble { width:40px;height:40px;border-radius:9999px;display:flex;align-items:center;justify-content:center;position:relative;z-index:10;transition:all .3s ease;font-size:18px; }
-    .step-bubble.done   { background:#f97316;box-shadow:0 4px 14px rgba(249,115,22,.35); }
-    .step-bubble.active { background:#fff;border:2px solid #f97316; }
-    .step-bubble.idle   { background:#f3f4f6;border:2px solid #e5e7eb; }
+    .os-stepper-wrap { background:#fff; border:1px solid #f3f4f6; border-radius:1rem; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .os-progress-track { width:100%; height:6px; background:#f3f4f6; border-radius:9999px; overflow:hidden; margin-bottom:1.5rem; }
+    .os-progress-fill { height:100%; border-radius:9999px; background:linear-gradient(90deg,#f97316,#fbbf24); transition:width .7s cubic-bezier(.4,0,.2,1); }
+    .os-bar-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .os-bar-header span:first-child { font-size:12px; font-weight:600; color:#6b7280; }
+    .os-bar-header span:last-child  { font-size:12px; font-weight:700; color:#f97316; }
+    .os-steps { position:relative; display:flex; align-items:flex-start; justify-content:space-between; }
+    .os-connector-bg, .os-connector-fill { position:absolute; top:20px; left:20px; right:20px; height:2px; pointer-events:none; }
+    .os-connector-bg   { background:#e5e7eb; z-index:0; }
+    .os-connector-fill { background:linear-gradient(90deg,#f97316,#fbbf24); z-index:1; transition:width .7s cubic-bezier(.4,0,.2,1); }
+    .os-step { display:flex; flex-direction:column; align-items:center; gap:8px; position:relative; z-index:10; flex:1; }
+    .os-bubble { width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-size:18px; line-height:1; flex-shrink:0; transition:background .3s,box-shadow .3s,border-color .3s; }
+    .os-bubble.done   { background:#f97316; box-shadow:0 4px 12px rgba(249,115,22,.35); border:2px solid #f97316; color:#fff; }
+    .os-bubble.active { background:#fff; border:2px solid #f97316; box-shadow:0 0 0 5px rgba(249,115,22,.15); }
+    .os-bubble.idle   { background:#f9fafb; border:2px solid #e5e7eb; }
+    .os-dot { width:10px; height:10px; border-radius:9999px; display:inline-block; }
+    .os-dot.active { background:#fdba74; }
+    .os-dot.idle   { background:#d1d5db; }
+    .os-step-label { font-size:11px; text-align:center; line-height:1.3; max-width:64px; transition:color .3s; }
+    .os-step-label.done   { color:#ea580c; font-weight:600; }
+    .os-step-label.active { color:#f97316; font-weight:500; }
+    .os-step-label.idle   { color:#9ca3af; }
+    .os-status-strip { display:flex; align-items:center; gap:12px; margin-top:1.25rem; padding-top:1rem; border-top:1px solid #f3f4f6; }
+    .os-status-icon { width:36px; height:36px; border-radius:10px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .os-status-strip p:first-child { font-size:14px; font-weight:600; color:#1f2937; margin:0; }
+    .os-status-strip p:last-child  { font-size:12px; color:#6b7280; margin:2px 0 0; }
     .dl-step { display:flex;align-items:flex-start;gap:.75rem;position:relative; }
     .dl-step:not(:last-child)::after { content:'';position:absolute;left:11px;top:24px;bottom:-12px;width:2px;background:#e5e7eb;z-index:0; }
     .dl-dot { width:24px;height:24px;border-radius:9999px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;z-index:1;position:relative; }
@@ -326,53 +346,36 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
 
   <?php else: ?>
   <!-- ── Progress stepper ─────────────────────────────────────────────────── -->
-  <div class="anim-3 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-    <div class="flex items-center justify-between mb-1">
-      <h3 class="text-sm font-semibold text-gray-700">Delivery Progress</h3>
-      <span class="text-xs font-bold text-orange-500"><?= $fillPct ?>% complete</span>
+  <div class="anim-3 os-stepper-wrap">
+    <div class="os-bar-header">
+      <span>Delivery Progress</span>
+      <span><?= $fillPct ?>% complete</span>
     </div>
-
-    <!-- Progress bar -->
-    <div class="w-full h-1.5 bg-gray-100 rounded-full mb-6 overflow-hidden">
-      <div class="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700"
-           style="width:<?= $fillPct ?>%"></div>
+    <div class="os-progress-track">
+      <div class="os-progress-fill" style="width:<?= $fillPct ?>%"></div>
     </div>
-
-    <!-- Step bubbles -->
-    <div class="relative flex items-start justify-between">
-      <!-- Gray baseline connector -->
-      <div class="step-connector bg-gray-200" style="left:20px;right:20px;"></div>
-      <!-- Orange fill connector — uses $currentStep / $totalSteps -->
-      <div class="step-connector" style="left:20px;right:20px;">
-        <div class="step-connector-fill"
-             style="width:<?= $totalSteps > 0 ? min(100, round(($currentStep / $totalSteps) * 100)) : 0 ?>%"></div>
-      </div>
-
+    <div class="os-steps">
+      <div class="os-connector-bg"></div>
+      <div class="os-connector-fill" style="width:<?= $totalSteps > 0 ? min(100, round(($currentStep / $totalSteps) * 100)) : 0 ?>%"></div>
       <?php foreach ($steps as $i => $step):
-        $done        = $i <= $currentStep;
-        $active      = $i === $currentStep;
-        $bubbleClass = $done ? 'done' : ($active ? 'active' : 'idle');
+        $done   = $i <= $currentStep;
+        $active = $i === $currentStep;
+        $sc     = $done ? 'done' : ($active ? 'active' : 'idle');
       ?>
-      <div class="flex flex-col items-center gap-2 relative z-10" style="width:<?= 100 / count($steps) ?>%">
-        <div class="step-bubble <?= $bubbleClass ?>">
+      <div class="os-step">
+        <div class="os-bubble <?= $sc ?>">
           <?php if ($done): echo $step['icon'];
-          else: ?><span class="size-3 rounded-full <?= $active ? 'bg-orange-300' : 'bg-gray-300' ?> inline-block"></span><?php endif; ?>
+          else: ?><span class="os-dot <?= $active ? 'active' : 'idle' ?>"></span><?php endif; ?>
         </div>
-        <span class="text-xs text-center leading-tight max-w-[70px] <?= $done ? 'text-orange-600 font-semibold' : 'text-gray-400' ?>">
-          <?= htmlspecialchars($step['label']) ?>
-        </span>
+        <span class="os-step-label <?= $sc ?>"><?= htmlspecialchars($step['label']) ?></span>
       </div>
       <?php endforeach; ?>
     </div>
-
-    <!-- Current status message -->
-    <div class="mt-5 pt-4 border-t border-gray-100 flex items-start gap-3">
-      <div class="size-8 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 text-base">
-        <?= $steps[$currentStep]['icon'] ?>
-      </div>
+    <div class="os-status-strip">
+      <div class="os-status-icon"><?= $steps[$currentStep]['icon'] ?></div>
       <div>
-        <p class="text-sm font-semibold text-gray-800"><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
-        <p class="text-xs text-gray-500 mt-0.5"><?= $statusMessages[$orderStatus] ?? '' ?></p>
+        <p><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
+        <p><?= $statusMessages[$orderStatus] ?? '' ?></p>
       </div>
     </div>
   </div>
