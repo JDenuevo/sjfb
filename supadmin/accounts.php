@@ -160,12 +160,15 @@ $groups = $groupsResult ? $groupsResult->fetch_all(MYSQLI_ASSOC) : [];
           <option value="<?= $r ?>" <?= $roleFilter === $r ? 'selected' : '' ?>><?= ucfirst(str_replace('_',' ',$r)) ?></option>
           <?php endforeach; ?>
         </select>
-        <div class="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+        <div class="relative">
           <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
-                 placeholder="Name, email, username…"
-                 class="text-sm px-3 py-2 focus:outline-none w-52">
-          <button type="submit" class="px-3 py-2 text-orange-500 hover:bg-orange-50">
-            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                placeholder="Name, email, username..." 
+                class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
+          <button type="submit" class="absolute left-0 top-0 h-full flex items-center ps-3">
+            <svg class="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
           </button>
         </div>
         <?php if (!empty($search) || !empty($roleFilter)): ?>

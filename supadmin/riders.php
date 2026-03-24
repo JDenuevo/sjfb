@@ -322,14 +322,16 @@ $vehicleTypes = [
         
         <div class="flex gap-2">
           <form method="GET" class="relative">
-            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
-                   placeholder="Search name, plate, org..." 
-                   class="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
-            <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
+            <div class="relative">
+              <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
+                    placeholder="Search name, plate, org..." 
+                    class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
+              <svg class="absolute ms-3 left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </div>
           </form>
-          
+  
           <?php if ($search): ?>
           <a href="riders.php" class="px-3 py-2 text-sm text-gray-600 hover:text-orange-600 flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
