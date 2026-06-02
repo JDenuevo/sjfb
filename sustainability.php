@@ -17,12 +17,26 @@ $ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=8
   <meta property="og:image" content="<?= $ogImage ?>"><meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://fishbrokers.net/sustainability">
   <link rel="shortcut icon" href="./assets/icons/logo.ico"><link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
+  <meta name="google-site-verification" content="SEvyztm_VEss7pZNU7eN79PfVCh0D6MskG7f9mKpJow">
+  <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <link href="style.css" rel="stylesheet"><link href="output.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.0.1">
+  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="style.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+   <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+    
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
@@ -123,15 +137,9 @@ $ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=8
       More Than a Fish Broker — A Partner in the Philippine Seafood Ecosystem
     </h2>
     <p class="text-lg text-gray-600 leading-relaxed mb-8">
-      With operations spanning <strong class="text-blue-700">Navotas</strong>, <strong class="text-blue-700">Malabon</strong>, <strong class="text-blue-700">Davao Toril</strong>, and growing, we serve as the critical link between hardworking Filipino fishermen and the buyers who depend on fresh, traceable seafood.
+      With operations spanning <strong class="text-orange-600">Navotas</strong>, <strong class="text-orange-600">Malabon</strong>, <strong class="text-orange-600">Lucena</strong>, <strong class="text-orange-600">Davao</strong>, and growing, we serve as the critical link between hardworking Filipino fishermen and the buyers who depend on fresh, traceable seafood.
     </p>
-    <!-- Preline badge pattern: inline-flex + rounded-full + color utilities -->
-    <div class="flex flex-wrap gap-2 justify-center mt-2">
-      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">🌱 SDG 14 — Life Below Water</span>
-      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">🤝 SDG 17 — Partnerships</span>
-      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-200">🏘️ SDG 8 — Decent Work</span>
-      <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">⚖️ SDG 10 — Reduced Inequalities</span>
-    </div>
+    
   </div>
 </section>
 
@@ -283,7 +291,7 @@ $ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=8
             ['bg-blue-50','text-blue-600','Closed Season Compliance','We halt trading of regulated species during mandated closed seasons.','M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'],
             ['bg-green-50','text-green-600','Zero-Waste Drive','Fish scraps and unsold portions redirect to fishmeal processors — nothing wasted.','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
             ['bg-teal-50','text-teal-600','Biodiversity Awareness','Staff trained to refuse endangered or undersize catches per BFAR guidelines.','M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064'],
-            ['bg-orange-50','text-orange-600','Cold Chain Efficiency','Optimized ice and refrigeration logistics reduce spoilage and energy use.','M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707'],
+            ['bg-orange-50','text-orange-600','Cold Chain Partnership','Optimized ice and refrigeration logistics reduce spoilage and energy use.','M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707'],
           ] as [$ibg,$ic,$title,$desc,$path]): ?>
           <div class="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow">
             <div class="size-10 <?= $ibg ?> rounded-lg flex items-center justify-center mb-3">
@@ -298,40 +306,6 @@ $ogImage = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=8
       <div class="img-zoom img-shadow-l aspect-[4/3]" data-aos="fade-left">
         <img src="https://www.undp.org/sites/g/files/zskgke326/files/2024-11/ecothailand.jpg" alt="Marine conservation" loading="lazy">
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- IMPACT NUMBERS -->
-<section class="relative py-24 overflow-hidden" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%);">
-  <div class="relative z-10 max-w-5xl mx-auto px-6">
-    <div class="text-center mb-14" data-aos="fade-up">
-      <span class="text-xs font-bold tracking-widest uppercase text-emerald-300">By The Numbers</span>
-      <h2 class="font-display text-3xl md:text-4xl font-bold text-white mt-2">Our Impact at a Glance</h2>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center" id="impact-section">
-      <?php foreach ([['32','+','Brokerage Stalls','Nationwide'],['3','','Major Fish Ports','Luzon to Mindanao'],['100','+','Supplier Partners','Local Fishermen'],['30','+','Years of Service','Since the 90s']] as $i=>[$n,$s,$l,$sub]): ?>
-      <div data-aos="fade-up" data-aos-delay="<?= $i*100 ?>">
-        <div class="impact-num" data-target="<?= $n ?>" data-suffix="<?= $s ?>">0<?= $s ?></div>
-        <p class="text-white/70 text-sm mt-2 font-medium"><?= $l ?></p>
-        <p class="text-white/40 text-xs mt-1"><?= $sub ?></p>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</section>
-
-<!-- QUOTE -->
-<section class="relative py-24 bg-amber-50 overflow-hidden">
-  <div class="quote-mark">"</div>
-  <div class="relative z-10 max-w-4xl mx-auto px-6 text-center" data-aos="fade-up">
-    <p class="font-display text-2xl md:text-3xl italic text-gray-700 leading-relaxed mb-8">
-      "Sustainability is not a destination — it is a commitment we live every day through responsible business, trusted relationships, and continuous improvement for the Filipino fishing industry."
-    </p>
-    <div class="flex items-center justify-center gap-3">
-      <div class="w-12 h-px bg-gray-300"></div>
-      <span class="text-sm font-semibold text-gray-500">St. Joseph Fish Brokerage, Inc.</span>
-      <div class="w-12 h-px bg-gray-300"></div>
     </div>
   </div>
 </section>
@@ -367,14 +341,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     if (t) { e.preventDefault(); window.scrollTo({ top: t.offsetTop - 80, behavior:'smooth' }); }
   });
 });
-function animateCounter(el) {
-  const target = parseInt(el.dataset.target), suffix = el.dataset.suffix || '';
-  let cur = 0, step = Math.max(1, Math.floor(target/40));
-  const t = setInterval(() => { cur = Math.min(cur+step,target); el.textContent=cur+suffix; if(cur>=target)clearInterval(t); }, 40);
-}
-new IntersectionObserver(entries => {
-  entries.forEach(e => { if(e.isIntersecting) { e.target.querySelectorAll('.impact-num').forEach(animateCounter); } });
-}, { threshold:0.3 }).observe(document.getElementById('impact-section'));
 </script>
 </body>
 </html>

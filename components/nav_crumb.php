@@ -14,7 +14,6 @@ $pageMap = [
     'Contact' => '/sjfbi-js/contact.php/',
     'Checkout' => '/sjfbi-js/checkout.php/',
     'Order Review' => '/sjfbi-js/order_review.php/',
-    'Order Review' => '/sjfbi-js/order_review.php/',
 ];
 
 // Detect current page from URL

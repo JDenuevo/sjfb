@@ -2,31 +2,80 @@
 session_start();
 include 'conn.php';
 
-// ── Token validation ───────────────────────────────────────────────────────────
-$orderCode = isset($_GET['order']) ? trim($_GET['order']) : '';
-$token     = isset($_GET['token']) ? trim($_GET['token']) : '';
+// ── Variables ───────────────────────────────────────────────────────────────
+$orderCode       = isset($_GET['order']) ? trim($_GET['order']) : '';
+$token           = isset($_GET['token']) ? trim($_GET['token']) : '';
 
-$error          = null;
-$order          = null;
-$orderItems     = [];
-$submitted      = false;
-$alreadyReviewed= false;
+$error           = null;
+$order           = null;
+$orderItems      = [];
+$submitted       = false;
+$alreadyReviewed = false;
 $validationErrors = [];
-$reviewedCount  = 0;
-$pageTitle      = 'Leave a Review';
+$reviewedCount   = 0;
+$pageTitle       = 'Leave a Review';
 
-/**
- * Deterministic token — must match exactly what order_helper.php generates.
- * Both sides use: sha256(orderCode + email + salt), first 12 chars, uppercased.
- */
+// ── Token Generator ─────────────────────────────────────────────────────────
 function generateReviewToken(string $orderCode, string $email, string $salt = 'sjfbi_review_2025'): string {
     return strtoupper(substr(hash('sha256', $orderCode . $email . $salt), 0, 12));
 }
 
+// ── Safe Photo Handler (No Imagick required) ────────────────────────────────
+function handleReviewPhoto(
+    string $tmpPath,
+    string $origName,
+    int    $fileSize,
+    string $mimeType,
+    string $uploadDir,
+    int    $reviewId,
+    int    $index
+): ?array {
+
+    $isHeic = str_contains(strtolower($mimeType), 'heic') ||
+              in_array(strtolower(pathinfo($origName, PATHINFO_EXTENSION)), ['heic', 'heif']);
+
+    $uid      = uniqid();
+    $baseName = "review_{$reviewId}_{$index}_{$uid}";
+
+    if ($isHeic) {
+        // Save HEIC as-is (most browsers don't display HEIC, but admin can download it)
+        $destName = $baseName . '.heic';
+        $destPath = $uploadDir . $destName;
+
+        if (move_uploaded_file($tmpPath, $destPath)) {
+            return [
+                'path' => 'uploads/reviews/' . $destName,
+                'name' => $destName,
+                'size' => $fileSize,
+                'mime' => 'image/heic'
+            ];
+        }
+    } else {
+        // Normal images (jpg, png, webp, etc.)
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION)) ?: 'jpg';
+        $ext = preg_replace('/[^a-z0-9]/', '', $ext) ?: 'jpg'; // sanitize
+
+        $destName = $baseName . '.' . $ext;
+        $destPath = $uploadDir . $destName;
+
+        if (move_uploaded_file($tmpPath, $destPath)) {
+            return [
+                'path' => 'uploads/reviews/' . $destName,
+                'name' => $destName,
+                'size' => $fileSize,
+                'mime' => $mimeType
+            ];
+        }
+    }
+
+    error_log("Failed to save review photo: " . $origName);
+    return null;
+}
+
+// ── Fetch Order & Validate Token ────────────────────────────────────────────
 if (!$orderCode || !$token) {
     $error = 'invalid_link';
 } else {
-    // Fetch order — must be Delivered, uses renamed recipient_email column
     $stmt = $conn->prepare("
         SELECT o.*
         FROM orders o
@@ -41,17 +90,17 @@ if (!$orderCode || !$token) {
     if (!$order) {
         $error = 'not_delivered';
     } else {
-        // Validate token using recipient_email (renamed from email)
-        $expectedToken = generateReviewToken($orderCode, $order['recipient_email']);
+        $expectedToken = generateReviewToken($orderCode, $order['recipient_email'] ?? '');
+
         if (!hash_equals($expectedToken, strtoupper($token))) {
             $error = 'invalid_token';
         } else {
-            // Fetch order items
+            // Fetch order items with primary image
             $iStmt = $conn->prepare("
                 SELECT oi.*, p.product_name, p.product_id,
                        pv.variant_name, pv.variant_price,
-                       (SELECT image_path FROM product_images pi2
-                        WHERE pi2.product_id = p.product_id AND pi2.is_primary = 1
+                       (SELECT image_path FROM product_images 
+                        WHERE product_id = p.product_id AND is_primary = 1 
                         LIMIT 1) as product_image
                 FROM order_items oi
                 LEFT JOIN products p          ON p.product_id  = oi.product_id
@@ -63,25 +112,19 @@ if (!$orderCode || !$token) {
             $orderItems = $iStmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $iStmt->close();
 
-            // Check if ALL items already reviewed
-            $allReviewed = !empty($orderItems);
-            foreach ($orderItems as $item) {
-                if (!$item['is_reviewed']) { $allReviewed = false; break; }
-            }
-            if ($allReviewed) $alreadyReviewed = true;
+            // Check if already fully reviewed
+            $alreadyReviewed = !empty($orderItems) && array_reduce($orderItems, fn($carry, $item) => $carry && $item['is_reviewed'], true);
         }
     }
 }
 
-// ── Handle POST submission ─────────────────────────────────────────────────────
+// ── Handle Form Submission ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !$error && !$alreadyReviewed && $order) {
 
-    // Check for flash from add.php redirect path (alternative entry)
     if (isset($_SESSION['review_submitted']) && $_SESSION['review_submitted']) {
         $submitted = true;
         unset($_SESSION['review_submitted'], $_SESSION['review_errors']);
     } else {
-        // Process inline
         $postedOrder = trim($_POST['order_code'] ?? '');
         $postedToken = trim($_POST['token'] ?? '');
 
@@ -96,7 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
                 $rating    = intval($_POST["rating_{$itemId}"] ?? 0);
                 $feedback  = trim($_POST["feedback_{$itemId}"] ?? '');
 
-                // Skip if not filled (optional per item)
                 if (!$rating && !$feedback) continue;
 
                 if ($rating < 1 || $rating > 5) {
@@ -108,68 +150,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
                     continue;
                 }
 
-                // Uses renamed columns: recipient_first_name/last_name/email → reviewer_name/reviewer_email
-                $fullName = trim($order['recipient_first_name'] . ' ' . $order['recipient_last_name']);
-                $email    = $order['recipient_email'];
+                $fullName = trim(($order['recipient_first_name'] ?? '') . ' ' . ($order['recipient_last_name'] ?? ''));
+                $email    = $order['recipient_email'] ?? '';
                 $position = trim($_POST['position'] ?? '');
-                $company  = trim($_POST['company']  ?? '');
-                $ip       = $_SERVER['REMOTE_ADDR']     ?? null;
+                $company  = trim($_POST['company'] ?? '');
+                $ip       = $_SERVER['REMOTE_ADDR'] ?? null;
                 $ua       = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-                // Uses renamed columns: reviewer_name, reviewer_email (not full_name, email)
                 $rStmt = $conn->prepare("
                     INSERT INTO reviews (
                         order_id, order_item_id, product_id,
-                        reviewer_name, reviewer_email,
-                        rating, feedback,
-                        position, company,
-                        is_verified_purchase, status,
+                        reviewer_name, reviewer_email, rating, feedback,
+                        position, company, is_verified_purchase, status,
                         reviewer_ip, user_agent
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?, ?)
                 ");
+
                 $rStmt->bind_param('iiisissssss',
                     $order['order_id'], $itemId, $productId,
-                    $fullName, $email,
-                    $rating, $feedback,
-                    $position, $company,
-                    $ip, $ua
+                    $fullName, $email, $rating, $feedback,
+                    $position, $company, $ip, $ua
                 );
 
                 if ($rStmt->execute()) {
                     $reviewId = $conn->insert_id;
                     $rStmt->close();
 
-                    // Handle photo uploads
+                    // Photo Upload Handling
                     $photoKey = "photos_{$itemId}";
                     if (!empty($_FILES[$photoKey]['name'][0])) {
                         $uploadDir = __DIR__ . '/uploads/reviews/';
                         if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
-                        $allowedMimes = ['image/jpeg','image/png','image/webp','image/gif'];
-                        foreach ($_FILES[$photoKey]['tmp_name'] as $idx => $tmpPath) {
-                            if (!is_uploaded_file($tmpPath)) continue;
-                            $mimeType = $_FILES[$photoKey]['type'][$idx];
-                            $fileSize = $_FILES[$photoKey]['size'][$idx];
+                        $allowedMimes = ['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif'];
+                        $photoCount = count($_FILES[$photoKey]['tmp_name']);
+                        $saved = 0;
+
+                        for ($idx = 0; $idx < $photoCount && $saved < 5; $idx++) {
+                            if ($_FILES[$photoKey]['error'][$idx] !== UPLOAD_ERR_OK) continue;
+
+                            $tmpPath  = $_FILES[$photoKey]['tmp_name'][$idx];
+                            $origName = $_FILES[$photoKey]['name'][$idx];
+                            $fileSize = (int)$_FILES[$photoKey]['size'][$idx];
+                            $mimeType = strtolower(mime_content_type($tmpPath));
+
                             if ($fileSize > 5 * 1024 * 1024) continue;
                             if (!in_array($mimeType, $allowedMimes)) continue;
-                            $origName = $_FILES[$photoKey]['name'][$idx];
-                            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                            $fileName = 'review_' . $reviewId . '_' . $idx . '_' . uniqid() . '.' . $ext;
-                            $destPath = $uploadDir . $fileName;
-                            if (move_uploaded_file($tmpPath, $destPath)) {
-                                $relPath   = 'uploads/reviews/' . $fileName;
-                                $uploadOrd = $idx + 1;
-                                $aStmt = $conn->prepare("
-                                    INSERT INTO review_attachments
-                                        (review_id, file_path, file_name, file_size, mime_type, upload_order)
-                                    VALUES (?, ?, ?, ?, ?, ?)
-                                ");
-                                $aStmt->bind_param('issiis',
-                                    $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd
-                                );
-                                $aStmt->execute();
-                                $aStmt->close();
-                            }
+
+                            $result = handleReviewPhoto($tmpPath, $origName, $fileSize, $mimeType, $uploadDir, $reviewId, $idx);
+                            if (!$result) continue;
+
+                            $aStmt = $conn->prepare("
+                                INSERT INTO review_attachments 
+                                (review_id, file_path, file_name, file_size, mime_type, upload_order)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            ");
+                            $aStmt->bind_param('issiis', $reviewId, $result['path'], $result['name'], $result['size'], $result['mime'], $saved + 1);
+                            $aStmt->execute();
+                            $aStmt->close();
+                            $saved++;
                         }
                     }
 
@@ -178,6 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
                     $uStmt->bind_param('ii', $reviewId, $itemId);
                     $uStmt->execute();
                     $uStmt->close();
+
                     $reviewedCount++;
                 } else {
                     $rStmt->close();
@@ -187,18 +227,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
 
             if (empty($validationErrors) && $reviewedCount > 0) {
                 $submitted = true;
-                // Re-fetch order items to reflect updated is_reviewed state
-                $iStmt2 = $conn->prepare("
-                    SELECT oi.*, p.product_name, p.product_id, pv.variant_name
-                    FROM order_items oi
-                    LEFT JOIN products p          ON p.product_id  = oi.product_id
-                    LEFT JOIN product_variants pv ON pv.variant_id = oi.variant_id
-                    WHERE oi.order_id = ?
-                ");
-                $iStmt2->bind_param('i', $order['order_id']);
-                $iStmt2->execute();
-                $orderItems = $iStmt2->get_result()->fetch_all(MYSQLI_ASSOC);
-                $iStmt2->close();
             } elseif (empty($validationErrors) && $reviewedCount === 0) {
                 $validationErrors[] = "Please fill in at least one product review before submitting.";
             }
@@ -206,6 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -222,6 +251,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
+
+   <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
 
   <style>
     :root {
@@ -510,7 +543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
           <p style="font-size:.75rem;color:#9ca3af;margin:.25rem 0 0">JPG, PNG, WebP — max 5MB each, up to 5 photos</p>
         </div>
         <input type="file" id="photos-<?= $iid ?>" name="photos_<?= $iid ?>[]"
-               multiple accept="image/*" class="hidden"
+               multiple accept="image/*,.heic,.heif" class="hidden"
                onchange="handleFiles(this, <?= $iid ?>)">
         <div class="photo-preview" id="preview-<?= $iid ?>"></div>
       </div>

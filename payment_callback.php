@@ -39,9 +39,13 @@ if (!$cd) {
     exit();
 }
 
-// ── Handle cancellation ───────────────────────────────────────────────────
 if ($status !== 'success') {
     error_log("Payment cancelled/failed");
+    // Optionally notify the customer
+    if ($cd && isset($cd['order_id'])) {
+        require_once 'functions/mail_functions.php';
+        sendPaymentFailedEmail($cd['order_id']);
+    }
     unset($_SESSION['temp_checkout_ref'], $_SESSION['paymongo_session_id']);
     header("Location: checkout.php?cancel=1");
     exit();
@@ -66,12 +70,23 @@ try {
     $totalAmount     = (float)($cd['total_amount']    ?? 0);
 
     // ── Re-verify delivery fee (guard against session tampering) ─────────
-    $serverDeliveryFee = round(getDeliveryFee($cd['city'], $serverSubtotal, $conn), 2);
-    if (abs($serverDeliveryFee - $deliveryFee) > 1.00) {
-        error_log("Callback delivery fee mismatch — session: {$deliveryFee}, server: {$serverDeliveryFee}. Using server.");
-        $deliveryFee = $serverDeliveryFee;
-        // Recalculate total keeping existing discount intact
-        $totalAmount = round($serverSubtotal - $discountAmount + $deliveryFee, 2);
+    $isPickup = ($cd['order_type'] ?? 'delivery') === 'pickup';
+
+    if ($isPickup) {
+        // Pickup orders always have zero delivery fee — never call getDeliveryFee()
+        // which would return 250 fallback for empty city
+        if ($deliveryFee !== 0.00) {
+            error_log("Callback: pickup order had non-zero delivery fee {$deliveryFee} in session — forcing 0.");
+            $deliveryFee = 0.00;
+            $totalAmount = round($serverSubtotal - $discountAmount, 2);
+        }
+    } else {
+        $serverDeliveryFee = round(getDeliveryFee($cd['city'], $serverSubtotal, $conn), 2);
+        if (abs($serverDeliveryFee - $deliveryFee) > 1.00) {
+            error_log("Callback delivery fee mismatch — session: {$deliveryFee}, server: {$serverDeliveryFee}. Using server.");
+            $deliveryFee = $serverDeliveryFee;
+            $totalAmount = round($serverSubtotal - $discountAmount + $deliveryFee, 2);
+        }
     }
 
     // ── Resolve voucher_id from code ──────────────────────────────────────
@@ -150,10 +165,12 @@ try {
             subtotal, delivery_fee, discount_amount, voucher_code, voucher_id, promotion_id,
             total_price, payment_method,
             is_guest_order, order_code, delivery_notes,
+            order_type,
             order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid')
     ");
-    $stmt->bind_param("isssssssdddsiidsiss",
+    $orderType = $cd['order_type'] ?? 'delivery';
+    $stmt->bind_param("isssssssdddsiidsisss",  // ← was "isssssssdddsiidsiss" (19), now 20
         $accountId,
         $cd['email'],
         $cd['phone_number'],
@@ -172,7 +189,8 @@ try {
         $cd['payment_method'],
         $isGuest,
         $orderCode,
-        $cd['delivery_notes']
+        $cd['delivery_notes'],
+        $orderType              // ← 20th param
     );
     if (!$stmt->execute()) throw new Exception("Failed to create order: " . $conn->error);
     $orderId = $conn->insert_id;
@@ -276,6 +294,10 @@ try {
     );
 
     $conn->commit();
+
+    // ── Send confirmation email ───────────────────────────────────────────────
+    require_once './functions/mail_functions.php';
+    sendPaymentConfirmationEmail($orderId);
 
     // ── Clean up session ──────────────────────────────────────────────────
     unset(

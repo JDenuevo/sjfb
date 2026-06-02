@@ -80,7 +80,7 @@ $_SESSION['role']       = $row['role'];
 switch ($row['role']) {
     case 'customer':
         $_SESSION['loggedinasuser'] = true;
-        header("Location: {$baseUrl}account/shop.php");
+        header("Location: {$baseUrl}account/home.php");
         break;
 
     case 'admin':

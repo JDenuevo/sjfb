@@ -11,7 +11,7 @@ if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true 
 $account_id = (int)$_SESSION['account_id'];
 
 // ── Fetch user info ────────────────────────────────────────────────────────────
-$user_stmt = $conn->prepare("SELECT first_name, last_name, email, phone_number, city FROM accounts WHERE account_id = ?");
+$user_stmt = $conn->prepare("SELECT account_first_name, account_last_name, account_email, account_phone, city FROM accounts WHERE account_id = ?");
 $user_stmt->bind_param("i", $account_id);
 $user_stmt->execute();
 $user = $user_stmt->get_result()->fetch_assoc();
@@ -89,9 +89,9 @@ $orders_stmt = $conn->prepare("
            p.gross_amount     AS payment_amount,
            p.paid_at,
            r.rider_id,
-           ra.first_name      AS rider_first_name,
-           ra.last_name       AS rider_last_name,
-           ra.phone_number    AS rider_phone,
+           ra.account_first_name      AS rider_first_name,
+           ra.account_last_name       AS rider_last_name,
+           ra.account_phone   AS rider_phone,
            r.vehicle_type
     FROM orders o
     LEFT JOIN payments p  ON p.order_id = o.order_id
@@ -186,7 +186,7 @@ $stepIndex = ['Pending'=>0,'Processing'=>1,'OutForDelivery'=>2,'Delivered'=>3,'C
 
 // Build current URL without page param for pagination links
 $base_url_params = http_build_query(array_filter(['status'=>$filter_status,'q'=>$search]));
-$base_url = 'my_orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
+$base_url = 'orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
 ?>
 
 <!DOCTYPE html>
@@ -204,7 +204,9 @@ $base_url = 'my_orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
     <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
 </head>
 <body class="bg-gray-50 font-[Lexend]">
+<?php include('../components/preloaders.php'); ?>
 
+<?php include('./components/nav_crumb.php'); ?>
 <?php include('./components/navigation.php'); ?>
 
 <div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -214,10 +216,10 @@ $base_url = 'my_orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
         <div>
             <h1 class="text-2xl font-bold text-gray-900">My Orders</h1>
             <p class="text-sm text-gray-500 mt-0.5">
-                Hello, <?= htmlspecialchars($user['first_name']) ?> — track all your orders here.
+                Hello, <?= htmlspecialchars($user['account_first_name']) ?> — track all your orders here.
             </p>
         </div>
-        <a href="../shop.php"
+        <a href="./shop.php"
            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-xl transition-colors shadow-sm shadow-orange-200">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
             Shop Again
@@ -252,7 +254,7 @@ $base_url = 'my_orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
             foreach ($tabs as $key => $label):
                 $active = $filter_status === $key;
                 $cnt    = $orderCounts[$key] ?? 0;
-                $href   = 'my_orders.php?' . http_build_query(array_filter(['status'=>$key,'q'=>$search]));
+                $href   = 'orders.php?' . http_build_query(array_filter(['status'=>$key,'q'=>$search]));
             ?>
             <a href="<?= $href ?>"
                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all
@@ -300,7 +302,7 @@ $base_url = 'my_orders.php' . ($base_url_params ? "?{$base_url_params}&" : '?');
         <p class="text-sm text-gray-400 mt-1">
             <?= $search ? "No results for \"{$search}\".": 'You have no orders in this category yet.'?>        
         </p>
-        <a href="../shop.php" class="inline-block mt-4 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors">
+        <a href="./shop.php" class="inline-block mt-4 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors">
             Browse Products
         </a>
     </div>

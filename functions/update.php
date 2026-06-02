@@ -23,15 +23,12 @@ function sendOTP(string $email, mysqli $conn): bool {
 
     $stmt = $conn->prepare("UPDATE accounts SET reset_otp = ?, otp_expiry = ? WHERE account_email = ?");
     if (!$stmt) return false;
-
     $stmt->bind_param("sss", $otp, $otp_expiry, $email);
     if (!$stmt->execute()) return false;
     $stmt->close();
 
-    $subject = "Your Password Reset OTP – St. Joseph Fish Brokerage";
-    $message = "Hello,\n\nYour OTP for password reset is:\n\n  $otp\n\nThis code is valid for 15 minutes.\n\nIf you did not request this, please ignore this email — your account is safe.\n\nSt. Joseph Fish Brokerage Inc.";
-
-    return sendEmail($email, $subject, $message);
+    // ← Use styled HTML email instead of plain text
+    return sendOTPEmail($email, $otp);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

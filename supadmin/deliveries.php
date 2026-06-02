@@ -12,6 +12,10 @@ if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !
     exit;
 }
 
+$month = date('n');
+$year  = date('Y');
+$base  = 'exports/';
+
 $statRes = $conn->query("SELECT COUNT(*) AS total, SUM(delivery_status='pending_acceptance') AS pending, SUM(delivery_status='accepted') AS accepted, SUM(delivery_status IN ('picked_up','in_transit')) AS in_transit, SUM(delivery_status='delivered') AS delivered, SUM(delivery_status='failed') AS failed, SUM(delivery_status='cancelled') AS cancelled FROM deliveries WHERE assigned_at >= CURDATE() - INTERVAL 30 DAY");
 $stats = $statRes->fetch_assoc();
 
@@ -218,6 +222,25 @@ $dlColors  = ['pending_acceptance'=>'bg-yellow-100 text-yellow-800','accepted'=>
     <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm text-center"><div class="text-xl mb-1"><?=$icon?></div><div class="text-xl font-bold text-gray-900"><?=number_format((int)$val)?></div><div class="text-xs text-gray-500 mt-0.5"><?=$label?></div></div>
     <?php endforeach; ?>
   </div>
+
+  <!-- ═══════════════════════════════════════════
+     deliveries.php
+  ════════════════════════════════════════════ -->
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+      <a href="<?= $base ?>export_deliveries.php" target="_blank"
+        class="btn btn-outline-success btn-sm">
+          <i class="ti ti-file-spreadsheet"></i> Export All Deliveries
+      </a>
+      <a href="<?= $base ?>export_deliveries.php?month=<?= $month ?>&year=<?= $year ?>" target="_blank"
+        class="btn btn-outline-success btn-sm">
+          <i class="ti ti-calendar-month"></i> This Month
+      </a>
+      <a href="<?= $base ?>export_deliveries.php?status=failed" target="_blank"
+        class="btn btn-outline-danger btn-sm">
+          <i class="ti ti-truck-off"></i> Failed Only
+      </a>
+  </div>
+
 
   <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
     <div class="px-6 pt-5">

@@ -65,10 +65,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     }
 
     // For items sold by piece, check stock quantity
-    if ($data['unit_type'] === 'piece' && $variant['stock_quantity'] > 0 && $quantity > $variant['stock_quantity']) {
+    // Check stock for all unit types
+    if ($variant['stock_quantity'] > 0 && $quantity > $variant['stock_quantity']) {
+        $unit = $data['unit_type'] === 'piece' ? 'pieces' : $data['unit_type'];
         echo json_encode([
             'status'  => 'error',
-            'message' => "Only {$variant['stock_quantity']} pieces available"
+            'message' => "Only {$variant['stock_quantity']} {$unit} available"
         ]);
         exit;
     }

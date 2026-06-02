@@ -237,7 +237,7 @@ $salaryLabels = [
     .toast.leaving { animation:tOut .22s ease forwards; }
   </style>
 </head>
-<body class="bg-gray-50">
+xd<body class="bg-gray-50">
   <?php include('./components/header.php'); ?>
 
   <!-- Mobile breadcrumb -->

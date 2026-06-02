@@ -1,5 +1,6 @@
 <?php
 // ==================== delete.php ====================
+ob_start(); // ← very first line, before anything else
 session_start();
 require '../../conn.php';
 include 'slug_helper.php';
@@ -83,19 +84,6 @@ elseif (isset($_POST['delete_product'], $_POST['product_id'])) {
         redirectWithMessage("../products.php", "Failed to delete product: " . $e->getMessage(), "error");
     }
     exit();
-}
-
-// Delete Product Variant
-elseif (isset($_POST['action']) && $_POST['action'] === 'delete_variant') {
-    $variant_id = isset($_POST['variant_id']) ? (int)$_POST['variant_id'] : 0;
-    if ($variant_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid variant ID']); exit; }
-    $stmt = $conn->prepare("UPDATE product_variants SET is_deleted = 1 WHERE variant_id = ?");
-    $stmt->bind_param("i", $variant_id);
-    echo json_encode($stmt->execute()
-        ? ['success' => true, 'message' => 'Variant deleted successfully']
-        : ['success' => false, 'message' => $stmt->error]);
-    $stmt->close();
-    exit;
 }
 
 // Delete Category
@@ -434,21 +422,25 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' &&
     // Delete Product Variant (AJAX path)
     elseif (isset($_POST['action']) && $_POST['action'] === 'delete_variant') {
         $variant_id = isset($_POST['variant_id']) ? (int)$_POST['variant_id'] : 0;
-        if ($variant_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid variant ID']); exit; }
-        $conn->begin_transaction();
-        try {
-            $s1 = $conn->prepare("DELETE FROM product_variants_categories WHERE variant_id = ?");
-            $s1->bind_param("i", $variant_id); $s1->execute(); $s1->close();
-            $s2 = $conn->prepare("DELETE FROM product_variants WHERE variant_id = ?");
-            $s2->bind_param("i", $variant_id); $s2->execute();
-            if ($s2->affected_rows === 0) throw new Exception("Variant not found or already deleted.");
-            $s2->close();
-            $conn->commit();
-            echo json_encode(['success' => true, 'message' => 'Variant deleted successfully']);
-        } catch (Exception $e) {
-            $conn->rollback();
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+
+        if ($variant_id <= 0) {
+            ob_clean(); // ← clear stray output
+            echo json_encode(['success' => false, 'message' => 'Invalid variant ID']);
+            exit;
         }
+
+        $stmt = $conn->prepare("UPDATE product_variants SET is_deleted = 1 WHERE variant_id = ? AND is_deleted = 0");
+        $stmt->bind_param("i", $variant_id);
+        $stmt->execute();
+
+        ob_clean(); // ← clear stray output before JSON
+        if ($stmt->affected_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'Variant not found or already deleted.']);
+        } else {
+            echo json_encode(['success' => true, 'message' => 'Variant deleted successfully']);
+        }
+
+        $stmt->close();
         exit;
     }
 

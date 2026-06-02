@@ -3,6 +3,7 @@ RewriteEngine On
 # If the request is for a real file or directory, serve it directly
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} !^/account/
 RewriteRule ^ - [L]
 
 # ===== SUPER ADMIN AREA RULES =====
@@ -18,7 +19,7 @@ RewriteRule ^admin/([^/.]+)/([^/.]+)/?$ admin/$1.php?action=$2 [L,QSA]
 # ===== USER AREA RULES =====
 RewriteRule ^account/?$ account/index.php [L,QSA]
 RewriteRule ^account/([^/.]+)/?$ account/$1.php [L,QSA]
-RewriteRule ^account/([^/.]+)/([^/.]+)/?$ saccount/$1.php?action=$2 [L,QSA]
+RewriteRule ^account/([^/.]+)/([^/.]+)/?$ account/$1.php?action=$2 [L,QSA]
 
 # ===== RIDERS AREA RULES =====
 RewriteRule ^rider/?$ rider/index.php [L,QSA]
@@ -33,7 +34,8 @@ RewriteRule ^blogs/?$ blogs/index.php [L,QSA]
 RewriteRule ^blogs/(.+)$ blogs/single.php?slug=$1 [L,QSA]
 
 # ITEM RULES
-RewriteRule ^item/([^/]+)/?$ item.php?name=$1 [L,QSA]
+RewriteRule ^item/([a-zA-Z0-9-]+)$ item.php?name=$1 [L,QSA]
+RewriteRule ^account/item/([a-zA-Z0-9-]+)$ account/item.php?name=$1 [L,QSA]
 
 # MEMBERS
 RewriteRule ^about/members/([^/]+)/?$ about/members/single.php [L,QSA]

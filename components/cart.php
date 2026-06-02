@@ -1,7 +1,7 @@
 <?php
 // components/cart.php
-// Requires cart_core.js loaded on the parent page.
-// All cart manipulation (qty, remove, price recalc) is handled by cart_core.js.
+// Requires cart_process.js loaded on the parent page.
+// All cart manipulation (qty, remove, price recalc) is handled by cart_process.js.
 $baseUrl   = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 $cart      = $_SESSION['cart'] ?? [];
 $cartCount = count($cart);

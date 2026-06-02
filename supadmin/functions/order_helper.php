@@ -1,44 +1,69 @@
 <?php
 /**
  * supadmin/functions/order_helper.php
+ *
  * All column renames applied:
  *   orders:   recipient_first_name/last_name/email/phone/address
  *   accounts: account_first_name/last_name/email/phone
  *   riders:   rider_name (was full_name), rider_phone (was contact_number)
  *   deliveries: delivery_status (was status)
  *   delivery_tracking: tracking_status (was status)
+ *
+ * Pickup order support:
+ *   - markReadyForPickup(): Processing → Completed (pickup only) — emails customer
+ *   - markPickedUp():       Completed → Delivered  (pickup only)
+ *   - markDelivered():      also accepts Completed as source for pickup override
+ *
+ * Email notifications wired:
+ *   approveOrder()              → email_order_approved()
+ *   markReadyForPickup()        → email_ready_for_pickup()
+ *   markDelivered()             → email_delivered_confirm_receipt()  (delivery)
+ *                                 email_ready_for_pickup()            (pickup — already sent earlier; skipped here)
+ *   assignThirdPartyDelivery()  → email_out_for_delivery()
+ *   riderAcceptDelivery()       → email_out_for_delivery()
+ *   send_out_for_delivery()     → email called from order_process.php after status update
+ *   cancelOrder()               → email_order_cancelled()
  */
 
 date_default_timezone_set('Asia/Manila');
 
-const ORDER_STATUS_FLOW = [
-    'Paid'           => ['Processing', 'Cancelled'],  // ← ADD THIS
-    'Pending'        => ['Processing', 'Cancelled'],
-    'Processing'     => ['OutForDelivery', 'Cancelled'],
-    'OutForDelivery' => ['Delivered', 'Cancelled'],
-    'Delivered'      => [],
-    'Cancelled'      => [],
-];
+// Load email helper once
+require_once __DIR__ . '/email_helper.php';
 
-const STATUS_LABELS = [
-    'Paid'           => 'Paid - Awaiting Approval',  // ← ADD THIS
-    'Pending'        => 'Pending',
-    'Processing'     => 'Processing',
-    'OutForDelivery' => 'Out for Delivery',
-    'Delivered'      => 'Delivered',
-    'Cancelled'      => 'Cancelled',
-];
+if (!defined('SJFBI_ORDER_STATUS_FLOW_LOADED')) {
+    define('SJFBI_ORDER_STATUS_FLOW_LOADED', true);
 
-const DELIVERY_STATUS_LABELS = [
-    'pending_acceptance' => 'Awaiting Rider Acceptance',
-    'accepted'           => 'Rider Accepted',
-    'picked_up'          => 'Picked Up',
-    'in_transit'         => 'In Transit',
-    'delivered'          => 'Delivered',
-    'failed'             => 'Failed',
-    'reassigned'         => 'Reassigned',
-    'cancelled'          => 'Cancelled',
-];
+    define('ORDER_STATUS_FLOW', [
+        'Paid'           => ['Processing', 'Cancelled'],
+        'Pending'        => ['Processing', 'Cancelled'],
+        'Processing'     => ['OutForDelivery', 'Completed', 'Cancelled'],
+        'OutForDelivery' => ['Delivered', 'Cancelled'],
+        'Completed'      => ['Delivered', 'Cancelled'],
+        'Delivered'      => [],
+        'Cancelled'      => [],
+    ]);
+
+    define('STATUS_LABELS', [
+        'Paid'           => 'Paid - Awaiting Approval',
+        'Pending'        => 'Pending',
+        'Processing'     => 'Processing',
+        'OutForDelivery' => 'Out for Delivery',
+        'Completed'      => 'Ready for Pickup',
+        'Delivered'      => 'Delivered / Picked Up',
+        'Cancelled'      => 'Cancelled',
+    ]);
+
+    define('DELIVERY_STATUS_LABELS', [
+        'pending_acceptance' => 'Awaiting Rider Acceptance',
+        'accepted'           => 'Rider Accepted',
+        'picked_up'          => 'Picked Up',
+        'in_transit'         => 'In Transit',
+        'delivered'          => 'Delivered',
+        'failed'             => 'Failed',
+        'reassigned'         => 'Reassigned',
+        'cancelled'          => 'Cancelled',
+    ]);
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 //  STOCK MANAGEMENT
@@ -58,7 +83,7 @@ function checkOrderStock(int $order_id, mysqli $conn): array {
     $stmt->bind_param('i', $order_id);
     $stmt->execute();
     $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
+ 
     $shortfalls = [];
     foreach ($items as $item) {
         if ($item['stock_quantity'] < $item['quantity']) {
@@ -70,7 +95,7 @@ function checkOrderStock(int $order_id, mysqli $conn): array {
             ];
         }
     }
-
+ 
     if (!empty($shortfalls)) {
         $lines = array_map(fn($s) =>
             "{$s['product_name']} ({$s['variant_name']}): need {$s['requested']}, only {$s['available']} left",
@@ -78,14 +103,14 @@ function checkOrderStock(int $order_id, mysqli $conn): array {
         );
         return ['ok' => false, 'msg' => 'Insufficient stock: ' . implode('; ', $lines), 'shortfalls' => $shortfalls];
     }
-
+ 
     return ['ok' => true, 'msg' => 'Stock OK.', 'items' => $items];
 }
-
+ 
 function deductOrderStock(int $order_id, mysqli $conn): array {
     $check = checkOrderStock($order_id, $conn);
     if (!$check['ok']) return $check;
-
+ 
     $conn->begin_transaction();
     try {
         foreach ($check['items'] as $item) {
@@ -109,7 +134,7 @@ function deductOrderStock(int $order_id, mysqli $conn): array {
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
 }
-
+ 
 function restoreOrderStock(int $order_id, mysqli $conn): void {
     $stmt = $conn->prepare("SELECT variant_id, quantity FROM order_items WHERE order_id=?");
     if (!$stmt) return;
@@ -122,39 +147,151 @@ function restoreOrderStock(int $order_id, mysqli $conn): void {
     }
 }
 
+function getRiderByAccountId(int $account_id, mysqli $conn): ?array {
+    $stmt = $conn->prepare("
+        SELECT r.*,
+               a.account_phone  AS rider_acct_phone,
+               COALESCE(r.rider_name, CONCAT(a.account_first_name, ' ', a.account_last_name)) AS display_name
+        FROM riders r
+        LEFT JOIN accounts a ON a.account_id = r.account_id
+        WHERE r.account_id = ?
+        LIMIT 1
+    ");
+    if (!$stmt) return null;
+    $stmt->bind_param('i', $account_id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc() ?: null;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  APPROVE ORDER
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function approveOrder(int $order_id, int $actor_id, string $actor_type, mysqli $conn): array {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
     if (!in_array($order['order_status'], ['Pending', 'Paid'])) {
         return ['ok' => false, 'msg' => "Order cannot be approved from status: {$order['order_status']}."];
     }
+ 
     $stockCheck = checkOrderStock($order_id, $conn);
     if (!$stockCheck['ok']) return $stockCheck;
+ 
     $deduct = deductOrderStock($order_id, $conn);
     if (!$deduct['ok']) return $deduct;
-    $result = _updateOrderStatusRaw($order_id, $order['order_status'], 'Processing', $actor_id, $actor_type, 'Order approved — stock deducted.', $conn);
-    if (!$result['ok']) { restoreOrderStock($order_id, $conn); return $result; }
-    _logActivity('order', $order_id, $actor_id, $actor_type, 'approve_order', $order['order_status'], 'Processing', 'Stock checked and deducted.', $conn);
-    _broadcastNotif($order_id, "Order #{$order['order_code']} approved and is now being processed.", $order['account_id'], null, $conn);
+ 
+    $result = _updateOrderStatusRaw(
+        $order_id, $order['order_status'], 'Processing',
+        $actor_id, $actor_type,
+        'Order approved — stock deducted.',
+        $conn
+    );
+    if (!$result['ok']) {
+        restoreOrderStock($order_id, $conn);
+        return $result;
+    }
+ 
+    _logActivity('order', $order_id, $actor_id, $actor_type,
+        'approve_order', $order['order_status'], 'Processing',
+        'Stock checked and deducted.', $conn);
+
+    $isPickup = ($order['order_type'] ?? 'delivery') === 'pickup';
+    $notifMsg = $isPickup
+        ? "Order #{$order['order_code']} approved and is being prepared for pickup."
+        : "Order #{$order['order_code']} approved and is now being processed.";
+    _broadcastNotif($order_id, $notifMsg, $order['account_id'], null, $conn);
+
     return ['ok' => true, 'msg' => 'Order approved. Stock deducted.'];
 }
+ 
+// ════════════════════════════════════════════════════════════════════════════
+//  PICKUP ORDER FLOW
+// ════════════════════════════════════════════════════════════════════════════
+ 
+/**
+ * Pickup: Processing → Completed  (order is packed, ready at the store)
+ */
+function markReadyForPickup(int $order_id, int $actor_id, string $actor_type, string $notes = '', mysqli $conn): array {
+    $order = getOrderRow($order_id, $conn);
+    if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
 
+    if (($order['order_type'] ?? 'delivery') !== 'pickup')
+        return ['ok' => false, 'msg' => 'This action is only available for pickup orders.'];
+
+    if ($order['order_status'] !== 'Processing')
+        return ['ok' => false, 'msg' => 'Order must be in Processing to mark ready for pickup.'];
+
+    $result = _updateOrderStatusRaw(
+        $order_id, 'Processing', 'Completed',
+        $actor_id, $actor_type,
+        $notes ?: 'Order packed and ready for customer pickup.',
+        $conn
+    );
+    if (!$result['ok']) return $result;
+
+    _logActivity('order', $order_id, $actor_id, $actor_type,
+        'mark_ready_for_pickup', 'Processing', 'Completed', $notes, $conn);
+
+    _broadcastNotif($order_id,
+        "Order #{$order['order_code']} is ready for pickup at the store!",
+        $order['account_id'], null, $conn);
+
+    // ← No email here — handled by order_process.php respond_then_email()
+    return ['ok' => true, 'msg' => 'Order marked as ready for pickup.'];
+}
+ 
+/**
+ * Pickup: Completed → Delivered  (customer collected the order)
+ */
+function markPickedUp(int $order_id, int $actor_id, string $actor_type, string $notes = '', mysqli $conn): array {
+    $order = getOrderRow($order_id, $conn);
+    if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
+ 
+    if (($order['order_type'] ?? 'delivery') !== 'pickup')
+        return ['ok' => false, 'msg' => 'This action is only available for pickup orders.'];
+ 
+    if ($order['order_status'] !== 'Completed')
+        return ['ok' => false, 'msg' => 'Order must be in "Ready for Pickup" state first.'];
+ 
+    $result = _updateOrderStatusRaw(
+        $order_id, 'Completed', 'Delivered',
+        $actor_id, $actor_type,
+        $notes ?: 'Customer collected order in person.',
+        $conn
+    );
+    if (!$result['ok']) return $result;
+ 
+    // Mark delivered_at on the order row
+    $conn->query("UPDATE orders SET delivered_at = NOW(), updated_at = NOW() WHERE order_id = {$order_id}");
+ 
+    _logActivity('order', $order_id, $actor_id, $actor_type,
+        'mark_picked_up', 'Completed', 'Delivered',
+        $notes, $conn);
+ 
+    // Auto-generate review invite (same as delivery flow)
+    generateReviewInvite($order_id, $conn);
+ 
+    _broadcastNotif($order_id,
+        "Order #{$order['order_code']} has been picked up. Thank you!",
+        $order['account_id'], null, $conn);
+ 
+    return ['ok' => true, 'msg' => 'Order marked as picked up.'];
+}
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  RIDER ASSIGNMENT — FLOW A: Registered Rider
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function assignRegisteredRider(int $order_id, int $rider_id, int $actor_id, string $actor_type, string $notes = '', mysqli $conn): array {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
-    if ($order['order_status'] !== 'Processing') {
-        return ['ok' => false, 'msg' => 'Order must be in Processing before assigning a rider.'];
-    }
-
-    // Uses renamed: account_first_name, account_last_name
+ 
+    if (($order['order_type'] ?? 'delivery') === 'pickup')
+        return ['ok' => false, 'msg' => 'Cannot assign a rider to a pickup order.'];
+ 
+    if (!in_array($order['order_status'], ['Processing', 'OutForDelivery']))
+        return ['ok' => false, 'msg' => 'Order must be Processing or Out for Delivery to reassign.'];
+ 
     $stmt = $conn->prepare("
         SELECT r.rider_id, a.account_first_name, a.account_last_name, r.account_id
         FROM riders r
@@ -166,17 +303,16 @@ function assignRegisteredRider(int $order_id, int $rider_id, int $actor_id, stri
     $stmt->execute();
     $rider = $stmt->get_result()->fetch_assoc();
     if (!$rider) return ['ok' => false, 'msg' => 'Rider not found.'];
-
+ 
     $conn->begin_transaction();
     try {
-        // Uses renamed: delivery_status (was status)
         $conn->query("UPDATE deliveries SET delivery_status='reassigned' WHERE order_id={$order_id} AND delivery_status NOT IN ('delivered','cancelled','reassigned')");
-
+ 
         $ins = $conn->prepare("INSERT INTO deliveries (order_id, rider_id, is_third_party, delivery_status, assigned_by, notes) VALUES (?,?,0,'pending_acceptance',?,?)");
         if (!$ins) throw new Exception('DB error creating delivery.');
         $ins->bind_param('iiis', $order_id, $rider_id, $actor_id, $notes);
         $ins->execute();
-
+ 
         $conn->query("UPDATE orders SET assigned_rider_id={$rider_id}, updated_at=NOW() WHERE order_id={$order_id}");
         $conn->query("UPDATE riders SET is_available=0 WHERE rider_id={$rider_id}");
         $conn->commit();
@@ -184,50 +320,77 @@ function assignRegisteredRider(int $order_id, int $rider_id, int $actor_id, stri
         $conn->rollback();
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
-
+ 
     $name = "{$rider['account_first_name']} {$rider['account_last_name']}";
     _logActivity('order', $order_id, $actor_id, $actor_type, 'assign_rider', null, $name, $notes, $conn);
     _insertNotif($order_id, 'rider', (int)$rider['account_id'], "New delivery assignment for Order #{$order['order_code']}. Please accept in your dashboard.", $conn);
     _insertNotif($order_id, 'super_admin', null, "Rider {$name} assigned to Order #{$order['order_code']}. Waiting for acceptance.", $conn);
     return ['ok' => true, 'msg' => "Rider {$name} assigned. Waiting for acceptance."];
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  RIDER ASSIGNMENT — FLOW B: 3rd-Party Delivery
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function assignThirdPartyDelivery(int $order_id, string $third_party_name, string $delivery_link, int $actor_id, string $actor_type, string $notes = '', mysqli $conn): array {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
-    if ($order['order_status'] !== 'Processing') return ['ok' => false, 'msg' => 'Order must be in Processing.'];
-    if (empty(trim($third_party_name))) return ['ok' => false, 'msg' => '3rd-party provider name is required.'];
+
+    if (($order['order_type'] ?? 'delivery') === 'pickup')
+        return ['ok' => false, 'msg' => 'Cannot assign 3rd-party delivery to a pickup order.'];
+
+    // ← Allow reassignment from OutForDelivery too
+    if (!in_array($order['order_status'], ['Processing', 'OutForDelivery']))
+        return ['ok' => false, 'msg' => 'Order must be Processing or Out for Delivery to reassign.'];
+
+    if (empty(trim($third_party_name)))
+        return ['ok' => false, 'msg' => '3rd-party provider name is required.'];
 
     $conn->begin_transaction();
     try {
-        // Uses renamed: delivery_status (was status)
+        // Cancel any active delivery rows
         $conn->query("UPDATE deliveries SET delivery_status='reassigned' WHERE order_id={$order_id} AND delivery_status NOT IN ('delivered','cancelled','reassigned')");
 
-        $ins = $conn->prepare("INSERT INTO deliveries (order_id, rider_id, is_third_party, third_party_name, delivery_link, delivery_status, accepted_at, assigned_by, notes) VALUES (?,NULL,1,?,?,'accepted',NOW(),?,?)");
+        // Also unlink registered rider if one was previously assigned
+        $conn->query("UPDATE orders SET assigned_rider_id = NULL, updated_at = NOW() WHERE order_id = {$order_id}");
+
+        $ins = $conn->prepare("
+            INSERT INTO deliveries (order_id, rider_id, is_third_party, third_party_name, delivery_link, delivery_status, accepted_at, assigned_by, notes)
+            VALUES (?, NULL, 1, ?, ?, 'accepted', NOW(), ?, ?)
+        ");
         if (!$ins) throw new Exception('DB error.');
         $ins->bind_param('issis', $order_id, $third_party_name, $delivery_link, $actor_id, $notes);
         $ins->execute();
 
-        $upd = $conn->prepare("UPDATE orders SET delivery_link=?, assigned_rider_id=NULL, updated_at=NOW() WHERE order_id=?");
-        $upd->bind_param('si', $delivery_link, $order_id);
-        $upd->execute();
+        // Keep status as OutForDelivery if already there, otherwise move it
+        if ($order['order_status'] === 'Processing') {
+            _updateOrderStatusRaw($order_id, 'Processing', 'OutForDelivery', $actor_id, $actor_type,
+                "3rd-party delivery via {$third_party_name}.", $conn);
+        } else {
+            // Already OutForDelivery — just log the reassignment without status change
+            $note = "Reassigned to 3rd-party: {$third_party_name}.";
+            $hist = $conn->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_user_id, changed_by_user_type, notes) VALUES (?, 'OutForDelivery', 'OutForDelivery', ?, ?, ?)");
+            $hist->bind_param('iiss', $order_id, $actor_id, $actor_type, $note);
+            $hist->execute();
+        }
 
-        _updateOrderStatusRaw($order_id, 'Processing', 'OutForDelivery', $actor_id, $actor_type, "3rd-party delivery via {$third_party_name}.", $conn);
         $conn->commit();
     } catch (Exception $e) {
         $conn->rollback();
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
 
-    _logActivity('order', $order_id, $actor_id, $actor_type, 'assign_third_party', null, $third_party_name, "Link: {$delivery_link}", $conn);
-    _broadcastNotif($order_id, "Order #{$order['order_code']} dispatched via {$third_party_name}. Now out for delivery.", $order['account_id'], null, $conn);
-    return ['ok' => true, 'msg' => "Order dispatched via {$third_party_name}. Now Out for Delivery."];
-}
+    _logActivity('order', $order_id, $actor_id, $actor_type,
+        'assign_third_party', null, $third_party_name,
+        "Reassigned. Link: {$delivery_link}", $conn);
 
+    _broadcastNotif($order_id,
+        "Order #{$order['order_code']} reassigned to {$third_party_name}.",
+        $order['account_id'], null, $conn);
+
+    return ['ok' => true, 'msg' => "Order dispatched via {$third_party_name}."];
+}
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  RIDER ACCEPTS / PICKS UP
 // ════════════════════════════════════════════════════════════════════════════
@@ -245,17 +408,16 @@ function riderAcceptDelivery(int $delivery_id, int $rider_account_id, mysqli $co
     $stmt->execute();
     $d = $stmt->get_result()->fetch_assoc();
     if (!$d) return ['ok' => false, 'msg' => 'Delivery not found or not assigned to you.'];
-    // Uses renamed: delivery_status
     if ($d['delivery_status'] !== 'pending_acceptance') return ['ok' => false, 'msg' => 'Delivery is no longer pending acceptance.'];
-
+ 
     $conn->query("UPDATE deliveries SET delivery_status='accepted', accepted_at=NOW() WHERE delivery_id={$delivery_id}");
     _updateOrderStatusRaw((int)$d['order_id'], 'Processing', 'OutForDelivery', $rider_account_id, 'rider', 'Rider accepted the delivery.', $conn);
     _broadcastNotif((int)$d['order_id'], "Rider accepted Order #{$d['order_code']}. Now Out for Delivery.", null, (int)$d['rider_id'], $conn);
+ 
     return ['ok' => true, 'msg' => 'Delivery accepted. Order is now Out for Delivery.'];
 }
-
+ 
 function riderPickUp(int $delivery_id, int $rider_account_id, mysqli $conn): array {
-    // Uses renamed: delivery_status
     $stmt = $conn->prepare("
         SELECT d.order_id, o.order_code
         FROM deliveries d
@@ -272,51 +434,64 @@ function riderPickUp(int $delivery_id, int $rider_account_id, mysqli $conn): arr
     _broadcastNotif((int)$d['order_id'], "Rider picked up Order #{$d['order_code']}. On the way!", null, null, $conn);
     return ['ok' => true, 'msg' => 'Marked as picked up.'];
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  MARK DELIVERED / CANCEL
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function markDelivered(int $order_id, int $actor_id, string $by_role, string $notes = '', mysqli $conn): array {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
-    if ($order['order_status'] !== 'OutForDelivery') 
-        return ['ok' => false, 'msg' => 'Order is not Out for Delivery.'];
-
+ 
+    $isPickup    = ($order['order_type'] ?? 'delivery') === 'pickup';
+    $validFrom   = $isPickup ? ['OutForDelivery', 'Completed'] : ['OutForDelivery'];
+ 
+    if (!in_array($order['order_status'], $validFrom, true))
+        return ['ok' => false, 'msg' => "Order cannot be marked delivered from status: {$order['order_status']}."];
+ 
     $conn->begin_transaction();
     try {
-        $conn->query("
-            UPDATE deliveries 
-            SET delivery_status = 'delivered', delivered_at = NOW() 
-            WHERE order_id = {$order_id} 
-              AND delivery_status IN ('accepted','picked_up','in_transit')
-        ");
-        $reason = $by_role === 'rider' 
-            ? 'Rider confirmed delivery.' 
+        // Only update deliveries row for non-pickup (pickup has no delivery record)
+        if (!$isPickup) {
+            $conn->query("
+                UPDATE deliveries
+                SET delivery_status = 'delivered', delivered_at = NOW()
+                WHERE order_id = {$order_id}
+                  AND delivery_status IN ('accepted','picked_up','in_transit')
+            ");
+        }
+ 
+        $reason = $by_role === 'rider'
+            ? 'Rider confirmed delivery.'
             : "Admin override ({$by_role}). {$notes}";
-        _updateOrderStatusRaw($order_id, 'OutForDelivery', 'Delivered', 
+ 
+        _updateOrderStatusRaw($order_id, $order['order_status'], 'Delivered',
             $actor_id, $by_role, $reason, $conn);
-        if ($order['assigned_rider_id']) 
+ 
+        // Set delivered_at timestamp
+        $conn->query("UPDATE orders SET delivered_at = NOW(), updated_at = NOW() WHERE order_id = {$order_id}");
+ 
+        if (!$isPickup && $order['assigned_rider_id'])
             updateRiderAvailability((int)$order['assigned_rider_id'], $conn);
+ 
         $conn->commit();
     } catch (Exception $e) {
         $conn->rollback();
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
-
-    // Auto-generate review invite
-    $reviewUrl = generateReviewInvite($order_id, $conn);
-
-    _broadcastNotif($order_id, 
-        "Order #{$order['order_code']} has been delivered!", 
-        $order['account_id'], $order['assigned_rider_id'], $conn);
-    _logActivity('order', $order_id, $actor_id, $by_role, 
-        'mark_delivered', 'OutForDelivery', 'Delivered', $notes, $conn);
-
-    // TODO: trigger SMS + email here via your Semaphore/SMTP pipeline
-    // sendReviewInviteNotification($order, $reviewUrl);
-
-    return ['ok' => true, 'msg' => 'Order marked as Delivered.'];
+ 
+    generateReviewInvite($order_id, $conn);
+ 
+    $deliveredMsg = $isPickup
+        ? "Order #{$order['order_code']} has been picked up."
+        : "Order #{$order['order_code']} has been delivered!";
+ 
+    _broadcastNotif($order_id, $deliveredMsg, $order['account_id'],
+        $isPickup ? null : $order['assigned_rider_id'], $conn);
+    _logActivity('order', $order_id, $actor_id, $by_role,
+        'mark_delivered', $order['order_status'], 'Delivered', $notes, $conn);
+ 
+    return ['ok' => true, 'msg' => $isPickup ? 'Order marked as picked up.' : 'Order marked as Delivered.'];
 }
 
 function cancelOrder(int $order_id, int $actor_id, string $actor_type, string $reason, mysqli $conn): array {
@@ -325,23 +500,24 @@ function cancelOrder(int $order_id, int $actor_id, string $actor_type, string $r
     if (in_array($order['order_status'], ['Delivered', 'Cancelled'], true)) {
         return ['ok' => false, 'msg' => "Cannot cancel a {$order['order_status']} order."];
     }
-
-    $stock_was_deducted = in_array($order['order_status'], ['Processing', 'OutForDelivery'], true);
-
+ 
+    // Stock was deducted once Processing was reached (delivery or pickup)
+    $stock_was_deducted = in_array($order['order_status'],
+        ['Processing', 'OutForDelivery', 'Completed'], true);
+ 
     $conn->begin_transaction();
     try {
         $stmt = $conn->prepare("UPDATE orders SET order_status='Cancelled', cancelled_by=?, cancel_reason=?, updated_at=NOW() WHERE order_id=?");
         if (!$stmt) throw new Exception('DB error.');
         $stmt->bind_param('ssi', $actor_type, $reason, $order_id);
         $stmt->execute();
-
+ 
         $hist = $conn->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_user_id, changed_by_user_type, notes) VALUES (?,?,'Cancelled',?,?,?)");
         $hist->bind_param('isiis', $order_id, $order['order_status'], $actor_id, $actor_type, $reason);
         $hist->execute();
-
-        // Uses renamed: delivery_status
+ 
         $conn->query("UPDATE deliveries SET delivery_status='cancelled' WHERE order_id={$order_id} AND delivery_status NOT IN ('delivered','cancelled')");
-
+ 
         if ($stock_was_deducted) restoreOrderStock($order_id, $conn);
         if ($order['assigned_rider_id']) updateRiderAvailability((int)$order['assigned_rider_id'], $conn);
         $conn->commit();
@@ -349,30 +525,29 @@ function cancelOrder(int $order_id, int $actor_id, string $actor_type, string $r
         $conn->rollback();
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
-
+ 
     _broadcastNotif($order_id, "Order #{$order['order_code']} cancelled. Reason: {$reason}", $order['account_id'], $order['assigned_rider_id'], $conn);
     _logActivity('order', $order_id, $actor_id, $actor_type, 'cancel_order', $order['order_status'], 'Cancelled', $reason, $conn);
     return ['ok' => true, 'msg' => 'Order cancelled.'];
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
-//  GPS TRACKING — uses renamed tracking_status (was status)
+//  GPS TRACKING
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function pushRiderLocation(int $rider_id, float $lat, float $lng, int $delivery_id, string $status = 'en_route', string $notes = '', mysqli $conn): array {
     $upd = $conn->prepare("UPDATE riders SET current_lat=?, current_lng=?, updated_at=NOW() WHERE rider_id=?");
     if (!$upd) return ['ok' => false, 'msg' => 'DB error.'];
     $upd->bind_param('ddi', $lat, $lng, $rider_id);
     $upd->execute();
-
-    // Uses renamed: tracking_status (was status)
+ 
     $ins = $conn->prepare("INSERT INTO delivery_tracking (delivery_id, tracking_status, latitude, longitude, notes) VALUES (?,?,?,?,?)");
     if (!$ins) return ['ok' => false, 'msg' => 'DB error.'];
     $ins->bind_param('isdds', $delivery_id, $status, $lat, $lng, $notes);
     $ins->execute();
     return ['ok' => true];
 }
-
+ 
 function getLatestLocation(int $order_id, mysqli $conn): ?array {
     $stmt = $conn->prepare("
         SELECT dt.latitude, dt.longitude, dt.timestamp, dt.tracking_status AS status,
@@ -390,29 +565,27 @@ function getLatestLocation(int $order_id, mysqli $conn): ?array {
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc() ?: null;
 }
-
+ 
 function getTrackingBreadcrumbs(int $delivery_id, mysqli $conn): array {
-    // Uses renamed: tracking_status (was status)
     $stmt = $conn->prepare("SELECT latitude, longitude, tracking_status AS status, timestamp FROM delivery_tracking WHERE delivery_id=? ORDER BY timestamp ASC");
     if (!$stmt) return [];
     $stmt->bind_param('i', $delivery_id);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  DELIVERY PROOFS
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function saveDeliveryProof(int $order_id, int $rider_id, string $file_path, string $file_name, int $file_size_kb, string $mime, string $caption, mysqli $conn): array {
-    // Uses renamed: delivery_status (was status)
     $stmt = $conn->prepare("SELECT delivery_id FROM deliveries WHERE order_id=? AND delivery_status IN ('accepted','picked_up','in_transit','delivered') ORDER BY assigned_at DESC LIMIT 1");
     if (!$stmt) return ['ok' => false, 'msg' => 'DB error.'];
     $stmt->bind_param('i', $order_id);
     $stmt->execute();
     $d = $stmt->get_result()->fetch_assoc();
     if (!$d) return ['ok' => false, 'msg' => 'No active delivery found for this order.'];
-
+ 
     $delivery_id = (int)$d['delivery_id'];
     $ins = $conn->prepare("INSERT INTO delivery_proofs (delivery_id, order_id, rider_id, file_path, file_name, file_size, mime_type, caption) VALUES (?,?,?,?,?,?,?,?)");
     if (!$ins) return ['ok' => false, 'msg' => 'DB error.'];
@@ -420,9 +593,8 @@ function saveDeliveryProof(int $order_id, int $rider_id, string $file_path, stri
     if (!$ins->execute()) return ['ok' => false, 'msg' => 'Failed to save proof.'];
     return ['ok' => true, 'proof_id' => $conn->insert_id, 'delivery_id' => $delivery_id];
 }
-
+ 
 function getDeliveryProofs(int $order_id, mysqli $conn): array {
-    // Uses renamed: rider_name, account_first_name, account_last_name
     $stmt = $conn->prepare("
         SELECT dp.*,
                COALESCE(r.rider_name, CONCAT(a.account_first_name,' ',a.account_last_name)) AS rider_name
@@ -437,22 +609,21 @@ function getDeliveryProofs(int $order_id, mysqli $conn): array {
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  PAYMENT STATUS MARKING
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function markCODPaymentReceived(int $order_id, int $actor_id, string $actor_type, mysqli $conn): array {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
-    if ($order['order_status'] !== 'Delivered') 
+    if ($order['order_status'] !== 'Delivered')
         return ['ok' => false, 'msg' => 'Order must be Delivered first.'];
     if ($order['payment_method'] !== 'cod')
         return ['ok' => false, 'msg' => 'Only COD orders need payment collection.'];
-
+ 
     $stmt = $conn->prepare("
-        UPDATE payments 
+        UPDATE payments
         SET payment_status = 'Paid', paid_at = NOW()
         WHERE order_id = ?
         ORDER BY created_at DESC
@@ -461,16 +632,57 @@ function markCODPaymentReceived(int $order_id, int $actor_id, string $actor_type
     if (!$stmt) return ['ok' => false, 'msg' => 'DB error.'];
     $stmt->bind_param('i', $order_id);
     if (!$stmt->execute()) return ['ok' => false, 'msg' => 'Failed to update payment.'];
-    
+ 
     $conn->query("UPDATE orders SET updated_at = NOW() WHERE order_id = {$order_id}");
-
-    _logActivity('order', $order_id, $actor_id, $actor_type, 
+ 
+    _logActivity('order', $order_id, $actor_id, $actor_type,
         'payment_received', 'Pending', 'Paid', 'COD payment collected.', $conn);
-    _broadcastNotif($order_id, 
-        "Payment collected for COD Order #{$order['order_code']}.", 
+    _broadcastNotif($order_id,
+        "Payment collected for COD Order #{$order['order_code']}.",
+        $order['account_id'], null, $conn);
+ 
+    return ['ok' => true, 'msg' => 'Payment marked as received.'];
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MARK COP (CASH ON PICKUP) PAYMENT RECEIVED
+// ════════════════════════════════════════════════════════════════════════════
+
+function markCOPPaymentReceived(int $order_id, int $actor_id, string $actor_type, mysqli $conn): array {
+    $order = getOrderRow($order_id, $conn);
+    if (!$order) return ['ok' => false, 'msg' => 'Order not found.'];
+
+    if (($order['order_type'] ?? 'delivery') !== 'pickup')
+        return ['ok' => false, 'msg' => 'This action is only for pickup orders.'];
+
+    if ($order['payment_method'] !== 'cop')
+        return ['ok' => false, 'msg' => 'Order payment method is not Cash on Pickup.'];
+
+    if (($order['payment_status'] ?? 'Pending') === 'Paid')
+        return ['ok' => false, 'msg' => 'Payment has already been marked as received.'];
+
+    if ($order['order_status'] !== 'Delivered')
+        return ['ok' => false, 'msg' => 'Order must be marked as Picked Up before collecting payment.'];
+
+    $upd = $conn->prepare("
+        UPDATE payments SET payment_status = 'Paid', paid_at = NOW()
+        WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1
+    ");
+    $upd->bind_param('i', $order_id);
+    $upd->execute();
+
+    // ── Generate review invite ────────────────────────────────────────────
+    generateReviewInvite($order_id, $conn);
+
+    _logActivity('order', $order_id, $actor_id, $actor_type,
+        'mark_cop_payment_received', 'Pending', 'Paid',
+        'Cash on Pickup payment collected at store.', $conn);
+
+    _broadcastNotif($order_id,
+        "Payment received for pickup order #{$order['order_code']}.",
         $order['account_id'], null, $conn);
 
-    return ['ok' => true, 'msg' => 'Payment marked as received.'];
+    return ['ok' => true, 'msg' => 'COP payment marked as received.'];
 }
 
 function markThirdPartyPaid(int $order_id, int $actor_id, string $actor_type, mysqli $conn): array {
@@ -480,9 +692,9 @@ function markThirdPartyPaid(int $order_id, int $actor_id, string $actor_type, my
         return ['ok' => false, 'msg' => 'Order must be Delivered before marking paid.'];
     if ($order['payment_method'] !== 'cod')
         return ['ok' => false, 'msg' => 'Only COD orders need this action.'];
-
+ 
     $stmt = $conn->prepare("
-        UPDATE payments 
+        UPDATE payments
         SET payment_status = 'Paid', paid_at = NOW()
         WHERE order_id = ?
         ORDER BY created_at DESC
@@ -491,25 +703,23 @@ function markThirdPartyPaid(int $order_id, int $actor_id, string $actor_type, my
     if (!$stmt) return ['ok' => false, 'msg' => 'DB error.'];
     $stmt->bind_param('i', $order_id);
     if (!$stmt->execute()) return ['ok' => false, 'msg' => 'Failed.'];
-
+ 
     _logActivity('order', $order_id, $actor_id, $actor_type,
         'third_party_payment_received', 'Pending', 'Paid',
         '3rd-party COD payment collected by admin.', $conn);
     _broadcastNotif($order_id,
         "Payment received for Order #{$order['order_code']} via 3rd-party delivery.",
         $order['account_id'], null, $conn);
-
+ 
     return ['ok' => true, 'msg' => 'Payment marked as Paid.'];
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  RIDERS
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function getRidersList(mysqli $conn, bool $available_only = false): array {
     $where = 'r.is_deleted=0' . ($available_only ? ' AND r.is_available=1' : '');
-    // Uses renamed: rider_name, rider_phone, account_first_name, account_last_name,
-    //               account_email, account_phone, delivery_status
     $sql = "
         SELECT r.rider_id, r.image, r.vehicle_type, r.vehicle_plate_number,
                r.variant_color, r.organization,
@@ -527,15 +737,14 @@ function getRidersList(mysqli $conn, bool $available_only = false): array {
     $result = $conn->query($sql);
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
-
+ 
 function updateRiderAvailability(int $rider_id, mysqli $conn): void {
     $r = $conn->query("SELECT COUNT(*) AS cnt FROM orders WHERE assigned_rider_id={$rider_id} AND order_status='OutForDelivery'");
     $cnt = $r ? (int)$r->fetch_assoc()['cnt'] : 0;
     $conn->query("UPDATE riders SET is_available=" . ($cnt === 0 ? 1 : 0) . ", updated_at=NOW() WHERE rider_id={$rider_id}");
 }
-
+ 
 function getRiderPendingDeliveries(int $rider_account_id, mysqli $conn): array {
-    // Uses renamed: delivery_status, recipient_first_name/last_name/address/phone
     $stmt = $conn->prepare("
         SELECT d.delivery_id, d.order_id, d.delivery_status AS status,
                d.assigned_at,
@@ -560,11 +769,11 @@ function getRiderPendingDeliveries(int $rider_account_id, mysqli $conn): array {
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  ORDER QUERIES
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function getOrderRow(int $order_id, mysqli $conn): ?array {
     $stmt = $conn->prepare("SELECT * FROM orders WHERE order_id=? LIMIT 1");
     if (!$stmt) return null;
@@ -572,9 +781,8 @@ function getOrderRow(int $order_id, mysqli $conn): ?array {
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc() ?: null;
 }
-
+ 
 function getOrderFull(int $order_id, mysqli $conn): ?array {
-    // Uses renamed columns throughout
     $stmt = $conn->prepare("
         SELECT o.*,
                a.account_first_name AS cust_fname,
@@ -617,7 +825,7 @@ function getOrderFull(int $order_id, mysqli $conn): ?array {
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc() ?: null;
 }
-
+ 
 function getOrderItems(int $order_id, mysqli $conn): array {
     $stmt = $conn->prepare("
         SELECT oi.*, p.product_name, p.product_unit,
@@ -634,9 +842,8 @@ function getOrderItems(int $order_id, mysqli $conn): array {
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
+ 
 function getOrderHistory(int $order_id, mysqli $conn): array {
-    // Uses renamed: account_first_name, account_last_name
     $stmt = $conn->prepare("
         SELECT osh.*,
                a.account_first_name AS first_name,
@@ -651,18 +858,18 @@ function getOrderHistory(int $order_id, mysqli $conn): array {
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
+ 
 function getOrderCounts(mysqli $conn): array {
     $result = $conn->query("SELECT order_status, COUNT(*) AS cnt FROM orders WHERE is_deleted=0 GROUP BY order_status");
     $counts = array_fill_keys(array_keys(ORDER_STATUS_FLOW), 0);
     if ($result) while ($row = $result->fetch_assoc()) $counts[$row['order_status']] = (int)$row['cnt'];
     return $counts;
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  NOTIFICATIONS
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function getUnreadNotifications(int $user_id, string $role, mysqli $conn, int $limit = 20): array {
     $stmt = $conn->prepare("SELECT n.*, o.order_code FROM order_notifications n JOIN orders o ON o.order_id=n.order_id WHERE n.target_role=? AND (n.target_user_id=? OR n.target_user_id IS NULL) AND n.is_read=0 ORDER BY n.created_at DESC LIMIT ?");
     if (!$stmt) return [];
@@ -670,7 +877,7 @@ function getUnreadNotifications(int $user_id, string $role, mysqli $conn, int $l
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
+ 
 function markNotificationsRead(int $user_id, string $role, mysqli $conn, ?int $order_id = null): void {
     $sql = "UPDATE order_notifications SET is_read=1 WHERE target_role=? AND (target_user_id=? OR target_user_id IS NULL) AND is_read=0";
     $types = 'si'; $args = [$role, $user_id];
@@ -678,36 +885,35 @@ function markNotificationsRead(int $user_id, string $role, mysqli $conn, ?int $o
     $stmt = $conn->prepare($sql);
     if ($stmt) { $stmt->bind_param($types, ...$args); $stmt->execute(); }
 }
-
+ 
 function generateReviewInvite(int $order_id, mysqli $conn): ?string {
     $order = getOrderRow($order_id, $conn);
     if (!$order) return null;
-
-    // Must use same algorithm as review.php's generateReviewToken()
-    $token     = strtoupper(substr(hash('sha256', 
+ 
+    $token     = strtoupper(substr(hash('sha256',
         $order['order_code'] . $order['recipient_email'] . 'sjfbi_review_2025'
     ), 0, 12));
-    
+ 
     $baseUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
                  . '://' . $_SERVER['HTTP_HOST'];
     $reviewUrl = $baseUrl . '/sjfbi-js/review.php?order=' . urlencode($order['order_code'])
                  . '&token=' . urlencode($token);
-
+ 
     $del = $conn->prepare("DELETE FROM review_invites WHERE order_id = ?");
     $del->bind_param('i', $order_id);
     $del->execute();
-
+ 
     $ins = $conn->prepare("INSERT INTO review_invites (order_id, review_url, sent_at) VALUES (?, ?, NOW())");
     $ins->bind_param('is', $order_id, $reviewUrl);
     $ins->execute();
-
+ 
     return $reviewUrl;
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
 //  PRIVATE HELPERS
 // ════════════════════════════════════════════════════════════════════════════
-
+ 
 function _updateOrderStatusRaw(int $order_id, string $from, string $to, int $actor_id, string $actor_type, string $notes, mysqli $conn): array {
     $stmt = $conn->prepare("UPDATE orders SET order_status=?, updated_at=NOW() WHERE order_id=? AND order_status=?");
     if (!$stmt) return ['ok' => false, 'msg' => 'DB error.'];
@@ -718,7 +924,7 @@ function _updateOrderStatusRaw(int $order_id, string $from, string $to, int $act
     if ($hist) { $hist->bind_param('issiis', $order_id, $from, $to, $actor_id, $actor_type, $notes); $hist->execute(); }
     return ['ok' => true, 'msg' => "Status updated to {$to}."];
 }
-
+ 
 function _broadcastNotif(int $order_id, string $msg, ?int $cust_id, ?int $rider_id, mysqli $conn): void {
     _insertNotif($order_id, 'super_admin', null, $msg, $conn);
     _insertNotif($order_id, 'admin', null, $msg, $conn);
@@ -728,12 +934,12 @@ function _broadcastNotif(int $order_id, string $msg, ?int $cust_id, ?int $rider_
         if ($r && $row = $r->fetch_assoc()) _insertNotif($order_id, 'rider', (int)$row['account_id'], $msg, $conn);
     }
 }
-
+ 
 function _insertNotif(int $order_id, string $role, ?int $user_id, string $msg, mysqli $conn): void {
     $stmt = $conn->prepare("INSERT INTO order_notifications (order_id, target_role, target_user_id, message) VALUES (?,?,?,?)");
     if ($stmt) { $stmt->bind_param('isis', $order_id, $role, $user_id, $msg); $stmt->execute(); }
 }
-
+ 
 function _logActivity(string $entity_type, int $entity_id, int $actor_id, string $actor_type, string $action, ?string $old_val, ?string $new_val, ?string $details, mysqli $conn): void {
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;

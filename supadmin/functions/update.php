@@ -1,5 +1,6 @@
 <?php
 // ==================== supadmin/functions/update.php ====================
+ob_start(); // ← very first line
 session_start();
 require '../../conn.php';
 include 'slug_helper.php';
@@ -306,6 +307,181 @@ elseif (isset($_POST['update_product'])) {
         $conn->rollback();
         error_log("Update error: " . $e->getMessage());
         redirectWithMessage("../products.php","Failed to update product: ".$e->getMessage(),"error");
+    }
+}
+
+// ── TOGGLE PRODUCT VISIBILITY ─────────────────────────────────────
+elseif ( isset($_POST['action']) && $_POST['action'] === 'toggle_product_visibility') {
+    $product_id = intval($_POST['product_id']);
+
+    if ($product_id <= 0) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid product ID.']);
+        exit;
+    }
+
+    $old = $conn->prepare("SELECT product_name, is_hidden FROM products WHERE product_id = ? LIMIT 1");
+    $old->bind_param("i", $product_id);
+    $old->execute();
+    $oldData = $old->get_result()->fetch_assoc();
+    $old->close();
+
+    if (!$oldData) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Product not found.']);
+        exit;
+    }
+
+    $new_hidden = $oldData['is_hidden'] ? 0 : 1;
+
+    $stmt = $conn->prepare("UPDATE products SET is_hidden = ? WHERE product_id = ?");
+    $stmt->bind_param("ii", $new_hidden, $product_id);
+
+    if ($stmt->execute()) {
+        logActivity(
+            $conn, 'product', $product_id, 'Product visibility updated',
+            json_encode(['is_hidden' => $oldData['is_hidden']]),
+            json_encode(['is_hidden' => $new_hidden]),
+            "Product '{$oldData['product_name']}' visibility changed to " . ($new_hidden ? 'Hidden' : 'Visible') . ".",
+            $actorId, $actorType
+        );
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'message' => 'Product visibility updated.', 'is_hidden' => $new_hidden]);
+    } else {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Database update failed.']);
+    }
+
+    $stmt->close();
+    exit;
+}
+
+// ── TOGGLE VARIANT VISIBILITY ─────────────────────────
+elseif ( isset($_POST['action']) && $_POST['action'] === 'toggle_variant_visibility') {
+    $variant_id = intval($_POST['variant_id']);
+
+    if ($variant_id <= 0) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid variant ID.']);
+        exit;
+    }
+
+    $old = $conn->prepare("SELECT variant_name, is_hidden FROM product_variants WHERE variant_id = ? LIMIT 1");
+    $old->bind_param("i", $variant_id);
+    $old->execute();
+    $oldData = $old->get_result()->fetch_assoc();
+    $old->close();
+
+    if (!$oldData) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Variant not found.']);
+        exit;
+    }
+
+    $new_hidden = $oldData['is_hidden'] ? 0 : 1;
+
+    $stmt = $conn->prepare("UPDATE product_variants SET is_hidden = ? WHERE variant_id = ?");
+    $stmt->bind_param("ii", $new_hidden, $variant_id);
+
+    if ($stmt->execute()) {
+        logActivity(
+            $conn, 'product_variant', $variant_id, 'Variant visibility updated',
+            json_encode(['is_hidden' => $oldData['is_hidden']]),
+            json_encode(['is_hidden' => $new_hidden]),
+            "Variant '{$oldData['variant_name']}' visibility changed to " . ($new_hidden ? 'Hidden' : 'Visible') . ".",
+            $actorId, $actorType
+        );
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'is_hidden' => $new_hidden]);
+    } else {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Database update failed.']);
+    }
+
+    $stmt->close();
+    exit;
+}
+
+// ── BULK UPDATE VARIANT PRICES ────────────────────────────────────────────
+elseif (isset($_POST['update_variant_prices'])) {
+
+    $variant_prices  = $_POST['variant_price']  ?? [];
+    $discount_prices = $_POST['discount_price'] ?? [];
+
+    if (empty($variant_prices)) {
+        redirectWithMessage("../products.php", "No variant prices submitted.", "error");
+    }
+
+    $conn->begin_transaction();
+
+    try {
+
+        foreach ($variant_prices as $variant_id => $price) {
+
+            $variant_id     = intval($variant_id);
+            $price          = floatval($price);
+            $discount_price = null;
+
+            if (isset($discount_prices[$variant_id]) && $discount_prices[$variant_id] !== '') {
+                $discount_price = floatval($discount_prices[$variant_id]);
+            }
+
+            // ── Fetch old prices for logging ──
+            $old = $conn->prepare("
+                SELECT pv.variant_name, pv.variant_price, pv.discount_price,
+                       p.product_name, p.product_id
+                FROM product_variants pv
+                INNER JOIN products p ON p.product_id = pv.product_id
+                WHERE pv.variant_id = ?
+                LIMIT 1
+            ");
+            $old->bind_param("i", $variant_id);
+            $old->execute();
+            $oldData = $old->get_result()->fetch_assoc();
+            $old->close();
+
+            if (!$oldData) continue;
+
+            // ── Update prices ──
+            $up = $conn->prepare("
+                UPDATE product_variants
+                SET variant_price = ?, discount_price = ?
+                WHERE variant_id = ?
+            ");
+            $up->bind_param("ddi", $price, $discount_price, $variant_id);
+            $up->execute();
+            $up->close();
+
+            // ── Log activity ──
+            logActivity(
+                $conn,
+                'product_variant',
+                $variant_id,
+                'Variant prices updated',
+                json_encode(['variant_price' => $oldData['variant_price'], 'discount_price' => $oldData['discount_price']]),
+                json_encode(['variant_price' => $price,                    'discount_price' => $discount_price]),
+                "Updated prices for '{$oldData['product_name']}' - '{$oldData['variant_name']}'. " .
+                "Price: ₱" . number_format($oldData['variant_price'], 2) . " → ₱" . number_format($price, 2),
+                $actorId,
+                $actorType
+            );
+        }
+
+        $conn->commit();
+        redirectWithMessage("../products.php", "Variant prices updated successfully!", "success");
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Bulk variant price update error: " . $e->getMessage());
+        redirectWithMessage("../products.php", "Failed to update variant prices: " . $e->getMessage(), "error");
     }
 }
 

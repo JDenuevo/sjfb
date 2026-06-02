@@ -11,8 +11,8 @@ $cart = $_SESSION['cart'] ?? [];
     <div class="flex items-center">
       <!-- Logo -->
       <a class="flex-none rounded-xl inline-block font-semibold focus:outline-hidden focus:opacity-80" href="/" aria-label="Home">
-        <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="logo-big w-20 h-20 lg:w-24 lg:h-24 transition-all duration-500 hover:scale-110 hover:rotate-3 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
-        <img src="<?= $baseUrl ?>/assets/icons/logo.svg" class="md:hidden logo-small w-14 h-14 transition-all duration-500 hover:scale-110 hover:rotate-3 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
+        <img src="<?= $baseUrl ?>assets/icons/square-logo.png" class="logo-big w-auto h-24 transition-all duration-500 hover:scale-110 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
+        <img src="<?= $baseUrl ?>assets/icons/landscape-logo.png" class="md:hidden logo-small w-36 h-auto transition-all duration-500 hover:scale-110 filter drop-shadow-lg" alt="St. Joseph Fish Brokerage Inc. Logo">
       </a>
       <!-- End Logo -->
     </div>
@@ -52,7 +52,7 @@ $cart = $_SESSION['cart'] ?? [];
       </button>
 
       <!-- Mobile Navigation Dropdown (visible only on small screens) -->
-      <div class="relative inline-flex ml-4 md:hidden">
+      <div class="relative inline-flex md:hidden">
         <button type="button" id="mobile-nav-button" class="size-9.5 flex justify-center items-center rounded-xl border border-gray-200 text-black hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none" aria-label="Toggle mobile menu">
           <svg class="menu-icon-open shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" x2="21" y1="6" y2="6" />
@@ -131,7 +131,7 @@ $cart = $_SESSION['cart'] ?? [];
 <!-- ========== END HEADER ========== -->
 
 <!-- Add padding to the body content to account for fixed header -->
-<div class="pt-24"></div>
+<div class="pt-16 md:pt-24"></div>
 
  <?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/sign_in.php'; ?>
 

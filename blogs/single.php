@@ -226,10 +226,10 @@ if (mysqli_num_rows($result) == 0) {
 <body id="content">
   <?php include('../components/preloaders.php'); ?>
   <?php include('../components/navigation.php'); ?>
-
+  
    <?php if (isset($notFound)): ?>
     <!-- 404 Content -->
-    <div class="max-w-[85rem] mx-auto px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div class="text-center">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">Blog Post Not Found</h1>
         <p class="text-xl text-gray-600 mb-8">Sorry, the blog post you're looking for doesn't exist or has been moved.</p>
@@ -240,8 +240,9 @@ if (mysqli_num_rows($result) == 0) {
     </div>
   <?php else: ?>
     <!-- Blog Article -->
-    <div class="max-w-[85rem] px-4 sm:px-6 lg:px-8 mx-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <?php include('../components/nav_crumb.php'); ?>
+
       <div class="grid lg:grid-cols-3 gap-y-8 lg:gap-y-0 lg:gap-x-6">
         <!-- Content -->
         <div class="lg:col-span-2">
@@ -307,7 +308,7 @@ if (mysqli_num_rows($result) == 0) {
             <!-- Avatar Media -->
             <div class="group flex items-center gap-x-3 border-b border-line-2 pb-8 mb-8">
               <div class="block shrink-0 focus:outline-hidden">
-                <img class="size-10 rounded-full" src="https://images.unsplash.com/photo-1669837401587-f9a4cfe3126e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2&w=320&h=320&q=80" alt="Avatar">
+                <img class="size-10 rounded-full" src="https://cdn-icons-png.flaticon.com/512/10337/10337525.png" alt="Avatar">
               </div>
 
               <div class="group grow block focus:outline-hidden">

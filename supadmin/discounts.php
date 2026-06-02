@@ -158,6 +158,24 @@ function dateStatus(?string $start, ?string $end): string {
   </div>
 </div>
 
+<!-- USAGE STATS MODAL -->
+<div id="usageModal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width: 800px;">
+    <div class="modal-header">
+      <div><h3 id="usageModalTitle">Usage Statistics</h3><p id="usageSubtitle">View discount usage history</p></div>
+      <button class="modal-close" onclick="closeModal('usageModal')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="usageStatsContent" class="space-y-4">
+        <div class="flex justify-center py-8">Loading...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeModal('usageModal')" class="btn btn-outline">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- PROMOTION MODAL -->
 <div id="promoModal" class="modal-overlay hidden">
   <div class="modal-box">
@@ -372,8 +390,11 @@ function dateStatus(?string $start, ?string $end): string {
                 <span class="capitalize"><?=str_replace('_',' ',$v['applicable_groups'])?></span>
               </div>
             </div>
+            
+             <!-- In the voucher card actions section -->
             <div class="flex gap-2 items-center shrink-0">
               <label class="toggle"><input type="checkbox" <?=$v['is_active']?'checked':''?> onchange="toggleField('voucher',<?=$v['voucher_id']?>,'is_active',this.checked?1:0)"><span class="toggle-slider"></span></label>
+              <button onclick="viewUsage('voucher', <?= $v['voucher_id'] ?>, '<?= addslashes($v['code']) ?>')" class="btn btn-outline btn-xs">Usage</button>
               <button onclick='editVoucher(<?=json_encode($v)?>)' class="btn btn-outline btn-xs">Edit</button>
               <button onclick="confirmDelete('delete_voucher',<?=$v['voucher_id']?>,'<?=addslashes($v['code'])?>')" class="btn btn-xs text-red-500 border border-red-200 hover:bg-red-50">Del</button>
             </div>
@@ -382,6 +403,7 @@ function dateStatus(?string $start, ?string $end): string {
             <span class="flex items-center gap-1.5">👁 Public <label class="toggle" style="width:28px;height:16px"><input type="checkbox" <?=$v['toggle_public']?'checked':''?> onchange="toggleField('voucher',<?=$v['voucher_id']?>,'toggle_public',this.checked?1:0)"><span class="toggle-slider"></span></label></span>
             <span class="flex items-center gap-1.5">➕ Stackable <label class="toggle" style="width:28px;height:16px"><input type="checkbox" <?=$v['toggle_stackable']?'checked':''?> onchange="toggleField('voucher',<?=$v['voucher_id']?>,'toggle_stackable',this.checked?1:0)"><span class="toggle-slider"></span></label></span>
           </div>
+          
         </div>
         <?php endforeach;?></div><?php endif;?>
       </div>
@@ -613,6 +635,76 @@ function confirmDelete(action,id,name){
   openModal('deleteModal');
 }
 
+function viewUsage(type, id, name) {
+  document.getElementById('usageModalTitle').innerHTML = `Usage: ${name}`;
+  document.getElementById('usageSubtitle').innerHTML = `${type === 'voucher' ? 'Voucher' : 'Promotion'} usage history`;
+  
+  fetch(`./functions/fetch_usage.php?type=${type}&id=${id}`)
+    .then(r => r.json())
+    .then(data => {
+      const content = document.getElementById('usageStatsContent');
+      if (!data.success) {
+        content.innerHTML = `<div class="text-center text-red-500 py-4">${data.message}</div>`;
+        return;
+      }
+      
+      // Safely convert values to numbers
+      const totalUses = parseInt(data.total_uses) || 0;
+      const totalDiscount = parseFloat(data.total_discount) || 0;
+      const remainingUses = data.remaining_uses !== undefined ? parseInt(data.remaining_uses) : undefined;
+      
+      content.innerHTML = `
+        <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">${totalUses}</div>
+            <div class="text-xs text-gray-500">Total Uses</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600">₱${totalDiscount.toFixed(2)}</div>
+            <div class="text-xs text-gray-500">Total Discount Given</div>
+          </div>
+        </div>
+        
+        ${remainingUses !== undefined ? `
+        <div class="bg-blue-50 p-3 rounded-xl">
+          <div class="flex justify-between text-sm">
+            <span class="text-blue-700">Remaining Uses:</span>
+            <span class="font-bold text-blue-800">${remainingUses}</span>
+          </div>
+        </div>
+        ` : ''}
+        
+        <div class="border-t pt-3">
+          <p class="text-sm font-semibold text-gray-700 mb-3">Recent Usage</p>
+          ${!data.recent_uses || data.recent_uses.length === 0 ? '<p class="text-xs text-gray-400">No usage recorded yet.</p>' : `
+          <div class="space-y-2 max-h-96 overflow-y-auto">
+            ${data.recent_uses.map(use => `
+              <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
+                <div>
+                  <span class="font-medium text-gray-800">Order: ${use.order_code || 'N/A'}</span>
+                  <span class="text-xs text-gray-400 ml-2">${use.email || 'Guest'}</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-green-600 font-semibold">-₱${(parseFloat(use.discount_amount) || 0).toFixed(2)}</span>
+                  <span class="text-xs text-gray-400 ml-2">${new Date(use.used_at).toLocaleString()}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          `}
+        </div>
+      `;
+      
+      openModal('usageModal');
+    })
+    .catch(err => {
+      console.error('Error fetching usage stats:', err);
+      const content = document.getElementById('usageStatsContent');
+      content.innerHTML = `<div class="text-center text-red-500 py-4">Error loading usage statistics. Please try again.</div>`;
+      openModal('usageModal');
+    });
+}
+
 function toast(msg,type='info'){
   const c={success:'bg-teal-600',error:'bg-red-600',info:'bg-gray-800'};
   const el=document.createElement('div');
@@ -622,6 +714,7 @@ function toast(msg,type='info'){
   setTimeout(()=>el?.remove(),4500);
 }
 function esc(v){if(v==null)return'';return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
 </script>
 <?php $conn->close(); ?>
 <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>

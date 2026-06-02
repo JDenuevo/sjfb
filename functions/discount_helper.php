@@ -127,12 +127,10 @@ function checkFreeShipping($cart_total, $user_groups, $city, $conn) {
  * Get delivery fee based on city and cart total
  */
 function getDeliveryFee($city, $cart_total, $conn) {
-    if (empty($city)) return 250.00;
+    // ← Return 0 for empty city (pickup orders have no city)
+    if (empty(trim($city ?? ''))) return 0.00;
 
     $city = trim($city);
-
-    // ── Step 1: get the base fee for this city ─────────────────────────────
-    $fee_data = null;
 
     $stmt = $conn->prepare("
         SELECT base_fee, free_shipping_threshold
@@ -144,6 +142,7 @@ function getDeliveryFee($city, $cart_total, $conn) {
     $stmt->execute();
     $result = $stmt->get_result();
 
+    $fee_data = null;
     if ($result->num_rows > 0) {
         $fee_data = $result->fetch_assoc();
     } else {
@@ -164,18 +163,19 @@ function getDeliveryFee($city, $cart_total, $conn) {
         }
     }
 
-    $base_fee = $fee_data ? (float)$fee_data['base_fee'] : 250.00;
+    // ← Return 0 if city not found in DB (don't assume 250)
+    if (!$fee_data) return 0.00;
 
-    // ── Step 2: check city-level free shipping threshold ───────────────────
-    if ($fee_data && $fee_data['free_shipping_threshold'] && $cart_total >= (float)$fee_data['free_shipping_threshold']) {
+    $base_fee = (float)$fee_data['base_fee'];
+
+    // Check city-level free shipping threshold
+    if (!empty($fee_data['free_shipping_threshold']) && $cart_total >= (float)$fee_data['free_shipping_threshold']) {
         return 0.00;
     }
 
-    // ── Step 3: check global free_shipping_rules table ────────────────────
-    // This is where "Free Shipping Over ₱1000" lives
+    // Check global free_shipping_rules table
     $ruleStmt = $conn->prepare("
-        SELECT rule_id
-        FROM free_shipping_rules
+        SELECT rule_id FROM free_shipping_rules
         WHERE is_active = 1
           AND toggle_auto_apply = 1
           AND NOW() BETWEEN start_date AND end_date
@@ -188,9 +188,7 @@ function getDeliveryFee($city, $cart_total, $conn) {
     $ruleStmt->execute();
     $rule = $ruleStmt->get_result()->fetch_assoc();
 
-    if ($rule) {
-        return 0.00; // Global free shipping rule matched
-    }
+    if ($rule) return 0.00;
 
     return $base_fee;
 }
@@ -206,4 +204,164 @@ function getAvailableCities($conn) {
         ORDER BY area_type, city
     ");
     return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+/**
+ * Check if voucher usage limits are exceeded
+ */
+function checkVoucherLimits($voucher_id, $account_id, $conn) {
+    $voucher = $conn->prepare("SELECT usage_limit, per_user_limit FROM vouchers WHERE voucher_id = ?");
+    $voucher->bind_param("i", $voucher_id);
+    $voucher->execute();
+    $v = $voucher->get_result()->fetch_assoc();
+    $voucher->close();
+    
+    if (!$v) return false;
+    
+    // Check total usage limit
+    if ($v['usage_limit']) {
+        $total = $conn->prepare("SELECT COUNT(*) as used FROM voucher_usage WHERE voucher_id = ?");
+        $total->bind_param("i", $voucher_id);
+        $total->execute();
+        if ($total->get_result()->fetch_assoc()['used'] >= $v['usage_limit']) {
+            return ['error' => 'Voucher has reached its usage limit'];
+        }
+        $total->close();
+    }
+    
+    // Check per-user limit
+    if ($account_id && $v['per_user_limit']) {
+        $user = $conn->prepare("SELECT COUNT(*) as used FROM voucher_usage WHERE voucher_id = ? AND account_id = ?");
+        $user->bind_param("ii", $voucher_id, $account_id);
+        $user->execute();
+        if ($user->get_result()->fetch_assoc()['used'] >= $v['per_user_limit']) {
+            return ['error' => 'You have already used this voucher the maximum number of times'];
+        }
+        $user->close();
+    }
+    
+    return true;
+}
+
+/**
+ * Check if promotion usage limits are exceeded
+ */
+function checkPromotionLimits($promotion_id, $account_id, $conn) {
+    $promo = $conn->prepare("SELECT usage_limit, per_customer_limit FROM promotions WHERE promotion_id = ?");
+    $promo->bind_param("i", $promotion_id);
+    $promo->execute();
+    $p = $promo->get_result()->fetch_assoc();
+    $promo->close();
+    
+    if (!$p) return false;
+    
+    // Check total usage limit
+    if ($p['usage_limit']) {
+        $total = $conn->prepare("SELECT COUNT(*) as used FROM promotion_usage WHERE promotion_id = ?");
+        $total->bind_param("i", $promotion_id);
+        $total->execute();
+        if ($total->get_result()->fetch_assoc()['used'] >= $p['usage_limit']) {
+            return ['error' => 'Promotion has reached its usage limit'];
+        }
+        $total->close();
+    }
+    
+    // Check per-customer limit
+    if ($account_id && $p['per_customer_limit']) {
+        $user = $conn->prepare("SELECT COUNT(*) as used FROM promotion_usage WHERE promotion_id = ? AND account_id = ?");
+        $user->bind_param("ii", $promotion_id, $account_id);
+        $user->execute();
+        if ($user->get_result()->fetch_assoc()['used'] >= $p['per_customer_limit']) {
+            return ['error' => 'You have already used this promotion the maximum number of times'];
+        }
+        $user->close();
+    }
+    
+    return true;
+}
+
+/**
+ * Record voucher usage after successful order
+ */
+function recordVoucherUsage($voucher_id, $order_id, $account_id, $discount_amount, $conn) {
+    $stmt = $conn->prepare("
+        INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->bind_param("iiid", $voucher_id, $account_id, $order_id, $discount_amount);
+    return $stmt->execute();
+}
+
+/**
+ * Record promotion usage after successful order
+ */
+function recordPromotionUsage($promotion_id, $order_id, $account_id, $discount_amount, $conn) {
+    $stmt = $conn->prepare("
+        INSERT INTO promotion_usage (promotion_id, account_id, order_id, discount_amount)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->bind_param("iiid", $promotion_id, $account_id, $order_id, $discount_amount);
+    return $stmt->execute();
+}
+
+/**
+ * Get voucher usage statistics for admin
+ */
+function getVoucherUsageStats($voucher_id, $conn) {
+    $stats = [];
+    
+    // Total usage count
+    $total = $conn->prepare("SELECT COUNT(*) as total_uses, SUM(discount_amount) as total_discount FROM voucher_usage WHERE voucher_id = ?");
+    $total->bind_param("i", $voucher_id);
+    $total->execute();
+    $stats = $total->get_result()->fetch_assoc();
+    $total->close();
+    
+    // Recent usage
+    $recent = $conn->prepare("
+        SELECT vu.*, o.order_code, 
+               COALESCE(a.account_email, 'Guest') as email
+        FROM voucher_usage vu
+        LEFT JOIN orders o ON vu.order_id = o.order_id
+        LEFT JOIN accounts a ON vu.account_id = a.account_id
+        WHERE vu.voucher_id = ?
+        ORDER BY vu.used_at DESC
+        LIMIT 20
+    ");
+    $recent->bind_param("i", $voucher_id);
+    $recent->execute();
+    $stats['recent_uses'] = $recent->get_result()->fetch_all(MYSQLI_ASSOC);
+    $recent->close();
+    
+    return $stats;
+}
+
+/**
+ * Get promotion usage statistics for admin
+ */
+function getPromotionUsageStats($promotion_id, $conn) {
+    $stats = [];
+    
+    $total = $conn->prepare("SELECT COUNT(*) as total_uses, SUM(discount_amount) as total_discount FROM promotion_usage WHERE promotion_id = ?");
+    $total->bind_param("i", $promotion_id);
+    $total->execute();
+    $stats = $total->get_result()->fetch_assoc();
+    $total->close();
+    
+    $recent = $conn->prepare("
+        SELECT pu.*, o.order_code,
+               COALESCE(a.account_email, 'Guest') as email
+        FROM promotion_usage pu
+        LEFT JOIN orders o ON pu.order_id = o.order_id
+        LEFT JOIN accounts a ON pu.account_id = a.account_id
+        WHERE pu.promotion_id = ?
+        ORDER BY pu.used_at DESC
+        LIMIT 20
+    ");
+    $recent->bind_param("i", $promotion_id);
+    $recent->execute();
+    $stats['recent_uses'] = $recent->get_result()->fetch_all(MYSQLI_ASSOC);
+    $recent->close();
+    
+    return $stats;
 }

@@ -9,6 +9,10 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 
 $account_id = $_SESSION['account_id'];
 
+$month = date('n');
+$year  = date('Y');
+$base  = 'exports/'; // relative path from your supadmin/ pages
+
 // Pagination setup
 $itemsPerPage = 10;
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;

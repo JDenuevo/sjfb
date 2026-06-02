@@ -26,6 +26,11 @@ $pageTitle = 'Register';
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
+  
+  <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <style>

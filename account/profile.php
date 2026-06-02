@@ -52,9 +52,10 @@ $row = $result->fetch_assoc();
 </head>
 
 <body class="bg-gray-50">
- 
+ <?php include('../components/preloaders.php'); ?>
+
   <!-- Sidebar -->
-  <?php include('../user/components/navigation.php'); ?>
+  <?php include('./components/navigation.php'); ?>
 
   <!-- Content -->
   <div class="w-full">

@@ -49,7 +49,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
             </svg>
           </a>
           <!-- Email -->
-          <a href="mailto:stjosephbrokerage23@gmail.com"
+          <a href="mailto:marketing@fishbrokers.net"
              title="Email us"
              class="w-9 h-9 flex items-center justify-center rounded-full border border-white/10 text-white hover:bg-orange-600 hover:border-orange-600 hover:text-white hover:-translate-y-0.5 transition-all duration-200">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

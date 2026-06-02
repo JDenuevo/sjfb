@@ -2,9 +2,11 @@
 /**
  * track.php
  * Customer-facing order tracking page.
- * Stepper differs by payment method:
- *   COD:    Pending → Processing → Out for Delivery → Delivered
- *   Online: Paid    → Processing → Out for Delivery → Delivered
+ * Stepper differs by payment method AND order_type:
+ *   Delivery COD:    Pending     → Processing → Out for Delivery → Delivered
+ *   Delivery Online: Paid        → Processing → Out for Delivery → Delivered
+ *   Pickup COD:      Pending     → Processing → Ready for Pickup → Picked Up
+ *   Pickup Online:   Paid        → Processing → Ready for Pickup → Picked Up
  */
 session_start();
 include 'conn.php';
@@ -35,7 +37,7 @@ if (isset($_GET['order_code']) && !empty($_GET['order_code'])) {
         $itemsStmt->execute();
         $items = $itemsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        // Delivery + rider info
+        // Delivery + rider info (only relevant for delivery orders, but we fetch anyway)
         $dlStmt = $conn->prepare("
             SELECT d.delivery_id, d.delivery_status,
                    d.is_third_party, d.third_party_name, d.delivery_link,
@@ -87,15 +89,18 @@ $methodLabels = [
     'grab_pay' => 'GrabPay',
     'qrph'     => 'QR Ph',
     'cod'      => 'Cash on Delivery',
+    'cop'      => 'Cash on Pickup',
     'card'     => 'Visa/Mastercard',
 ];
 
+// Status display now includes Completed for pickup flow
 $statusDisplay = [
     'Paid'           => 'Payment Received',
     'Pending'        => 'Order Placed',
     'Processing'     => 'In Process',
     'OutForDelivery' => 'Out for Delivery',
-    'Delivered'      => 'Delivered',
+    'Completed'      => 'Ready for Pickup',
+    'Delivered'      => 'Delivered / Picked Up',
     'Cancelled'      => 'Cancelled',
 ];
 
@@ -112,42 +117,50 @@ $orderData  = $_SESSION['tracked_order']       ?? [];
 $orderItems = $_SESSION['tracked_order_items'] ?? [];
 $delivery   = $_SESSION['tracked_delivery']    ?? null;
 
-// ── Build stepper based on payment method ─────────────────────────────────
-// Must be safe to run even when no order is loaded yet
-$isCOD = ($orderData['payment_method'] ?? '') === 'cod';
+// ── Detect order type ──────────────────────────────────────────────────────
+$isPickup = ($orderData['order_type'] ?? 'delivery') === 'pickup';
+$isCOD = in_array($orderData['payment_method'] ?? '', ['cod', 'cop']);
 
-if ($isCOD) {
+// Add these icon path variables at the top, before the $steps arrays
+$iconOrder  = '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>';
+$iconSpin   = '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>';
+$iconBox    = '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>';
+$iconTruck  = '<rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>';
+$iconCheck  = '<path d="M20 6 9 17l-5-5"/>';
+$iconCard   = '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>';
+$iconHome   = '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>';
+
+if ($isPickup) {
     $steps = [
-        ['key' => 'Pending',        'label' => 'Order Placed',     'icon' => '🧾'],
-        ['key' => 'Processing',     'label' => 'In Process',       'icon' => '⚙️'],
-        ['key' => 'OutForDelivery', 'label' => 'Out for Delivery', 'icon' => '🛵'],
-        ['key' => 'Delivered',      'label' => 'Delivered',        'icon' => '✅'],
+        ['key' => $isCOD ? 'Pending' : 'Paid',
+         'label' => $isCOD ? 'Order Placed' : 'Payment Received',
+         'icon' => $isCOD ? $iconOrder : $iconCard],
+        ['key' => 'Processing', 'label' => 'In Process',       'icon' => $iconSpin],
+        ['key' => 'Completed',  'label' => 'Ready for Pickup', 'icon' => $iconBox],
+        ['key' => 'Delivered',  'label' => 'Picked Up',        'icon' => $iconHome],
     ];
-    $stepIndex = [
-        'Pending'        => 0,
-        'Processing'     => 1,
-        'OutForDelivery' => 2,
-        'Delivered'      => 3,
-    ];
+    $stepIndex = $isCOD
+        ? ['Pending'=>0,'Processing'=>1,'Completed'=>2,'Delivered'=>3]
+        : ['Paid'=>0,'Processing'=>1,'Completed'=>2,'Delivered'=>3];
 } else {
     $steps = [
-        ['key' => 'Paid',           'label' => 'Payment Received', 'icon' => '💰'],
-        ['key' => 'Processing',     'label' => 'In Process',       'icon' => '⚙️'],
-        ['key' => 'OutForDelivery', 'label' => 'Out for Delivery', 'icon' => '🛵'],
-        ['key' => 'Delivered',      'label' => 'Delivered',        'icon' => '✅'],
+        ['key' => $isCOD ? 'Pending' : 'Paid',
+         'label' => $isCOD ? 'Order Placed' : 'Payment Received',
+         'icon' => $isCOD ? $iconOrder : $iconCard],
+        ['key' => 'Processing',     'label' => 'In Process',       'icon' => $iconSpin],
+        ['key' => 'OutForDelivery', 'label' => 'Out for Delivery', 'icon' => $iconTruck],
+        ['key' => 'Delivered',      'label' => 'Delivered',        'icon' => $iconCheck],
     ];
-    $stepIndex = [
-        'Paid'           => 0,
-        'Processing'     => 1,
-        'OutForDelivery' => 2,
-        'Delivered'      => 3,
-    ];
+    $stepIndex = $isCOD
+        ? ['Pending'=>0,'Processing'=>1,'OutForDelivery'=>2,'Delivered'=>3,'Completed'=>2]
+        : ['Paid'=>0,'Processing'=>1,'OutForDelivery'=>2,'Delivered'=>3,'Completed'=>2];
 }
 
 $isCancelled = ($orderData['order_status'] ?? '') === 'Cancelled';
 $currentStep = $stepIndex[$orderData['order_status'] ?? ''] ?? 0;
-$totalSteps  = count($steps) - 1; // 3
-$fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $totalSteps) * 100) : 0);
+$lastStep    = count($steps) - 1;
+$fillPct     = $isCancelled ? 0 : ($lastStep > 0 ? round(($currentStep / $lastStep) * 100) : 0);
+$currentStepSafe = min($currentStep, $lastStep);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -174,6 +187,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
   <link href="style.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
     body { font-family: 'Lexend', sans-serif; }
     .track-hero { background: linear-gradient(135deg,#f8fafc 0%,#eef2f7 60%,#e2e8f0 100%); }
@@ -231,7 +245,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
 <?php include('./components/navigation.php'); ?>
 <?php include('./components/nav_crumb.php'); ?>
 
-<!-- ── Hero / Search ──────────────────────────────────────────────────────── -->
+<!-- Hero / Search -->
 <section class="track-hero py-16 px-4">
   <div class="max-w-xl mx-auto text-center anim-1">
     <div class="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-400/30 rounded-full px-4 py-1.5 text-xs font-semibold text-orange-600 uppercase tracking-widest mb-5">
@@ -273,6 +287,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
     'Pending'        => 'bg-yellow-100 text-yellow-800',
     'Processing'     => 'bg-blue-100 text-blue-800',
     'OutForDelivery' => 'bg-purple-100 text-purple-800',
+    'Completed'      => 'bg-indigo-100 text-indigo-800',
     'Delivered'      => 'bg-green-100 text-green-800',
     'Cancelled'      => 'bg-red-100 text-red-800',
   ];
@@ -280,26 +295,32 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
 
   $statusMessages = [
     'Paid'           => 'Payment received! Your order is waiting for admin approval.',
-    'Pending'        => "Order placed! We'll confirm and start processing it shortly.",
-    'Processing'     => 'Your order is being prepared and packed.',
+    'Pending'        => $isPickup
+                          ? "Order placed! We'll prepare your items and notify you when ready for pickup."
+                          : "Order placed! We'll confirm and start processing it shortly.",
+    'Processing'     => $isPickup
+                          ? 'Your order is being prepared and packed for pickup.'
+                          : 'Your order is being prepared and packed.',
     'OutForDelivery' => 'Your order is on the way — our rider is heading to you!',
-    'Delivered'      => 'Order delivered! Thank you for choosing St. Joseph Fish Brokerage.',
+    'Completed'      => 'Your order is ready! Visit our store to collect it.',
+    'Delivered'      => $isPickup
+                          ? 'Order picked up! Thank you for choosing St. Joseph Fish Brokerage.'
+                          : 'Order delivered! Thank you for choosing St. Joseph Fish Brokerage.',
     'Cancelled'      => 'This order has been cancelled. Contact us if you need help.',
   ];
 
+  // Rider/delivery section only shown for delivery orders out for delivery or delivered
   $isOutForDelivery = $orderStatus === 'OutForDelivery';
   $isDelivered      = $orderStatus === 'Delivered';
-  $showDelivery     = $delivery && ($isOutForDelivery || $isDelivered);
+  $showDelivery     = !$isPickup && $delivery && ($isOutForDelivery || $isDelivered);
 
-  // Payment status from orders table (fallback) — we fetch from payments if needed
-  // For display we just show the payment_method context
   $paymentStatusDisplay = $orderData['payment_status'] ?? 'Pending';
 ?>
 
 <section class="py-10 px-4">
 <div class="max-w-3xl mx-auto space-y-5">
 
-  <!-- ── Order header banner ──────────────────────────────────────────────── -->
+  <!-- Order header banner -->
   <div class="anim-2 relative overflow-hidden bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-6 text-white shadow-sm">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
       <div>
@@ -309,6 +330,9 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $osBadge ?>">
             <?= $statusDisplay[$orderStatus] ?? $orderStatus ?>
           </span>
+          <?php if ($isPickup): ?>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">🏠 Pickup</span>
+          <?php endif; ?>
           <?php if (!empty($delivery['is_third_party']) && $delivery['third_party_name']): ?>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
             via <?= htmlspecialchars($delivery['third_party_name']) ?>
@@ -332,7 +356,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
   </div>
 
   <?php if ($isCancelled): ?>
-  <!-- ── Cancelled ────────────────────────────────────────────────────────── -->
+  <!-- Cancelled -->
   <div class="anim-3 bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
     <div class="size-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
       <svg class="size-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
@@ -345,10 +369,53 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
   </div>
 
   <?php else: ?>
-  <!-- ── Progress stepper ─────────────────────────────────────────────────── -->
+
+    <!-- Pickup-specific "Ready for Pickup" notice -->
+  <?php if ($isPickup && $orderStatus === 'Completed'): ?>
+  <div class="anim-3 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+    
+    <!-- Replaced 📦 emoji -->
+    <div class="size-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+      <svg class="size-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+    </div>
+
+    <div>
+      <p class="text-sm font-bold text-blue-800">Your order is ready for pickup!</p>
+      <p class="text-xs text-blue-600 mt-0.5">
+        Please visit our store at Bulungan Avenue corner HACCP St., Navotas and bring your order code
+        <strong><?= htmlspecialchars($orderData['order_code']) ?></strong> to collect your items.
+        <?= $isCOD ? 'Please prepare ₱'.number_format($orderData['total_price'], 2).' for payment.' : '' ?>
+      </p>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <!-- Pickup-specific "Already picked up" notice -->
+  <?php if ($isPickup && $orderStatus === 'Delivered'): ?>
+  <div class="anim-3 flex items-start gap-3 bg-green-50 border border-green-200 rounded-2xl p-4">
+    
+    <!-- Replaced ✅ emoji -->
+    <div class="size-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+      <svg class="size-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+
+    <div>
+      <p class="text-sm font-bold text-green-800">Order picked up — thank you!</p>
+      <p class="text-xs text-green-600 mt-0.5">
+        Your order was collected from our store. We hope you enjoy your purchase!
+      </p>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <!-- Progress stepper -->
   <div class="anim-3 os-stepper-wrap">
     <div class="os-bar-header">
-      <span>Delivery Progress</span>
+      <span><?= $isPickup ? 'Pickup Progress' : 'Delivery Progress' ?></span>
       <span><?= $fillPct ?>% complete</span>
     </div>
     <div class="os-progress-track">
@@ -356,7 +423,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
     </div>
     <div class="os-steps">
       <div class="os-connector-bg"></div>
-      <div class="os-connector-fill" style="width:<?= $totalSteps > 0 ? min(100, round(($currentStep / $totalSteps) * 100)) : 0 ?>%"></div>
+      <div class="os-connector-fill" style="width:<?= $lastStep > 0 ? min(100, round(($currentStep / $lastStep) * 100)) : 0 ?>%"></div>
       <?php foreach ($steps as $i => $step):
         $done   = $i <= $currentStep;
         $active = $i === $currentStep;
@@ -364,24 +431,70 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
       ?>
       <div class="os-step">
         <div class="os-bubble <?= $sc ?>">
-          <?php if ($done): echo $step['icon'];
-          else: ?><span class="os-dot <?= $active ? 'active' : 'idle' ?>"></span><?php endif; ?>
+          <?php if ($done && !$active): ?>
+            <!-- Completed steps show a checkmark -->
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+              <path d="M20 6 9 17l-5-5"/>
+            </svg>
+          <?php else: ?>
+            <!-- Active / idle steps show their own icon -->
+            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <?= $step['icon'] ?>
+            </svg>
+          <?php endif; ?>
         </div>
         <span class="os-step-label <?= $sc ?>"><?= htmlspecialchars($step['label']) ?></span>
       </div>
       <?php endforeach; ?>
     </div>
     <div class="os-status-strip">
-      <div class="os-status-icon"><?= $steps[$currentStep]['icon'] ?></div>
+      <?php $safeStep = $steps[$currentStepSafe] ?? $steps[0]; ?>
+      <div class="os-status-icon">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <?= $safeStep['icon'] ?>
+        </svg>
+      </div>
       <div>
         <p><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
         <p><?= $statusMessages[$orderStatus] ?? '' ?></p>
       </div>
     </div>
   </div>
+
+  <?php endif; /* not cancelled */ ?>
+
+  <!-- Pickup store info card (shown while not yet delivered) -->
+  <?php if ($isPickup && !$isCancelled && $orderStatus !== 'Delivered'): ?>
+  <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
+      <span class="size-7 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm">🏠</span>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-800">Pickup Location</h3>
+        <p class="text-xs text-gray-400">Visit us to collect your order</p>
+      </div>
+    </div>
+    <div class="p-6 space-y-3">
+      <div class="flex items-start gap-3 p-4 bg-blue-50 rounded-xl">
+        <div class="size-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl shrink-0">📍</div>
+        <div>
+          <p class="text-sm font-bold text-blue-800">St. Joseph Fish Brokerage Inc.</p>
+          <p class="text-xs text-blue-600 mt-0.5">Bulungan Avenue corner HACCP St., NFPC NBBS, Navotas, Philippines</p>
+          <p class="text-xs text-blue-500 mt-1">Boulevard South Proper, Navotas, Philippines</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-2 text-xs text-gray-500">
+        <svg class="size-3.5 text-orange-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Bring your order code <strong class="text-gray-700 font-mono"><?= htmlspecialchars($orderData['order_code']) ?></strong> when you come to collect.
+        <?= $isCOD ? 'Payment of <strong>₱'.number_format($orderData['total_price'], 2).'</strong> is due at pickup.' : '' ?>
+      </div>
+      <?php if (!empty($orderData['delivery_notes'])): ?>
+      <p class="text-xs text-orange-600 italic">"<?= htmlspecialchars($orderData['delivery_notes']) ?>"</p>
+      <?php endif; ?>
+    </div>
+  </div>
   <?php endif; ?>
 
-  <!-- ── Delivery / Rider section ─────────────────────────────────────────── -->
+  <!-- Delivery / Rider section (delivery orders only) -->
   <?php if ($showDelivery): ?>
   <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
@@ -390,9 +503,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         <h3 class="text-sm font-semibold text-gray-800">
           <?= !empty($delivery['is_third_party']) ? '3rd-Party Delivery' : 'Rider Information' ?>
         </h3>
-        <?php
-          $dlStatus = $delivery['delivery_status'] ?? '';
-        ?>
+        <?php $dlStatus = $delivery['delivery_status'] ?? ''; ?>
         <p class="text-xs text-gray-400"><?= htmlspecialchars($dlStatusLabels[$dlStatus] ?? ucfirst($dlStatus)) ?></p>
       </div>
       <?php
@@ -411,9 +522,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
     </div>
 
     <div class="p-6 space-y-5">
-
       <?php if (!empty($delivery['is_third_party'])): ?>
-      <!-- 3rd-party provider card -->
       <div class="flex items-center gap-4 p-4 bg-indigo-50 rounded-xl">
         <div class="size-12 rounded-xl bg-indigo-200 flex items-center justify-center text-2xl shrink-0">🚚</div>
         <div class="flex-1 min-w-0">
@@ -428,9 +537,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         </a>
         <?php endif; ?>
       </div>
-
       <?php else: ?>
-      <!-- Registered rider card -->
       <div class="flex items-center gap-4 p-4 bg-purple-50 rounded-xl">
         <?php if (!empty($delivery['rider_image'])): ?>
         <img src="<?= htmlspecialchars($delivery['rider_image']) ?>" class="size-14 rounded-2xl object-cover border-2 border-purple-200 shrink-0">
@@ -462,24 +569,20 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
       </div>
       <?php endif; ?>
 
-      <!-- Delivery timestamp timeline -->
+      <!-- Delivery timeline -->
       <?php
         if (!empty($delivery['is_third_party'])) {
           $dlSteps = [
-            ['key' => 'assigned_at',  'label' => 'Dispatched via '.htmlspecialchars($delivery['third_party_name'] ?? '3rd Party'), 'icon' => '🚚', 'sub' => '3rd-party pickup requested'],
-            ['key' => 'delivered_at', 'label' => 'Delivered',  'icon' => '✅', 'sub' => 'Delivered to recipient'],
+            ['key'=>'assigned_at', 'label'=>'Dispatched via '.htmlspecialchars($delivery['third_party_name'] ?? '3rd Party'),'icon'=>'🚚','sub'=>'3rd-party pickup requested'],
+            ['key'=>'delivered_at','label'=>'Delivered','icon'=>'✅','sub'=>'Delivered to recipient'],
           ];
         } else {
           $dlSteps = [
-            ['key' => 'assigned_at',  'label' => 'Assigned',   'icon' => '📋', 'sub' => 'Delivery assigned to rider'],
-            ['key' => 'accepted_at',  'label' => 'Accepted',   'icon' => '👍', 'sub' => 'Rider accepted the delivery'],
-            ['key' => 'picked_up_at', 'label' => 'Picked Up',  'icon' => '📦', 'sub' => 'Package collected'],
-            ['key' => 'delivered_at', 'label' => 'Delivered',  'icon' => '✅', 'sub' => 'Delivered to recipient'],
+            ['key'=>'assigned_at',  'label'=>'Assigned',  'icon'=>'📋','sub'=>'Delivery assigned to rider'],
+            ['key'=>'accepted_at',  'label'=>'Accepted',  'icon'=>'👍','sub'=>'Rider accepted the delivery'],
+            ['key'=>'picked_up_at', 'label'=>'Picked Up', 'icon'=>'📦','sub'=>'Package collected'],
+            ['key'=>'delivered_at', 'label'=>'Delivered', 'icon'=>'✅','sub'=>'Delivered to recipient'],
           ];
-        }
-        $lastDone = -1;
-        foreach ($dlSteps as $si => $step) {
-          if (!empty($delivery[$step['key']])) $lastDone = $si;
         }
       ?>
       <div>
@@ -492,9 +595,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
           <div class="dl-step">
             <div class="dl-dot <?= $done ? 'done' : 'idle' ?>"><?= $done ? $step['icon'] : ($si + 1) ?></div>
             <div class="flex-1 min-w-0 pb-1">
-              <p class="text-xs font-semibold <?= $done ? 'text-gray-800' : 'text-gray-400' ?> leading-snug">
-                <?= $step['label'] ?>
-              </p>
+              <p class="text-xs font-semibold <?= $done ? 'text-gray-800' : 'text-gray-400' ?> leading-snug"><?= $step['label'] ?></p>
               <?php if ($done): ?>
               <p class="text-[11px] text-orange-600 font-medium mt-0.5"><?= date('M j, Y · g:i A', strtotime($ts)) ?></p>
               <?php else: ?>
@@ -506,7 +607,6 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         </div>
       </div>
 
-      <!-- ETA if available -->
       <?php if (!empty($delivery['estimated_time']) || !empty($delivery['estimated_distance'])): ?>
       <div class="flex flex-wrap gap-3">
         <?php if (!empty($delivery['estimated_time'])): ?>
@@ -523,15 +623,12 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         <?php endif; ?>
       </div>
       <?php endif; ?>
-
     </div>
   </div>
   <?php endif; /* showDelivery */ ?>
 
-  <!-- ── Order receipt card ───────────────────────────────────────────────── -->
+  <!-- Order receipt card -->
   <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="orderReceipt">
-
-    <!-- Receipt header -->
     <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/60">
       <div class="flex items-center gap-3">
         <img src="./assets/icons/logo.svg" alt="SJFBI Logo" class="size-10">
@@ -547,9 +644,23 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
       </div>
     </div>
 
-    <!-- Delivery + payment info -->
+    <!-- Delivery / Pickup info -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
       <div class="px-6 py-4">
+        <?php if ($isPickup): ?>
+        <!-- Pickup: show contact + store location instead of delivery address -->
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pickup Details</p>
+        <p class="text-sm font-semibold text-gray-800">
+          <?= htmlspecialchars($orderData['recipient_first_name'].' '.$orderData['recipient_last_name']) ?>
+        </p>
+        <div class="mt-2 flex items-center gap-2 text-xs text-blue-600">
+          <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Store Pickup — Bulungan Ave., Navotas</span>
+        </div>
+        <?php if (!empty($orderData['delivery_notes'])): ?>
+        <p class="text-xs text-orange-600 italic mt-1">"<?= htmlspecialchars($orderData['delivery_notes']) ?>"</p>
+        <?php endif; ?>
+        <?php else: ?>
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Deliver To</p>
         <p class="text-sm font-semibold text-gray-800">
           <?= htmlspecialchars($orderData['recipient_first_name'].' '.$orderData['recipient_last_name']) ?>
@@ -560,24 +671,16 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         <?php if (!empty($orderData['delivery_notes'])): ?>
         <p class="text-xs text-orange-600 italic mt-1">"<?= htmlspecialchars($orderData['delivery_notes']) ?>"</p>
         <?php endif; ?>
+        <?php endif; ?>
       </div>
       <div class="px-6 py-4">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment</p>
         <?php
-          $mBadges = [
-            'gcash'    => 'bg-blue-100 text-blue-700',
-            'paymaya'  => 'bg-green-100 text-green-700',
-            'grab_pay' => 'bg-green-100 text-green-700',
-            'qrph'     => 'bg-indigo-100 text-indigo-700',
-            'cod'      => 'bg-orange-100 text-orange-700',
-            'card'     => 'bg-purple-100 text-purple-700',
-          ];
+          $mBadges = ['gcash'=>'bg-blue-100 text-blue-700','paymaya'=>'bg-green-100 text-green-700','grab_pay'=>'bg-green-100 text-green-700','qrph'=>'bg-indigo-100 text-indigo-700','cod'=>'bg-orange-100 text-orange-700','card'=>'bg-purple-100 text-purple-700'];
           $mBadge = $mBadges[strtolower($orderData['payment_method'] ?? '')] ?? 'bg-gray-100 text-gray-600';
         ?>
         <span class="px-2.5 py-1 rounded-full text-xs font-semibold <?= $mBadge ?>"><?= $methodDisplay ?></span>
-        <p class="text-xs text-gray-400 mt-1">
-          Placed <?= date('F j, Y \a\t g:i A', strtotime($orderData['order_date'])) ?>
-        </p>
+        <p class="text-xs text-gray-400 mt-1">Placed <?= date('F j, Y \a\t g:i A', strtotime($orderData['order_date'])) ?></p>
       </div>
     </div>
 
@@ -604,48 +707,36 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
         <?php endforeach; ?>
       </div>
 
-      <!-- Order summary breakdown -->
+      <!-- Summary -->
       <div class="px-6 py-4 bg-gray-50/60 border-t border-gray-100 space-y-2">
         <div class="flex justify-between text-sm text-gray-500">
           <span>Subtotal</span>
-          <span class="font-medium text-gray-800">
-            ₱<?= number_format((float)($orderData['subtotal'] ?? $orderData['total_price']), 2) ?>
-          </span>
+          <span class="font-medium text-gray-800">₱<?= number_format((float)($orderData['subtotal'] ?? $orderData['total_price']), 2) ?></span>
         </div>
-
         <?php if (!empty($orderData['discount_amount']) && (float)$orderData['discount_amount'] > 0): ?>
         <div class="flex justify-between text-sm text-green-600">
-          <span>
-            Discount
-            <?php if (!empty($orderData['voucher_code'])): ?>
-            <span class="text-xs font-normal text-green-500">(<?= htmlspecialchars($orderData['voucher_code']) ?>)</span>
-            <?php endif; ?>
-          </span>
+          <span>Discount<?= !empty($orderData['voucher_code']) ? ' ('.$orderData['voucher_code'].')' : '' ?></span>
           <span class="font-medium">-₱<?= number_format((float)$orderData['discount_amount'], 2) ?></span>
         </div>
         <?php endif; ?>
-
         <div class="flex justify-between text-sm text-gray-500">
           <span>Delivery Fee</span>
           <?php $deliveryFee = (float)($orderData['delivery_fee'] ?? 0); ?>
-          <span class="font-medium <?= $deliveryFee == 0 ? 'text-green-600' : 'text-gray-800' ?>">
-            <?= $deliveryFee == 0 ? 'FREE' : '₱'.number_format($deliveryFee, 2) ?>
+          <span class="font-medium <?= ($deliveryFee == 0 || $isPickup) ? 'text-green-600' : 'text-gray-800' ?>">
+            <?= ($deliveryFee == 0 || $isPickup) ? ($isPickup ? 'FREE (Pickup)' : 'FREE') : '₱'.number_format($deliveryFee, 2) ?>
           </span>
         </div>
-
         <div class="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-200">
           <span>Total</span>
           <span class="text-orange-600">₱<?= number_format((float)$orderData['total_price'], 2) ?></span>
         </div>
-
-        <!-- Payment status -->
         <div class="flex justify-between text-sm pt-1">
           <span class="text-gray-400">Payment Status</span>
           <?php if ($isCOD): ?>
             <?php if ($paymentStatusDisplay === 'Paid'): ?>
-            <span class="font-semibold text-green-600">✓ Paid (COD Collected)</span>
+            <span class="font-semibold text-green-600">✓ Paid (<?= $isPickup ? 'Collected at Pickup' : 'COD Collected' ?>)</span>
             <?php else: ?>
-            <span class="font-semibold text-amber-600">⏳ Cash on Delivery</span>
+            <span class="font-semibold text-amber-600">⏳ <?= $isPickup ? 'Due at Pickup' : 'Cash on Delivery' ?></span>
             <?php endif; ?>
           <?php else: ?>
             <span class="font-semibold text-green-600">✓ Paid (Online)</span>
@@ -654,15 +745,16 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
       </div>
     </div>
   </div>
-  <!-- /orderReceipt -->
 
-  <!-- ── Action buttons ──────────────────────────────────────────────────── -->
+  <!-- Action buttons -->
   <div class="flex flex-col sm:flex-row gap-3 anim-5">
-    <button id="downloadBtn"
-      class="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl transition-all">
+    <a id="downloadPdfBtn"
+      class="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
+      href="./functions/export_receipt.php?order_code=<?= urlencode($orderCode) ?>"
+      target="_blank">
       <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download Receipt
-    </button>
+      Download E-Receipt
+    </a>
     <a href="shop.php"
       class="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 active:scale-95 rounded-xl transition-all">
       <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -679,7 +771,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
 </section>
 <?php endif; /* hasOrder */ ?>
 
-<!-- ── Help strip ─────────────────────────────────────────────────────────── -->
+<!-- Help strip -->
 <section class="py-10 px-4 border-t border-gray-100">
   <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
     <div>
@@ -695,24 +787,7 @@ $fillPct     = $isCancelled ? 0 : ($totalSteps > 0 ? round(($currentStep / $tota
 <?php include('./components/footer.php'); ?>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
-<script>
-  AOS.init();
-  const downloadBtn = document.getElementById('downloadBtn');
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', function () {
-      const receipt = document.getElementById('orderReceipt');
-      if (!receipt) return;
-      this.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="60" stroke-dashoffset="30"/></svg> Generating…';
-      html2canvas(receipt, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL('image/png');
-        link.download = '<?= htmlspecialchars($orderData['order_code'] ?? 'receipt') ?>_receipt.png';
-        link.click();
-        this.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Receipt';
-      });
-    });
-  }
-</script>
+<script>AOS.init();</script>
 <script src="node_modules/preline/dist/preline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
 <?php include('live_chat.php'); ?>

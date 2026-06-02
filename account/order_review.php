@@ -179,7 +179,7 @@ try {
 
 </head>
 <body>
-<?php include('../components/preloader.php'); ?>
+<?php include('../components/preloaders.php'); ?>
 
 <section id="order-success-section" class="flex-grow">
   <?php include('./components/navigation.php'); ?>

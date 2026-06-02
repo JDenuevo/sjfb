@@ -1,97 +1,99 @@
 <?php
+// functions/fetch_cart_items.php
+// Returns JSON: { status, cart_items (HTML), cart_total, cart_count }
+// Used by: cart.php sidebar, to_checkout.php, products.php, item.php
 session_start();
 header('Content-Type: application/json');
-
-// Error handling for production
-error_reporting(E_ALL);
+error_reporting(0);
 ini_set('display_errors', 0);
-ini_set('log_errors', 1);
 
-function sendError($message) {
-    echo json_encode(['status' => 'error', 'message' => $message]);
-    exit;
+$cart = $_SESSION['cart'] ?? [];
+
+function _fci_formatUnit(string $u): string {
+    return match($u) {
+        'piece'    => 'pcs',
+        'kilogram' => 'kg',
+        'gram'     => 'g',
+        'pack'     => 'pk',
+        'banyera'     => 'bny',
+        'box'     => 'bx',
+        'sack'     => 'sck',
+        'tray'    => 'tray',
+        default    => $u ?: 'pcs',
+    };
 }
+$html = '';
+$total = 0;
 
-try {
-    $cart = $_SESSION['cart'] ?? [];
-    $response = [
-        'status' => 'success',
-        'cart_items' => '',
-        'cart_total' => 0,
-        'cart_count' => count($cart)
-    ];
+if (!empty($cart)) {
+    ob_start();
+    foreach ($cart as $index => $item) {
+        $unitType  = $item['unit_type']       ?? 'piece';
+        $minOrder  = (float)($item['minimum_order']  ?? 1);
+        $orderIncr = (float)($item['order_increment'] ?? 1);
+        $qty       = (float)($item['quantity'] ?? $minOrder);
+        $price     = (float)($item['price']    ?? 0);
+        $unitLabel = _fci_formatUnit($unitType);
+        $displayQty = $unitType === 'piece' ? (int)$qty : $qty;
+        $linePrice  = $price * $qty;
+        $total     += $linePrice;
+    ?>
+    <div class="cart-item flex items-start gap-3 p-4 border-b border-gray-100 last:border-b-0"
+         data-cart-index="<?= $index ?>"
+         data-product-id="<?= htmlspecialchars((string)($item['product_id']  ?? '')) ?>"
+         data-variant-id="<?= htmlspecialchars((string)($item['variant_id']  ?? '')) ?>"
+         data-unit-type="<?= htmlspecialchars($unitType) ?>"
+         data-minimum-order="<?= $minOrder ?>"
+         data-order-increment="<?= $orderIncr ?>"
+         data-price-per-unit="<?= $price ?>">
 
-    function formatUnit($unitType) {
-        switch ($unitType) {
-            case 'piece': return 'pcs';
-            case 'kg': return 'kg';
-            case 'gram': return 'g';
-            case 'liter': return 'L';
-            default: return $unitType;
-        }
-    }
+        <img src="<?= htmlspecialchars($item['image_url'] ?? '') ?>"
+             alt="<?= htmlspecialchars($item['product_name'] ?? '') ?>"
+             class="w-16 h-16 object-cover rounded-xl border border-gray-100 shrink-0">
 
-    if (!empty($cart)) {
-        ob_start();
-        foreach ($cart as $index => $item) {
-            $unitType = $item['unit_type'] ?? 'piece';
-            $minimumOrder = $item['minimum_order'] ?? 1;
-            $orderIncrement = $item['order_increment'] ?? 1;
-            $unitLabel = formatUnit($unitType);
-            ?>
-            <div class="cart-item flex items-start mb-4 pb-2 border-b border-gray-200" 
-                 data-cart-index="<?= $index ?>"
-                 data-product-id="<?= htmlspecialchars($item['product_id']) ?>" 
-                 data-variant-id="<?= htmlspecialchars($item['variant_id']) ?>"
-                 data-unit-type="<?= htmlspecialchars($unitType) ?>"
-                 data-minimum-order="<?= $minimumOrder ?>"
-                 data-order-increment="<?= $orderIncrement ?>">
-                <img src="<?= htmlspecialchars($item['image_url']) ?>" 
-                     alt="<?= htmlspecialchars($item['product_name']) ?>" 
-                     class="w-24 h-24 p-2 object-cover rounded-3xl mr-6">
-                <div class="flex-grow">
-                    <h3 class="font-medium text-base mb-2">
-                        <?= htmlspecialchars($item['product_name']) ?>
-                    </h3>
-                    <p class="text-sm text-gray-500 mb-1"><?= htmlspecialchars($item['variant_name']) ?></p>
-                    <p class="text-xs text-gray-400 mb-2">Min: <?= $minimumOrder . ' ' . $unitLabel ?></p>
-                    <div class="flex items-center justify-between mt-2">
-                        <div class="flex items-center gap-2">
-                            <div class="flex items-center border border-gray-300 rounded">
-                                <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">-</button>
-                                <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" 
-                                       value="<?= htmlspecialchars($item['quantity']) ?>" readonly>
-                                <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600 hover:text-white">+</button>
-                            </div>
-                            &nbsp;
-                            <span class="text-xs text-gray-500"><?= $unitLabel ?></span>
-                        </div>
-                        <span class="price ml-4 font-medium text-sm">
-                            ₱<?= number_format($item['price'] * $item['quantity'], 2) ?>
-                        </span>
-                    </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-800 truncate">
+                <?= htmlspecialchars($item['product_name'] ?? 'Unknown Product') ?>
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
+                <?= htmlspecialchars($item['variant_name'] ?? '') ?>
+            </p>
+            <p class="text-xs text-gray-400">Min: <?= $minOrder ?> <?= $unitLabel ?></p>
+
+            <div class="flex items-center justify-between mt-2">
+                <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                    <button type="button"
+                            class="decrease-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">−</button>
+                    <input type="number"
+                           class="quantity w-14 text-center text-xs font-semibold bg-transparent border-0 py-1 focus:outline-none"
+                           value="<?= $displayQty ?>"
+                           min="<?= $minOrder ?>"
+                           step="<?= $orderIncr ?>">
+                    <button type="button"
+                            class="increase-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">+</button>
                 </div>
-                <button type="button" class="remove text-red-500 hover:text-red-700 ml-4">
-                    <svg class="w-9 h-9" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 6 6 18"></path>
-                        <path d="m6 6 12 12"></path>
-                    </svg>
-                </button>
+                <span class="item-price text-sm font-bold text-gray-800">
+                    ₱<?= number_format($linePrice, 2) ?>
+                </span>
             </div>
-            <?php
-        }
-        $response['cart_items'] = ob_get_clean();
-        $response['cart_total'] = array_sum(array_map(function($item) {
-            return $item['price'] * $item['quantity'];
-        }, $cart));
-    } else {
-        $response['cart_items'] = '<p class="text-center text-gray-500">Your cart is empty.</p>';
-    }
+        </div>
 
-    echo json_encode($response);
-    exit;
-} catch (Exception $e) {
-    error_log("Fetch cart items error: " . $e->getMessage());
-    sendError('An error occurred while loading cart items');
+        <button type="button" class="remove shrink-0 text-gray-300 hover:text-red-500 transition-colors mt-1" title="Remove">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+        </button>
+    </div>
+    <?php
+    }
+    $html = ob_get_clean();
+} else {
+    $html = '<p style="text-align:center;color:#9ca3af;padding:2rem 0;font-size:.875rem">Your cart is empty.</p>';
 }
-?>
+
+echo json_encode([
+    'status'     => 'success',
+    'cart_items' => $html,
+    'cart_total' => $total,
+    'cart_count' => count($cart),
+]);

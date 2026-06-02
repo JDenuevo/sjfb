@@ -26,6 +26,13 @@ $user_groups = getUserGroups($account_id, $conn);
 // Validate voucher
 $voucher = validateVoucher($code, $cart_total, $user_groups, $account_id, $conn);
 
+// Check usage limits
+$limitCheck = checkVoucherLimits($voucher['voucher_id'], $account_id, $conn);
+if ($limitCheck !== true) {
+    echo json_encode(['success' => false, 'message' => $limitCheck['error']]);
+    exit;
+}
+
 if (isset($voucher['error'])) {
     echo json_encode(['success' => false, 'message' => $voucher['error']]);
     exit;

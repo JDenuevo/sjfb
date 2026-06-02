@@ -45,6 +45,11 @@ if (isset($_GET['resend']) && isset($_SESSION['email'])) {
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
+
+   <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <style>

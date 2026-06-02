@@ -62,8 +62,8 @@ $priceOptions = [
 // Total product count
 $total_query  = "SELECT COUNT(DISTINCT p.product_id) as total 
                  FROM products p 
-                 JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0
-                 WHERE p.is_deleted = 0 AND pv.stock_quantity > 0";
+                 JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.is_hidden = 0
+                 WHERE p.is_deleted = 0 AND p.is_hidden = 0 AND pv.stock_quantity > 0";
 $total_result = $conn->query($total_query);
 $total_count  = $total_result ? $total_result->fetch_assoc()['total'] : 0;
 
@@ -74,8 +74,8 @@ $cat_res = $conn->query(
           COUNT(DISTINCT pcl.product_id) AS product_count
    FROM product_categories pc
    LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
-   LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
-   LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.stock_quantity > 0
+   LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0 AND p.is_hidden = 0
+   LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.is_hidden = 0 AND pv.stock_quantity > 0
    WHERE pc.parent_id IS NULL AND pc.is_active = 1
    GROUP BY pc.category_id
    ORDER BY pc.sort_order ASC, pc.category_name ASC"
@@ -88,8 +88,8 @@ if ($cat_res) {
               COUNT(DISTINCT pcl.product_id) AS product_count
        FROM product_categories pc
        LEFT JOIN product_category_links pcl ON pc.category_id = pcl.category_id
-       LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0
-       LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.stock_quantity > 0
+       LEFT JOIN products p ON pcl.product_id = p.product_id AND p.is_deleted = 0 AND p.is_hidden = 0
+       LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = 0 AND pv.is_hidden = 0 AND pv.stock_quantity > 0
        WHERE pc.parent_id = ? AND pc.is_active = 1
        GROUP BY pc.category_id ORDER BY pc.sort_order ASC, pc.category_name ASC"
     );
@@ -357,10 +357,10 @@ function isCatSlugSelected(string $slug, array $selectedSlugs): bool {
                 GROUP_CONCAT(DISTINCT c.category_name ORDER BY c.category_name SEPARATOR ', ') AS category_names
               FROM products p
               LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
-              LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.is_deleted = 0
+              LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.is_deleted = 0 AND v.is_hidden = 0
               LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
               LEFT JOIN product_categories c ON pcl.category_id = c.category_id AND c.is_active = 1
-              WHERE p.is_deleted = 0";
+              WHERE p.is_deleted = 0 AND p.is_hidden = 0";
 
         $fp_params = []; $fp_types = '';
 

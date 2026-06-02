@@ -108,10 +108,12 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
 
   <?php include('../components/preloaders.php'); ?>
   <?php include('../components/navigation.php'); ?>
+  <?php include('../components/nav_crumb.php'); ?>
 
   <!-- Blog Grid -->
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <?php include('../components/nav_crumb.php'); ?>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <?php include('../components/nav_crumb.php'); ?>
+
     <div class="text-center mb-12" data-aos="fade-up">
       <span class="section-eyebrow justify-center">Latest Insights</span>
       <h2 class="font-display text-3xl md:text-4xl font-bold text-gray-900">Blogs / News &amp; Updates</h2>

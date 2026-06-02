@@ -70,14 +70,9 @@
     };
 
     // ── CHECKOUT ORDER SUMMARY RELOAD ─────────────────────────────────────────
-    //
-    // On the checkout page we reload the entire order summary from the server
-    // after every quantity change. This guarantees PHP is the single source of
-    // truth — no JS math, no stale DOM values, no doubling bugs.
-    //
-    // Non-checkout pages (shop, cart sidebar) still use the lightweight
-    // recalcTotals() path below.
-    //
+    // This is the SINGLE source of truth for all checkout totals.
+    // It sets every number — subtotal, delivery, discount, grand total, hidden fields.
+    // Nothing else should be recalculating totals on the checkout page.
     var _summaryDebounce = null;
 
     function _reloadOrderSummary() {
@@ -88,12 +83,17 @@
 
         fetch(url)
             .then(function (r) { return r.json(); })
+            // ── FIX 1: response object was named 'd' throughout but one block
+            //           accidentally referenced 'data' (undefined) — causing a
+            //           ReferenceError that aborted the entire update and fell
+            //           through to recalcTotals() which ignored delivery fee.
+            //           Now all references consistently use 'd'. ──────────────
             .then(function (d) {
                 if (!d.success) return;
 
-                // Replace cart items HTML
+                // Cart items HTML
                 var list = document.getElementById('cart-items-list');
-                if (list) list.innerHTML = d.items_html;
+                if (list && d.items_html) list.innerHTML = d.items_html;
 
                 // Subtotal
                 var st = document.getElementById('cart-subtotal');
@@ -103,50 +103,80 @@
                 var fd = document.getElementById('delivery-fee-display');
                 if (fd) {
                     fd.textContent = d.fee_display;
-                    fd.className   = d.fee_class;
+                    fd.className   = d.fee_class || '';
                 }
 
-                // Free shipping banner
+                // City hint (fuzzy match / fallback)  ← FIX: was referencing 'data' not 'd'
+                var cityHint = document.getElementById('city-fee-preview');
+                if (cityHint) {
+                    if (d.fuzzy_match) {
+                        cityHint.innerHTML =
+                            '⚠️ Matched to <strong>' + d.city + '</strong> — ' +
+                            '<a href="#" id="city-confirm-link" class="text-orange-500 underline">use this city?</a>';
+                        var lnk = document.getElementById('city-confirm-link');
+                        if (lnk) lnk.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            var citySelect = document.getElementById('City');
+                            if (citySelect) citySelect.value = d.city;
+                            cityHint.textContent = '';
+                            _reloadOrderSummary();
+                        });
+                    } else if (d.fallback) {
+                        cityHint.textContent = '⚠️ City not found — default ₱250.00 fee applies.';
+                    } else {
+                        cityHint.textContent = '';
+                    }
+                }
+
                 // Discount line
-                if (d.discount > 0) {
-                    var dl = document.getElementById('discount-line-container');
+                var dl = document.getElementById('discount-line-container');
+                var da = document.getElementById('discount-amount');
+                if (d.discount && parseFloat(d.discount) > 0) {
                     if (dl) dl.classList.remove('hidden');
-                    var da = document.getElementById('discount-amount');
                     if (da) da.textContent = '-₱' + parseFloat(d.discount).toLocaleString('en-PH', { minimumFractionDigits: 2 });
                 }
 
-                // Grand total
+                // ── Grand total — server is authoritative, set it directly ──
                 var gt = document.getElementById('cart-grand-total');
                 if (gt) gt.textContent = '₱' + parseFloat(d.grand_total).toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
-                // Hidden form fields
+                // Hidden form fields (submitted to add.php)
                 var si = document.getElementById('subtotal_input');
                 if (si) si.value = parseFloat(d.subtotal).toFixed(2);
+
+                // ── FIX 2: set delivery_fee_input WITHOUT the intercepted value
+                //           setter (which was one of three sources triggering a
+                //           racing recalcGrandTotal). Use the raw prototype set. ──
                 var fi = document.getElementById('delivery_fee_input');
-                if (fi) fi.value = parseFloat(d.delivery_fee).toFixed(2);
+                if (fi) {
+                    // Write directly via prototype to avoid any overridden setter
+                    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
+                          .set.call(fi, parseFloat(d.delivery_fee).toFixed(2));
+                }
+
                 var ta = document.getElementById('total_amount');
                 if (ta) ta.value = parseFloat(d.grand_total).toFixed(2);
 
                 // Cart count badge
-                _applyCountToDOM(d.cart_count);
+                if (d.cart_count != null) _applyCountToDOM(d.cart_count);
 
                 // Re-init decrease button states after HTML replacement
                 _initDecreaseStates();
 
-                // Notify to_checkout.php that stock state may have changed
+                // Notify to_checkout.php stock checker
                 if (typeof window._checkAllStock === 'function') window._checkAllStock();
             })
-            .catch(function () {
-                // On network error fall back to a simple recalc so page isn't broken
+            .catch(function (err) {
+                // On network error fall back to lightweight DOM recalc
+                // (does NOT include delivery fee — only used as last resort)
+                console.warn('Order summary reload failed:', err);
                 recalcTotals();
             });
     }
 
-    // ── RECALC TOTALS (non-checkout pages only) ───────────────────────────────
-    //
-    // Used by: cart sidebar (shop.php, item.php, any non-checkout page).
-    // On checkout, _reloadOrderSummary() is used instead.
-    //
+    // ── RECALC TOTALS (non-checkout pages / last-resort fallback only) ────────
+    // This sums up line items in the cart sidebar. It does NOT know the delivery
+    // fee so it should NEVER be used as the primary calculator on checkout.php.
     window.recalcTotals = function () {
         var total = 0;
         document.querySelectorAll('#cart-items-list .cart-item').forEach(function (item) {
@@ -156,9 +186,7 @@
             var line  = qty * price;
             total += line;
             var priceEl = item.querySelector('.item-price, .price');
-            if (priceEl) {
-                priceEl.textContent = '₱' + line.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-            }
+            if (priceEl) priceEl.textContent = '₱' + line.toLocaleString('en-PH', { minimumFractionDigits: 2 });
         });
 
         var fmt = total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -166,14 +194,17 @@
         var sidebarTotal = document.getElementById('cart-total-sidebar');
         if (sidebarTotal) sidebarTotal.textContent = '₱' + fmt;
 
-        var subtotalEl = document.getElementById('cart-subtotal');
-        if (subtotalEl) subtotalEl.textContent = '₱' + fmt;
-
-        var gt = document.getElementById('cart-grand-total');
-        if (gt) gt.textContent = '₱' + fmt;
-
-        var ht = document.getElementById('total_amount');
-        if (ht) ht.value = total.toFixed(2);
+        // On checkout: do NOT touch grand-total or total_amount here.
+        // Those are owned by _reloadOrderSummary which includes delivery + discount.
+        var onCheckout = typeof window.updateDeliveryFee === 'function';
+        if (!onCheckout) {
+            var subtotalEl = document.getElementById('cart-subtotal');
+            if (subtotalEl) subtotalEl.textContent = '₱' + fmt;
+            var gt = document.getElementById('cart-grand-total');
+            if (gt) gt.textContent = '₱' + fmt;
+            var ht = document.getElementById('total_amount');
+            if (ht) ht.value = total.toFixed(2);
+        }
     };
 
     // ── APPLY QTY ─────────────────────────────────────────────────────────────
@@ -194,8 +225,7 @@
 
         if (qtyInput) qtyInput.value = display;
 
-        // Optimistic UI: update qty display and item price immediately
-        // so the user sees instant feedback before the server reload lands.
+        // Optimistic UI: update line price immediately for instant feedback
         var price   = parseFloat(item.dataset.pricePerUnit) || 0;
         var lineAmt = display * price;
         var priceEl = item.querySelector('.item-price');
@@ -208,14 +238,14 @@
             decBtn.classList.toggle('cursor-not-allowed', atMin);
         }
 
-        // Sync quantity to server session first, then reload the summary
+        // Sync to server, then reload the full summary (checkout) or recalc (elsewhere)
         _syncQtyToServer(parseInt(item.dataset.cartIndex), snapped, function () {
             if (typeof window.updateDeliveryFee === 'function') {
-                // CHECKOUT: reload full order summary from server
+                // CHECKOUT: always reload full summary from server (single source of truth)
                 clearTimeout(_summaryDebounce);
                 _summaryDebounce = setTimeout(_reloadOrderSummary, 150);
             } else {
-                // NON-CHECKOUT: lightweight DOM recalc is fine
+                // NON-CHECKOUT: lightweight DOM recalc is sufficient
                 recalcTotals();
             }
         });
@@ -284,7 +314,6 @@
                 el.style.margin     = '0';
                 setTimeout(function () {
                     if (el.parentNode) el.parentNode.removeChild(el);
-                    // After DOM removal, reload summary (checkout) or recalc (elsewhere)
                     if (typeof window.updateDeliveryFee === 'function') {
                         _reloadOrderSummary();
                     } else {
@@ -321,7 +350,7 @@
         });
     };
 
-    // ── REFRESH FROM SERVER (cart sidebar) ────────────────────────────────────
+    // ── REFRESH FROM SERVER (cart sidebar on non-checkout pages) ──────────────
     window.refreshCartFromServer = function () {
         return fetch(BASE + '/functions/fetch_cart_items.php')
             .then(function (r) {
@@ -348,7 +377,7 @@
     };
     window.updateCartUI = window.refreshCartFromServer;
 
-    // ── Expose reload for to_checkout.php ────────────────────────────────────
+    // Expose reload for to_checkout.php
     window.reloadOrderSummary = _reloadOrderSummary;
 
     // ── INTERNALS ─────────────────────────────────────────────────────────────
@@ -368,8 +397,6 @@
     }
 
     // ── EVENT DELEGATION ──────────────────────────────────────────────────────
-    // Scoped strictly to #cart-items-list .cart-item — never fires for
-    // .add-to-cart-form buttons on product cards (product_process.js handles those).
     var _attached = false;
     window.initCartHandlers = function () {
         if (_attached) return;
@@ -396,7 +423,6 @@
             }
         });
 
-        // Typed qty — commit on blur/Enter
         document.addEventListener('change', function (e) {
             if (!e.target.classList.contains('quantity')) return;
             var cartItem = e.target.closest ? e.target.closest('#cart-items-list .cart-item') : null;

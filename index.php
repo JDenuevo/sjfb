@@ -88,6 +88,265 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
     body { font-family: 'Lexend', sans-serif; }
     .font-display { font-family: 'Playfair Display', serif; }
 
+    /* ── Hero tokens ────────────────────────────────────────────────── */
+    :root {
+      --h-mobile:  clamp(280px, 52vw, 380px);
+      --h-tablet:  clamp(340px, 45vw, 440px);
+      --h-desktop: clamp(380px, 38vw, 520px);
+      --slide-dur: 600ms;
+      --ease-slide: cubic-bezier(.45,0,.15,1);
+    }
+    
+    /* ── Wrapper ────────────────────────────────────────────────────── */
+    #hero-wrap {
+      position: relative;
+      width: 100%;
+      height: var(--h-mobile);
+      overflow: hidden;
+      background: #0f1923;
+      /* GPU layer — prevents repaints on slide */
+      transform: translateZ(0);
+    }
+    @media (min-width: 640px)  { #hero-wrap { height: var(--h-tablet); } }
+    @media (min-width: 1024px) { #hero-wrap { height: var(--h-desktop); } }
+    
+    /* ── Track ──────────────────────────────────────────────────────── */
+    #hero-track {
+      display: flex;
+      height: 100%;
+      will-change: transform;
+      transition: transform var(--slide-dur) var(--ease-slide);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #hero-track { transition: none; }
+    }
+    
+    /* ── Individual slide ───────────────────────────────────────────── */
+    .hero-slide {
+      flex: 0 0 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Background image layer */
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      /* Ken-Burns only on active slide */
+      transition: transform 8s linear;
+      transform: scale(1.06);
+    }
+    .hero-slide.is-active .hero-bg {
+      transform: scale(1);
+    }
+    
+    /* Gradient overlay — stronger on mobile for legibility */
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to top,   rgba(0,0,0,.72) 0%, transparent 55%),
+        linear-gradient(to right, rgba(0,0,0,.62) 0%, transparent 65%);
+    }
+    @media (min-width: 768px) {
+      .hero-overlay {
+        background:
+          linear-gradient(to top,   rgba(0,0,0,.55) 0%, transparent 50%),
+          linear-gradient(to right, rgba(0,0,0,.70) 0%, transparent 60%);
+      }
+    }
+    
+    /* Content */
+    .hero-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;          /* bottom-aligned on mobile */
+      padding: 1.25rem 1.125rem 1.5rem;
+      /* Staggered reveal on active */
+      pointer-events: none;
+    }
+    @media (min-width: 640px) {
+      .hero-content {
+        align-items: center;          /* vertically centred on larger screens */
+        padding: 2rem 3rem;
+      }
+    }
+    @media (min-width: 1024px) {
+      .hero-content { padding: 2.5rem 4rem; }
+    }
+    
+    .hero-inner {
+      max-width: min(560px, 100%);
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity .45s ease .18s, transform .45s ease .18s;
+      pointer-events: auto;
+    }
+    .hero-slide.is-active .hero-inner {
+      opacity: 1;
+      transform: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-inner { transition: none; opacity: 1; transform: none; }
+    }
+    
+    /* Tag pill */
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: .375rem;
+      background: #ea580c;
+      color: #fff;
+      font-size: .6875rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .25rem .75rem;
+      border-radius: 9999px;
+      margin-bottom: .625rem;
+      /* Slight delay after headline */
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .35s ease .05s, transform .35s ease .05s;
+    }
+    .hero-slide.is-active .hero-tag {
+      opacity: 1; transform: none;
+    }
+    
+    /* Headline */
+    .hero-h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.375rem, 4.5vw, 2.75rem);
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.18;
+      margin: 0 0 .5rem;
+      text-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
+    
+    /* Sub */
+    .hero-sub {
+      font-size: clamp(.75rem, 2vw, .9375rem);
+      color: rgba(255,255,255,.82);
+      line-height: 1.55;
+      margin: 0 0 1rem;
+      max-width: 38ch;
+    }
+    @media (max-width: 479px) {
+      /* Compact: hide sub on very small screens to save space */
+      .hero-sub { display: none; }
+    }
+    
+    /* CTA button */
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: #ea580c;
+      color: #fff;
+      font-size: .8125rem;
+      font-weight: 700;
+      padding: .5625rem 1.125rem;
+      border-radius: .5rem;
+      text-decoration: none;
+      transition: background .15s, transform .12s;
+      white-space: nowrap;
+    }
+    .hero-cta:hover  { background: #c2410c; transform: translateY(-1px); }
+    .hero-cta:active { transform: scale(.97); }
+    .hero-cta svg   { flex-shrink: 0; }
+    
+    /* ── Arrow buttons ──────────────────────────────────────────────── */
+    .hero-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 50%;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.25);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, transform .12s;
+    }
+    .hero-arrow:hover  { background: rgba(255,255,255,.28); transform: translateY(calc(-50% - 1px)); }
+    .hero-arrow:active { transform: translateY(-50%) scale(.94); }
+    #hero-prev { left: .75rem; }
+    #hero-next { right: .75rem; }
+    @media (max-width: 479px) {
+      /* Smaller arrows on tiny screens */
+      .hero-arrow { width: 1.875rem; height: 1.875rem; }
+      #hero-prev { left: .5rem; }
+      #hero-next { right: .5rem; }
+    }
+    
+    /* ── Progress dots ──────────────────────────────────────────────── */
+    #hero-dots {
+      position: absolute;
+      bottom: .875rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: .375rem;
+    }
+    .hero-dot {
+      height: 4px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,.35);
+      cursor: pointer;
+      transition: width .3s ease, background .3s ease;
+      width: 18px;
+      border: none;
+      padding: 0;
+    }
+    .hero-dot.is-active {
+      width: 32px;
+      background: #ea580c;
+    }
+    
+    /* ── Progress bar (auto-play timer) ────────────────────────────── */
+    #hero-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: #ea580c;
+      z-index: 20;
+      width: 0%;
+      transition: width linear;
+      opacity: .7;
+    }
+    
+    /* ── Slide counter (top-right) ──────────────────────────────────── */
+    #hero-counter {
+      position: absolute;
+      top: .875rem;
+      right: .875rem;
+      z-index: 20;
+      font-size: .6875rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: rgba(255,255,255,.65);
+      background: rgba(0,0,0,.28);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      padding: .2rem .6rem;
+      border-radius: 9999px;
+      pointer-events: none;
+    }
+
     /* Eyebrow label — orange accent line matches sustainability */
     .section-eyebrow {
       display: inline-flex;
@@ -108,65 +367,6 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
       background: #fb923c;
     }
 
-    .home-hero {
-      height: 90vh;
-      min-height: 580px;
-    }
-
-    .home-hero__bg {
-      transform: scale(1.05);
-      transition: transform 8s ease-out;
-    }
-    .home-hero__bg.loaded { transform: scale(1); }
-    
-    /* Wave divider */
-    .wave-divider { display: block; line-height: 0; }
-
-    /* ── Scroll indicator bounce ── */
-    @keyframes soft-bounce {
-      0%,100% { transform: translateY(0); }
-      40%      { transform: translateY(-12px); }
-      70%      { transform: translateY(-5px); }
-    }
-    .animate-soft-bounce { animation: soft-bounce 2s ease-in-out infinite; }
-
-    /* ── Stat card impact numbers ── */
-    .impact-num {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #fff, rgba(255,255,255,.75));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1;
-    }
-
-    /* ── Feature card hover accent line ── */
-    .feat-card {
-      position: relative;
-      overflow: hidden;
-    }
-    .feat-card::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #f97316, #fbbf24);
-      transform: scaleX(0);
-      transition: transform .3s ease;
-    }
-    .feat-card:hover::after { transform: scaleX(1); }
-
-    /* ── Check dot (from sustainability) ── */
-    .check-dot {
-      width: 1.5rem; height: 1.5rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-
     /* ── Blog card ── */
     .blog-card {
       transition: transform .3s ease, box-shadow .3s ease;
@@ -175,11 +375,6 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
       transform: translateY(-6px);
       box-shadow: 0 20px 40px rgba(249,115,22,.12);
     }
-
-    /* ── Image zoom (from sustainability) ── */
-    .img-zoom { position: relative; overflow: hidden; border-radius: 1.5rem; }
-    .img-zoom img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; }
-    .img-zoom:hover img { transform: scale(1.04); }
 
     /* ── Decorative blobs ── */
     .blob-decoration {
@@ -223,42 +418,122 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
   </style>
 </head>
 
-<body id="content" class="bg-white">
+<body class="bg-white">
   <?php include './components/preloaders.php'; ?>
   <?php include './components/navigation.php'; ?>
   <?php include './components/nav_crumb.php'; ?>
   
-
-  <!-- ══════════════════════════════════════════════
-       HERO — parallax bg + orange-to-amber gradient
-  ══════════════════════════════════════════════ -->
-    <div class="home-hero relative overflow-hidden rounded-2xl items-center" data-aos="fade-down">
-      <img src="./assets/images/contents/herobanner.png" 
-        alt="St. Joseph Fish Brokerage Navotas Fish Port Complex" 
-        loading="eager" 
-        class="absolute bottom-0 left-0 w-full h-auto min-h-full object-cover z-0 home-hero__bg">
-      <div class="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">
-        <!-- Scroll indicator -->
-        <a id="scroll-indicator" href="#explore-more"
-          class="absolute bottom-10 pb-5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 cursor-pointer animate-soft-bounce text-white hover:text-white transition-colors">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 7a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z"/>
-            <path d="M12 7v4"/>
-          </svg>
-
-          <span class="text-xs font-medium">Scroll to explore</span>
-        </a>
+  <!-- ═══════════ HERO ═══════════ -->
+  <div id="hero-wrap" role="region" aria-label="Hero slideshow" aria-roledescription="carousel">
+  
+    <!-- Slides track -->
+    <div id="hero-track" aria-live="polite">
+      <?php
+      $slides = [
+        [
+          'bg'       => '#1e3a5f',
+          'image'    => $baseUrl . 'assets/images/contents/hero_banner.png',
+          'tag'      => 'Fresh Daily',
+          'headline' => 'Premium Seafood<br>Direct from the Port',
+          'sub'      => 'Bangus, Tilapia, Crab — fresh catch delivered straight from Navotas Fish Port.',
+          'cta_text' => 'Shop Now',
+          'cta_url'  => $baseUrl . 'shop.php',
+        ],
+        [
+          'bg'       => '#14532d',
+          'image'    => $baseUrl . 'assets/images/contents/hero_baner.png',
+          'tag'      => 'Best Sellers',
+          'headline' => 'Bangus Pangasinan<br>Now Available',
+          'sub'      => 'Premium milkfish sourced from Pangasinan — firm texture, clean taste.',
+          'cta_text' => 'Order Now',
+          'cta_url'  => $baseUrl . 'item/bangus-pangasinan',
+        ],
+        [
+          'bg'       => '#7c2d12',
+          'image'    => $baseUrl . 'assets/images/contents/hero_baner.png',
+          'tag'      => 'Wholesale',
+          'headline' => 'Bulk Orders<br>Welcome',
+          'sub'      => 'Competitive pricing for restaurants, retailers, and food businesses.',
+          'cta_text' => 'Contact Us',
+          'cta_url'  => $baseUrl . 'contact.php',
+        ],
+        [
+          'bg'       => '#1e3a5f',
+          'image'    => $baseUrl . 'assets/images/contents/hero_anner.png',
+          'tag'      => 'New Arrivals',
+          'headline' => 'Fresh Catch<br>Every Morning',
+          'sub'      => 'Order before 10AM for same-day dispatch from our Navotas facility.',
+          'cta_text' => 'Browse Products',
+          'cta_url'  => $baseUrl . 'shop.php',
+        ],
+      ];
+      ?>
+  
+      <?php foreach ($slides as $i => $s): ?>
+      <div class="hero-slide<?= $i === 0 ? ' is-active' : '' ?>"
+          role="group"
+          aria-roledescription="slide"
+          aria-label="Slide <?= $i+1 ?> of <?= count($slides) ?>"
+          aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
+  
+        <!-- Background image + Ken-Burns zoom -->
+        <div class="hero-bg"
+            style="background-image:url('<?= htmlspecialchars($s['image']) ?>');background-color:<?= $s['bg'] ?>"></div>
+  
+        <!-- Dark overlay -->
+        <div class="hero-overlay"></div>
+  
+        <!-- Text content -->
+        <div class="hero-content">
+          <div class="hero-inner">
+            <span class="hero-tag"><?= htmlspecialchars($s['tag']) ?></span>
+            <h1 class="hero-h1"><?= $s['headline'] ?></h1>
+            <p class="hero-sub"><?= htmlspecialchars($s['sub']) ?></p>
+            <a href="<?= htmlspecialchars($s['cta_url']) ?>" class="hero-cta">
+              <?= htmlspecialchars($s['cta_text']) ?>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+  
       </div>
-      <!-- Wave bottom -->
-      <div class="absolute bottom-0 left-0 right-0 z-10">
-        <svg viewBox="0 0 1440 80" fill="none" preserveAspectRatio="none" style="width:100%;display:block">
-          <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z" fill="white"/>
-        </svg>
-      </div>
+      <?php endforeach; ?>
+    </div><!-- /track -->
+  
+    <!-- Prev arrow -->
+    <button id="hero-prev" class="hero-arrow" aria-label="Previous slide">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+  
+    <!-- Next arrow -->
+    <button id="hero-next" class="hero-arrow" aria-label="Next slide">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </button>
+  
+    <!-- Dot nav -->
+    <div id="hero-dots" role="tablist" aria-label="Slide navigation">
+      <?php foreach ($slides as $i => $s): ?>
+      <button class="hero-dot<?= $i === 0 ? ' is-active' : '' ?>"
+              role="tab"
+              aria-selected="<?= $i === 0 ? 'true' : 'false' ?>"
+              aria-label="Go to slide <?= $i+1 ?>: <?= htmlspecialchars($s['tag']) ?>">
+      </button>
+      <?php endforeach; ?>
     </div>
-  <!-- End Hero -->
+  
+    <!-- Slide counter -->
+    <div id="hero-counter" aria-hidden="true">1 / <?= count($slides) ?></div>
+  
+    <!-- Auto-play progress bar -->
+    <div id="hero-progress" aria-hidden="true"></div>
+  
+  </div><!-- /hero-wrap -->
 
    <!-- ══════════════════════════════════════════════
        EXPLORE / ABOUT COMPONENT
@@ -460,6 +735,7 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
   <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+  <script src="https://preline.co/assets/js/preline.js"></script>
   <?php include('live_chat.php'); ?>
 
   <script src="./functions/product_process.js"></script>
@@ -510,6 +786,142 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
     gtag('config', 'G-B73TDMXKF5');
+
+    (function () {
+      var DELAY    = 5200;   // ms between slides
+      var slides   = document.querySelectorAll('.hero-slide');
+      var dots     = document.querySelectorAll('.hero-dot');
+      var track    = document.getElementById('hero-track');
+      var progress = document.getElementById('hero-progress');
+      var counter  = document.getElementById('hero-counter');
+      var total    = slides.length;
+      var cur      = 0;
+      var timer    = null;
+      var progTimer= null;
+      var paused   = false;
+      var reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+      /* ── Core: go to slide n ───────────────────────────── */
+      function goTo(n, announce) {
+        var prev = cur;
+        cur = ((n % total) + total) % total;
+    
+        // Move track
+        track.style.transform = 'translateX(-' + (cur * 100) + '%)';
+    
+        // Active class (triggers Ken-Burns + content reveal)
+        slides[prev].classList.remove('is-active');
+        slides[prev].setAttribute('aria-hidden', 'true');
+        slides[cur].classList.add('is-active');
+        slides[cur].setAttribute('aria-hidden', 'false');
+    
+        // Dots
+        dots[prev].classList.remove('is-active');
+        dots[prev].setAttribute('aria-selected', 'false');
+        dots[cur].classList.add('is-active');
+        dots[cur].setAttribute('aria-selected', 'true');
+    
+        // Counter
+        if (counter) counter.textContent = (cur + 1) + ' / ' + total;
+    
+        // Progress bar reset
+        startProgress();
+      }
+    
+      /* ── Progress bar animation ────────────────────────── */
+      function startProgress() {
+        if (reduced) return;
+        clearTimeout(progTimer);
+        if (progress) {
+          progress.style.transition = 'none';
+          progress.style.width = '0%';
+          // Force reflow
+          void progress.offsetWidth;
+          progress.style.transition = 'width ' + DELAY + 'ms linear';
+          progress.style.width = '100%';
+        }
+      }
+    
+      /* ── Auto-play ─────────────────────────────────────── */
+      function startAuto() {
+        clearInterval(timer);
+        if (!paused) {
+          timer = setInterval(function () { goTo(cur + 1); }, DELAY);
+        }
+      }
+      function stopAuto() { clearInterval(timer); }
+      function pause()    { paused = true;  stopAuto(); if (progress) progress.style.transition = 'none'; }
+      function resume()   { paused = false; startAuto(); startProgress(); }
+    
+      /* ── Arrows ────────────────────────────────────────── */
+      document.getElementById('hero-prev').addEventListener('click', function () { goTo(cur - 1); startAuto(); });
+      document.getElementById('hero-next').addEventListener('click', function () { goTo(cur + 1); startAuto(); });
+    
+      /* ── Dots ──────────────────────────────────────────── */
+      dots.forEach(function (dot, i) {
+        dot.addEventListener('click', function () { goTo(i); startAuto(); });
+      });
+    
+      /* ── Keyboard ──────────────────────────────────────── */
+      document.getElementById('hero-wrap').addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft')  { goTo(cur - 1); startAuto(); }
+        if (e.key === 'ArrowRight') { goTo(cur + 1); startAuto(); }
+      });
+    
+      /* ── Touch / swipe ─────────────────────────────────── */
+      var touchStartX = 0;
+      var touchStartY = 0;
+      var dragging    = false;
+    
+      document.getElementById('hero-wrap').addEventListener('touchstart', function (e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        dragging = true;
+      }, { passive: true });
+    
+      document.getElementById('hero-wrap').addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        var dx = Math.abs(e.touches[0].clientX - touchStartX);
+        var dy = Math.abs(e.touches[0].clientY - touchStartY);
+        // Prevent page scroll only when clearly horizontal swipe
+        if (dx > dy && dx > 10) e.preventDefault();
+      }, { passive: false });
+    
+      document.getElementById('hero-wrap').addEventListener('touchend', function (e) {
+        if (!dragging) return;
+        dragging = false;
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 45) {
+          goTo(cur + (dx < 0 ? 1 : -1));
+          startAuto();
+        }
+      }, { passive: true });
+    
+      /* ── Pause on hover / focus ────────────────────────── */
+      var wrap = document.getElementById('hero-wrap');
+      wrap.addEventListener('mouseenter', pause);
+      wrap.addEventListener('mouseleave', resume);
+      wrap.addEventListener('focusin',    pause);
+      wrap.addEventListener('focusout',   function (e) {
+        if (!wrap.contains(e.relatedTarget)) resume();
+      });
+    
+      /* ── Visibility API — pause when tab hidden ─────────── */
+      document.addEventListener('visibilitychange', function () {
+        document.hidden ? pause() : resume();
+      });
+    
+      /* ── Reduced motion: disable auto-play ─────────────── */
+      if (reduced) {
+        paused = true;
+        if (progress) progress.style.display = 'none';
+      }
+    
+      /* ── Boot ──────────────────────────────────────────── */
+      goTo(0);   // sets initial active state + progress bar
+      startAuto();
+    })();
   </script>
 </body>
 </html>

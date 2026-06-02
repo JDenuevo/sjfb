@@ -2,11 +2,6 @@
 /**
  * supadmin/components/product_list.php
  *
- * Stock level thresholds (tweak as needed):
- *   High     > 30
- *   Moderate 11 – 30
- *   Low       1 – 10
- *   Out       0
  */
 
 // ── Stock helper ──────────────────────────────────────────────────────────────
@@ -77,6 +72,17 @@ function worstLevel(array $quantities): array {
   }
   .pl-add-btn:hover { background:#ea580c; box-shadow:0 4px 14px rgba(249,115,22,.32); transform:translateY(-1px); }
   .pl-add-btn:active { transform:translateY(0); }
+
+  .pl-action-visibility {
+    background:#f3f4f6;
+    color:#6b7280;
+  }
+
+  .pl-action-visibility:hover {
+    background:#e5e7eb;
+    color:#111827;
+    transform:scale(1.08);
+  }
 
   /* table */
   .pl-table { min-width:100%; border-collapse:collapse; }
@@ -208,6 +214,12 @@ function worstLevel(array $quantities): array {
         <input type="text" id="plSearchInput" class="pl-search-input" placeholder="Search products…"
                oninput="plSearch(this.value)">
       </div>
+      <button class="pl-add-btn" onclick="openModal('bulkPriceModal')">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Bulk Update Prices
+      </button>
       <!-- Add button -->
       <button class="pl-add-btn" data-modal-target="addProductModal">
         <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
@@ -216,6 +228,24 @@ function worstLevel(array $quantities): array {
         Add Product
       </button>
     </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+     products.php
+  ════════════════════════════════════════════ -->
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+      <a href="<?= $base ?>export_inventory.php" target="_blank"
+        class="btn btn-outline-success btn-sm">
+          <i class="ti ti-file-spreadsheet"></i> Export Inventory
+      </a>
+      <a href="<?= $base ?>export_inventory.php?low_stock_threshold=10" target="_blank"
+        class="btn btn-outline-warning btn-sm">
+          <i class="ti ti-alert-triangle"></i> Low Stock
+      </a>
+      <a href="<?= $base ?>export_inventory.php?low_stock_threshold=0" target="_blank"
+        class="btn btn-outline-danger btn-sm">
+          <i class="ti ti-package-off"></i> Out of Stock
+      </a>
   </div>
 
   <!-- ── Table ── -->
@@ -369,6 +399,58 @@ function worstLevel(array $quantities): array {
           <!-- Actions -->
           <td style="text-align:right;vertical-align:middle">
             <div style="display:inline-flex;align-items:center;gap:.375rem">
+              <!-- SHOW / HIDE -->
+              <button class="pl-action-btn"
+                      style="
+                        background:<?= $row['is_hidden'] ? '#ecfdf5' : '#fff7ed' ?>;
+                        color:<?= $row['is_hidden'] ? '#16a34a' : '#ea580c' ?>;
+                      "
+                      onclick="toggleProductVisibility(
+                        <?= $row['product_id'] ?>,
+                        '<?= htmlspecialchars(addslashes($row['product_name'])) ?>',
+                        <?= (int)$row['is_hidden'] ?>
+                      )"
+                      title="<?= $row['is_hidden'] ? 'Show product' : 'Hide product' ?>">
+
+                <?php if ($row['is_hidden']): ?>
+
+                  <!-- Eye -->
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/>
+                    <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/>
+                  </svg>
+
+                <?php else: ?>
+
+                  <!-- Eye Off -->
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M3 3l18 18"/>
+                    <path d="M10.584 10.587a2 2 0 0 0 2.829 2.828"/>
+                    <path d="M9.363 5.365a9.466 9.466 0 0 1 2.637 -.365c3.6 0 6.6 2 9 6a17.185 17.185 0 0 1 -1.67 2.512"/>
+                    <path d="M6.71 6.709a17.193 17.193 0 0 0 -3.71 5.291c2.4 4 5.4 6 9 6a9.421 9.421 0 0 0 5.288 -1.529"/>
+                  </svg>
+
+                <?php endif; ?>
+
+              </button>
               <button class="pl-action-btn pl-action-edit"
                       onclick="openEditModal(<?= $row['product_id'] ?>)" title="Edit product">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

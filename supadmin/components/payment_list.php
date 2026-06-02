@@ -21,7 +21,7 @@ $statusConfig = [
 
 $methodIcons = [
   'gcash' => '📱', 'paymaya' => '💳', 'grab_pay' => '🟢', 
-  'qrph' => '📷', 'cod' => '💵', 'card' => '💳'
+  'qrph' => '📷', 'cod' => '💵', 'cop' => '💵', 'card' => '💳'
 ];
 ?>
 
@@ -87,6 +87,29 @@ $methodIcons = [
         <span class="font-semibold text-gray-800"><?= $totalItems ?></span> total records
       </p>
     </div>
+
+    <!-- ═══════════════════════════════════════════
+     payments.php
+    ════════════════════════════════════════════ -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+        <a href="<?= $base ?>export_payments.php" target="_blank"
+          class="btn btn-outline-success btn-sm">
+            <i class="ti ti-file-spreadsheet"></i> Export All Payments
+        </a>
+        <a href="<?= $base ?>export_payments.php?month=<?= $month ?>&year=<?= $year ?>" target="_blank"
+          class="btn btn-outline-success btn-sm">
+            <i class="ti ti-calendar-month"></i> This Month
+        </a>
+        <a href="<?= $base ?>export_payments.php?status=Paid&month=<?= $month ?>&year=<?= $year ?>" target="_blank"
+          class="btn btn-outline-success btn-sm">
+            <i class="ti ti-check"></i> Paid This Month
+        </a>
+        <a href="<?= $base ?>export_payments.php?status=Refunded" target="_blank"
+          class="btn btn-outline-warning btn-sm">
+            <i class="ti ti-arrow-back-up"></i> All Refunds
+        </a>
+    </div>
+
     
     <form method="GET" class="flex flex-wrap gap-2">
       <select name="payment_status" onchange="this.form.submit()" 

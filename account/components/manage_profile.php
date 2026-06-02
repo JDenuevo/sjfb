@@ -66,8 +66,8 @@
 
         <div class="sm:col-span-9">
           <div class="sm:flex">
-            <input id="af-account-full-name" type="text" name="first_name" value="<?php echo htmlspecialchars($row['first_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="First name">
-            <input type="text" name="last_name" value="<?php echo htmlspecialchars($row['last_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="Last name">
+            <input id="af-account-full-name" type="text" name="account_first_name" value="<?php echo htmlspecialchars($row['account_first_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="First name">
+            <input type="text" name="account_last_name" value="<?php echo htmlspecialchars($row['account_last_name']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " placeholder="Last name">
           </div>
         </div>
         <!-- End Col -->
@@ -80,7 +80,7 @@
         <!-- End Col -->
 
         <div class="sm:col-span-9">
-          <input id="af-account-email" type="email" name="email" value="<?php echo htmlspecialchars($row['email']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs sm:text-sm rounded-lg focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Email">
+          <input id="af-account-email" type="email" name="account_email" value="<?php echo htmlspecialchars($row['account_email']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs sm:text-sm rounded-lg focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="Email">
         </div>
         <!-- End Col -->
 
@@ -98,7 +98,7 @@
 
         <div class="sm:col-span-9">
           <div class="sm:flex">
-            <input id="af-account-phone" type="number" name="phone_number" value="<?php echo htmlspecialchars($row['phone_number']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="+63-xxx-xxx-xx">
+            <input id="af-account-phone" type="number" name="account_phone" value="<?php echo htmlspecialchars($row['account_phone']); ?>" class=" py-2 px-3  pe-11 block w-full border border-gray-300 shadow-2xs -mt-px -ms-px first:rounded-t-lg last:rounded-b-lg sm:first:rounded-s-lg sm:mt-0 sm:first:ms-0 sm:first:rounded-se-none sm:last:rounded-es-none sm:last:rounded-e-lg sm:text-sm relative focus:z-10 focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none" placeholder="+63-xxx-xxx-xx">
           </div>
         </div>
         <!-- End Col -->
@@ -111,7 +111,7 @@
         <!-- End Col -->
 
         <div class="sm:col-span-9">
-          <textarea id="af-account-bio" name="address" class=" py-2 px-3  block w-full border border-gray-300 rounded-lg sm:text-sm focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " rows="3" placeholder="Enter your full address"><?php echo htmlspecialchars($row['address']); ?></textarea>
+          <textarea id="af-account-bio" name="account_address" class=" py-2 px-3  block w-full border border-gray-300 rounded-lg sm:text-sm focus:border-orange-500 focus:ring-orange-500 checked:border-orange-500 disabled:opacity-50 disabled:pointer-events-none " rows="3" placeholder="Enter your full address"><?php echo htmlspecialchars($row['account_address']); ?></textarea>
         </div>
         <!-- End Col -->
 

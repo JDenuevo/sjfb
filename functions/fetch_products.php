@@ -22,7 +22,7 @@ $fp_query = "SELECT
       LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.is_deleted = 0
       LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
       LEFT JOIN product_categories c ON pcl.category_id = c.category_id AND c.is_active = 1
-      WHERE p.is_deleted = 0";
+      WHERE p.is_deleted = 0 AND p.is_hidden = 0";
 
 $fp_params = []; $fp_types = '';
 

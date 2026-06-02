@@ -149,9 +149,16 @@ while ($c = $all_cats_result->fetch_assoc()) {
       <?php foreach ($variants as $v):
         $v_cats = $variant_categories_map[$v['variant_id']] ?? [];
       ?>
-      <div class="variant-row" data-variant-id="<?= $v['variant_id'] ?>">
+      <div class="variant-row" data-variant-id="<?= $v['variant_id'] ?>" style="<?= $v['is_hidden'] ? 'opacity:0.5' : '' ?>">
         <input type="hidden" name="variant_id[]" value="<?= $v['variant_id'] ?>">
-        <div class="grid grid-cols-4 gap-2">
+        <button
+            type="button"
+            class="toggleVariantVisibility mb-2 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors <?= $v['is_hidden'] ? 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200' : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100' ?>"
+            data-variant-id="<?= $v['variant_id'] ?>"
+            data-is-hidden="<?= (int)$v['is_hidden'] ?>">
+            <?= $v['is_hidden'] ? '👁 Show' : '🙈 Hide' ?>
+        </button>
+        <div class="grid grid-cols-4 gap-2" <?= $v['is_hidden'] ? 'style="pointer-events:none"' : '' ?>>
           <div>
             <label class="form-label">Size / Name <span class="text-red-500">*</span></label>
             <input type="text" name="variant_name[]" class="form-input"

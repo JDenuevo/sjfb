@@ -1,504 +1,216 @@
 <?php
-$cart = $_SESSION['cart'] ?? [];
+// components/cart.php
+// Requires cart_process.js loaded on the parent page.
+// All cart manipulation (qty, remove, price recalc) is handled by cart_process.js.
+$baseUrl   = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/account/';
+$cart      = $_SESSION['cart'] ?? [];
+$cartCount = count($cart);
+$cartTotal = array_sum(array_map(fn($i) => (float)($i['price'] ?? 0) * (float)($i['quantity'] ?? 0), $cart));
 
-function formatUnit($unitType, $quantity = null) {
-    switch ($unitType) {
-        case 'piece': $unitLabel = 'pcs'; break;
-        case 'kilogram': $unitLabel = 'kg'; break;
-        case 'gram': $unitLabel = 'g'; break;
-        case 'liter': $unitLabel = 'L'; break;
-        default: $unitLabel = $unitType;
-    }
-    return $quantity !== null ? "{$quantity} {$unitLabel}" : $unitLabel;
+function _cart_fmt(string $u): string {
+    return match($u) {
+        'piece' => 'pcs', 'kilogram' => 'kg', 'gram' => 'g', 'pack' => 'pk', 'tray' => 'tray', 'box' => 'box', 'banyera' => 'bny', 'sack' => 'sack',
+        default => $u ?: 'pcs',
+    };
 }
 ?>
 
-<div id="hs-cart-sidebar" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden overflow-hidden" role="dialog" tabindex="-1" aria-label="Sidebar">
-    <div id="sidebar-white-bg" class="fixed top-0 left-0 h-full bg-white shadow-xl transform transition-transform duration-300 translate-x-full overflow-y-auto w-full">
-        <div class="flex flex-col h-full">
-            <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                <h2 class="font-bold text-xl">Your Cart: <span id="cart-count-sidebar" class="cart-count text-orange-500"><?php echo count($cart); ?></span></h2>
-                <button type="button" class="btn btn-icon btn-sm btn-ghost" onclick="closeOffCanvas()">
-                    <span class="sr-only">Close</span>
-                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 6 6 18"></path>
-                        <path d="m6 6 12 12"></path>
-                    </svg>
-                </button>
-            </div>
+<div id="hs-cart-sidebar"
+     class="fixed inset-0 z-50 bg-gray-900/50 hidden overflow-hidden"
+     role="dialog" aria-label="Cart sidebar">
 
-            <div id="cart-items-list" class="p-4">
-                <?php if (!empty($cart)): ?>
-                    <?php foreach ($cart as $index => $item): 
-                        $unitType = $item['unit_type'] ?? 'piece';
-                        $unitDisplay = $unitType === 'piece' ? 'pcs' : $unitType;
-                        $minimumOrder = $item['minimum_order'] ?? 1;
-                        $orderIncrement = $item['order_increment'] ?? 1;
-                        $displayQty = $unitType === 'piece' ? (int)$item['quantity'] : number_format($item['quantity'], 2);
-                    ?>
-                        <div class="cart-item flex items-start mb-4 pb-2 border-b border-gray-200" 
-                             data-cart-index="<?= $index ?>"
-                             data-product-id="<?= $item['product_id'] ?>" 
-                             data-variant-id="<?= $item['variant_id'] ?>"
-                             data-unit-type="<?= $unitType ?>"
-                             data-minimum-order="<?= $minimumOrder ?>"
-                             data-order-increment="<?= $orderIncrement ?>">
-                            <img src="<?= $item['image_url'] ?>" alt="<?= $item['product_name'] ?>" class="w-24 h-24 p-2 object-cover rounded-3xl mr-6">
-                            <div class="flex-grow">
-                                <h3 class="font-medium text-base mb-2"><?= $item['product_name'] ?></h3>
-                                <p class="text-sm text-gray-500 mb-1"><?= $item['variant_name'] ?></p>
-                                <p class="text-xs text-gray-400 mb-2">Min: <?= $minimumOrder ?> <?= $unitDisplay ?></p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <div class="flex items-center gap-2">
-                                        <div class="flex items-center border border-gray-300 rounded">
-                                            <button type="button" class="decrease-quantity px-1 py-0.5 rounded-l text-sm hover:bg-orange-600 hover:text-white">-</button>
-                                            <input type="text" class="quantity w-12 px-1 py-0.5 text-center text-sm border-0" value="<?= formatUnit($unitType, $displayQty) ?>" readonly>
-                                            <button type="button" class="increase-quantity px-1 py-0.5 rounded-r text-sm hover:bg-orange-600 hover:text-white">+</button>
-                                        </div>
-                                        &nbsp;
-                                        <span class="text-xs text-gray-500"><?= $unitDisplay ?></span>
-                                    </div>
-                                    <span class="price ml-4 font-medium text-sm">
-                                        ₱<?= number_format($item['price'] * $item['quantity'], 2) ?>
-                                    </span>
-                                </div>
+    <div id="sidebar-white-bg"
+         class="fixed top-0 right-0 h-full bg-white shadow-xl flex flex-col
+                transition-transform duration-300 translate-x-full overflow-y-auto
+                w-full md:w-1/2 lg:w-1/3">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0">
+            <h2 class="font-bold text-lg text-gray-800">
+                Your Cart:&nbsp;
+                <span id="cart-count-sidebar" class="cart-count text-orange-500"><?= $cartCount ?></span>
+            </h2>
+            <button type="button" onclick="closeOffCanvas()"
+                    class="text-gray-400 hover:text-gray-700 transition-colors" aria-label="Close">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Items -->
+        <div id="cart-items-list" class="flex-1 overflow-y-auto divide-y divide-gray-50 px-1">
+            <?php if (!empty($cart)): ?>
+                <?php foreach ($cart as $index => $item):
+                    $unitType  = $item['unit_type']      ?? 'piece';
+                    $minOrder  = (float)($item['minimum_order']  ?? 1);
+                    $orderIncr = (float)($item['order_increment'] ?? 1);
+                    $qty       = (float)($item['quantity'] ?? $minOrder);
+                    $price     = (float)($item['price']   ?? 0);
+                    $unitLabel = _cart_fmt($unitType);
+                    $displayQty = $unitType === 'piece' ? (int)$qty : $qty;
+                ?>
+                <div class="cart-item flex items-start gap-3 p-4"
+                     data-cart-index="<?= $index ?>"
+                     data-product-id="<?= htmlspecialchars((string)($item['product_id'] ?? '')) ?>"
+                     data-variant-id="<?= htmlspecialchars((string)($item['variant_id'] ?? '')) ?>"
+                     data-unit-type="<?= htmlspecialchars($unitType) ?>"
+                     data-minimum-order="<?= $minOrder ?>"
+                     data-order-increment="<?= $orderIncr ?>"
+                     data-price-per-unit="<?= $price ?>">
+
+                    <img src="<?= htmlspecialchars($item['image_url'] ?? '') ?>"
+                         alt="<?= htmlspecialchars($item['product_name'] ?? '') ?>"
+                         class="w-16 h-16 object-cover rounded-xl border border-gray-100 shrink-0">
+
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-sm text-gray-800 truncate">
+                            <?= htmlspecialchars($item['product_name'] ?? 'Unknown Product') ?>
+                        </p>
+                        <p class="text-xs text-gray-400 mt-0.5"><?= htmlspecialchars($item['variant_name'] ?? '') ?></p>
+                        <p class="text-xs text-gray-400">Min: <?= $minOrder ?> <?= $unitLabel ?></p>
+
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                                <button type="button"
+                                        class="decrease-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">−</button>
+                                <input type="number"
+                                       class="quantity w-14 text-center text-xs font-semibold bg-transparent border-0 py-1 focus:outline-none"
+                                       value="<?= $displayQty ?>"
+                                       min="<?= $minOrder ?>"
+                                       step="<?= $orderIncr ?>">
+                                <button type="button"
+                                        class="increase-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">+</button>
                             </div>
-                            <button type="button" class="remove text-red-500 hover:text-red-700 ml-4">
-                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 6 6 18"></path>
-                                    <path d="m6 6 12 12"></path>
-                                </svg>
-                            </button>
+                            <span class="item-price text-sm font-bold text-gray-800">
+                                ₱<?= number_format($price * $qty, 2) ?>
+                            </span>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <p class="text-center text-gray-500">Your cart is empty.</p>
-                <?php endif; ?>
-            </div>
+                    </div>
 
-            <div class="p-4 border-t border-gray-200">
-                <div class="flex justify-between items-center">
-                    <span class="font-bold">Subtotal:</span>
-                    <span id="cart-total-sidebar" class="font-medium">
-                        ₱<?php echo number_format(array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart)), 2); ?>
-                    </span>
+                    <button type="button" class="remove shrink-0 text-gray-300 hover:text-red-500 transition-colors mt-1" title="Remove">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <p class="text-sm text-gray-500">Taxes and shipping calculated at checkout</p>
-                <a href="checkout.php" class="w-full mt-2 py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700 hover:scale-110 transition-all duration-500">
-                    Checkout
-                </a>
-                
-                <div class="text-center my-5">
-                    <a class="text-blue-500 hover:underline cursor-pointer" onclick="closeOffCanvas()">Continue Shopping</a>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <!-- [ADDED] Nicer empty state — replaced plain "Your cart is empty." text -->
+                <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mb-4">
+                        <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#f97316" stroke-width="1.5">
+                            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <path d="M16 10a4 4 0 0 1-8 0"/>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-700">Your cart is empty</p>
+                    <p class="text-xs text-gray-400 mt-1">Add some fresh seafood to get started!</p>
+                    <a href="<?= $baseUrl ?>shop.php"
+                       onclick="closeOffCanvas()"
+                       class="mt-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors">
+                        Browse Products
+                    </a>
                 </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Footer — unchanged -->
+        <div class="px-5 py-4 border-t border-gray-100 shrink-0 space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-800">Subtotal:</span>
+                <span id="cart-total-sidebar" class="font-bold text-gray-800">
+                    ₱<?= number_format($cartTotal, 2) ?>
+                </span>
+            </div>
+            <p class="text-xs text-gray-400">Delivery fee calculated at checkout.</p>
+            <a href="<?= $baseUrl ?>checkout.php"
+               class="w-full py-3 px-4 inline-flex justify-center items-center gap-2
+                      text-sm font-bold rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                </svg>
+                Checkout
+            </a>
+            <div class="text-center">
+                <a href="<?= $baseUrl ?>shop.php" class="text-sm text-orange-500 hover:text-orange-600 hover:underline">← Continue Shopping</a>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-  input[type=number]::-webkit-inner-spin-button, 
-  input[type=number]::-webkit-outer-spin-button { 
-    -webkit-appearance: none; 
-    margin: 0; 
-  }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.cart-item input.quantity:focus { outline:2px solid #f97316; outline-offset:1px; border-radius:2px; }
 
-  .animate-bounce {
-    animation: bounce 0.5s;
-  }
+@media (max-width: 768px) {
+    #sidebar-white-bg { width: 100%; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+    #sidebar-white-bg { width: 50%; }
+}
+@media (min-width: 1025px) {
+    #sidebar-white-bg { width: 33.3333%; }
+}
 
-  @keyframes bounce {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.5); }
-  }
+/* [ADDED] Subtle entrance animation per cart item */
+@keyframes cartItemIn {
+    from { opacity: 0; transform: translateX(6px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.cart-item { animation: cartItemIn .18s ease both; }
 
-  /* Responsive sidebar width if you want custom sizes */
-  @media (max-width: 768px) {
-    #sidebar-white-bg {
-      width: 100%;
-    }
-  }
+/* [ADDED] Thin custom scrollbar on the items list */
+#cart-items-list::-webkit-scrollbar       { width: 4px; }
+#cart-items-list::-webkit-scrollbar-track { background: transparent; }
+#cart-items-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+#cart-items-list::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 
-  @media (min-width: 769px) and (max-width: 1024px) {
-    #sidebar-white-bg {
-      width: 50%;
-    }
-  }
-
-  @media (min-width: 1025px) {
-    #sidebar-white-bg {
-      width: 33.3333%;
-    }
-  }
+/* [ADDED] Smooth remove animation — cart_process.js adds .removing before DOM removal */
+.cart-item.removing {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: opacity .18s ease, transform .18s ease;
+    pointer-events: none;
+}
 </style>
 
 <script>
-// Cart functions
+// ── Off-canvas open/close — ORIGINAL, unchanged ───────────────────────────────
 function openOffCanvas() {
     document.getElementById('hs-cart-sidebar').classList.remove('hidden');
-    setTimeout(() => document.getElementById('sidebar-white-bg').classList.remove('translate-x-full'), 10);
-    updateCartUI(); // Refresh cart when opened
+    requestAnimationFrame(function () {
+        document.getElementById('sidebar-white-bg').classList.remove('translate-x-full');
+    });
+    // Always refresh cart content when opening
+    if (typeof refreshCartFromServer === 'function') refreshCartFromServer();
 }
 
 function closeOffCanvas() {
     document.getElementById('sidebar-white-bg').classList.add('translate-x-full');
-    setTimeout(() => document.getElementById('hs-cart-sidebar').classList.add('hidden'), 300);
+    setTimeout(function () {
+        document.getElementById('hs-cart-sidebar').classList.add('hidden');
+    }, 310);
 }
 
-async function updateCartUI() {
-    try {
-        const response = await fetch('./functions/fetch_cart_items.php');
-        
-        // First check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`Server returned: ${text}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'error') {
-            throw new Error(data.message);
-        }
-        
-        // Update cart items list
-        if (data.cart_items) {
-            document.getElementById('cart-items-list').innerHTML = data.cart_items;
-        }
-        
-        // Update cart total
-        if (data.cart_total !== undefined) {
-            document.getElementById('cart-total-sidebar').textContent = `₱${data.cart_total.toFixed(2)}`;
-        }
-        
-        // Update all cart count elements
-        if (data.cart_count !== undefined) {
-            document.querySelectorAll('.cart-count').forEach(el => {
-                el.textContent = data.cart_count;
-                el.classList.add('animate-bounce');
-                setTimeout(() => el.classList.remove('animate-bounce'), 1000);
-            });
-        }
-        
-        // Reinitialize event handlers
-        initCartEventHandlers();
-    } catch (error) {
-        console.error('Cart update error:', error);
-        showToast(error.message || 'Error updating cart', 'error');
-    }
-}
+// Close on overlay click — original
+document.getElementById('hs-cart-sidebar').addEventListener('click', function (e) {
+    if (e.target === this) closeOffCanvas();
+});
 
-async function updateCartItemQuantity(item, change) {
-    const cartIndex = parseInt(item.dataset.cartIndex);
-    const unitType = item.dataset.unitType;
-    const minimumOrder = parseFloat(item.dataset.minimumOrder);
-    const orderIncrement = parseFloat(item.dataset.orderIncrement);
-    const quantityInput = item.querySelector('.quantity');
-    
-    if (!quantityInput) {
-        console.error('Quantity input not found');
-        showToast('Error updating quantity', 'error');
-        return;
-    }
-
-    const currentQty = parseFloat(quantityInput.value);
-    const newQty = currentQty + change;
-
-    if (newQty < minimumOrder) {
-        showToast(`Minimum order is ${minimumOrder} ${unitType === 'piece' ? 'pcs' : unitType}`, 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('./functions/update_cart_quantity.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                cart_index: cartIndex,
-                quantity: newQty
-            })
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`Invalid response: ${text}`);
-        }
-
-        const data = await response.json();
-        if (data.status === 'success') {
-            await updateCartUI();
-        } else {
-            showToast(data.message || 'Failed to update quantity', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast(error.message || 'An error occurred', 'error');
-    }
-}
-
-// Helper function to remove item
-async function removeCartItem(item) {
-    const productId = item.dataset.productId;
-    const variantId = item.dataset.variantId;
-
-    try {
-        const response = await fetch('./functions/remove_from_cart.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                variant_id: variantId
-            })
-        });
-
-        const data = await response.json();
-        if (data.status === 'success') {
-            showToast('Item removed from cart');
-            await updateCartUI();
-        } else {
-            showToast('Failed to remove item', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('An error occurred', 'error');
-    }
-}
-
-// Toast notification function
-function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    } animate-fade-in`;
-    toast.textContent = message;
-    
-    // Append to toast container
-    const container = document.getElementById('toastContainer') || document.body;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('animate-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
-// Initialize cart event handlers
-function initCartEventHandlers() {
-    // Remove any existing event listeners to prevent duplicates
-    document.removeEventListener('click', handleCartClick);
-    
-    // Add new event listener
-    document.addEventListener('click', handleCartClick);
-}
-// Handle all cart-related clicks
-function handleCartClick(e) {
-    // Increase quantity
-    if (e.target.classList.contains('increase-quantity')) {
-        const item = e.target.closest('.cart-item');
-        if (item) {
-            const orderIncrement = parseFloat(item.dataset.orderIncrement);
-            updateCartItemQuantity(item, orderIncrement);
-        }
-    }
-    
-    // Decrease quantity
-    if (e.target.classList.contains('decrease-quantity')) {
-        const item = e.target.closest('.cart-item');
-        if (item) {
-            const quantityInput = item.querySelector('.quantity');
-            if (!quantityInput) {
-                console.error('Quantity input not found');
-                return;
-            }
-            const currentQty = parseFloat(quantityInput.value);
-            const minimumOrder = parseFloat(item.dataset.minimumOrder);
-            const orderIncrement = parseFloat(item.dataset.orderIncrement);
-            
-            // Check if decreasing would go below minimum
-            if (currentQty - orderIncrement < minimumOrder) {
-                const unitType = item.dataset.unitType;
-                const unitDisplay = unitType === 'piece' ? 'pcs' : unitType;
-                showToast(`Cannot go below minimum order of ${minimumOrder} ${unitDisplay}`, 'error');
-                return;
-            }
-            
-            updateCartItemQuantity(item, -orderIncrement);
-        }
-    }
-    
-    // Remove item
-    if (e.target.closest('.remove')) {
-        const item = e.target.closest('.cart-item');
-        if (item) {
-            if (confirm('Are you sure you want to remove this item?')) {
-                removeCartItem(item);
-            }
-        }
-    }
-}
-
-// Update quantity buttons state based on minimum order
-function updateQuantityButtonsState() {
-    document.querySelectorAll('.cart-item').forEach(item => {
-        const quantityInput = item.querySelector('.quantity');
-        const decreaseBtn = item.querySelector('.decrease-quantity');
-        
-        if (quantityInput && decreaseBtn) {
-            const currentQty = parseFloat(quantityInput.value);
-            const minimumOrder = parseFloat(item.dataset.minimumOrder);
-            const orderIncrement = parseFloat(item.dataset.orderIncrement);
-            
-            // Disable decrease button if at minimum or would go below minimum
-            if (currentQty - orderIncrement < minimumOrder) {
-                decreaseBtn.disabled = true;
-                decreaseBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                decreaseBtn.classList.remove('hover:bg-orange-600');
-            } else {
-                decreaseBtn.disabled = false;
-                decreaseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                decreaseBtn.classList.add('hover:bg-orange-600');
-            }
-        }
-    });
-}
-
-async function updateCartItemQuantity(item, change) {
-    const cartIndex = parseInt(item.dataset.cartIndex);
-    const unitType = item.dataset.unitType;
-    const minimumOrder = parseFloat(item.dataset.minimumOrder);
-    const orderIncrement = parseFloat(item.dataset.orderIncrement);
-    const quantityInput = item.querySelector('.quantity');
-    
-    if (!quantityInput) {
-        console.error('Quantity input not found');
-        showToast('Error updating quantity', 'error');
-        return;
-    }
-
-    const currentQty = parseFloat(quantityInput.value);
-    const newQty = currentQty + change;
-
-    if (newQty < minimumOrder) {
-        const unitDisplay = unitType === 'piece' ? 'pcs' : unitType;
-        showToast(`Minimum order is ${minimumOrder} ${unitDisplay}`, 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('./functions/update_cart_quantity.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                cart_index: cartIndex,
-                quantity: newQty
-            })
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`Invalid response: ${text}`);
-        }
-
-        const data = await response.json();
-        if (data.status === 'success') {
-            await updateCartUI();
-        } else {
-            showToast(data.message || 'Failed to update quantity', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast(error.message || 'An error occurred', 'error');
-    }
-}
-
-async function updateCartUI() {
-    try {
-        const response = await fetch('./functions/fetch_cart_items.php');
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`Server returned: ${text}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'error') {
-            throw new Error(data.message);
-        }
-        
-        if (data.cart_items) {
-            document.getElementById('cart-items-list').innerHTML = data.cart_items;
-        }
-        
-        if (data.cart_total !== undefined) {
-            document.getElementById('cart-total-sidebar').textContent = `₱${data.cart_total.toFixed(2)}`;
-        }
-        
-        if (data.cart_count !== undefined) {
-            document.querySelectorAll('.cart-count').forEach(el => {
-                el.textContent = data.cart_count;
-                el.classList.add('animate-bounce');
-                setTimeout(() => el.classList.remove('animate-bounce'), 1000);
-            });
-        }
-        
-        // Update button states after cart refresh
-        updateQuantityButtonsState();
-        
-        initCartEventHandlers();
-    } catch (error) {
-        console.error('Cart update error:', error);
-        showToast(error.message || 'Error updating cart', 'error');
-    }
-}
-
-// Initialize cart event handlers
-function initCartEventHandlers() {
-    document.removeEventListener('click', handleCartClick);
-    document.addEventListener('click', handleCartClick);
-    
-    // Update button states on init
-    updateQuantityButtonsState();
-}
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    initCartEventHandlers();
-    
-    document.querySelectorAll('[data-cart-toggle]').forEach(btn => {
+// Wire [data-cart-toggle] buttons — original
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-cart-toggle]').forEach(function (btn) {
         btn.addEventListener('click', openOffCanvas);
     });
-    
-    // Update button states on page load
-    updateQuantityButtonsState();
-    
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(10px); }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-in forwards;
-        }
-        .animate-fade-out {
-            animation: fadeOut 0.3s ease-out forwards;
-        }
-    `;
-    document.head.appendChild(style);
+});
+
+// [ADDED] Close on Escape key
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !document.getElementById('hs-cart-sidebar').classList.contains('hidden')) {
+        closeOffCanvas();
+    }
 });
 </script>

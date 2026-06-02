@@ -84,41 +84,6 @@
   #explore-progress-bar { transition: width .3s cubic-bezier(.34,1.56,.64,1); }
 </style>
 
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          display: ["'Playfair Display'", 'Georgia', 'serif'],
-          body:    ["'Lexend'", 'system-ui', 'sans-serif'],
-        }
-      }
-    }
-  }
-</script>
-</head>
-<body class="bg-white">
-
-<!-- ═══════════════════════════════════════════════
-     STRUCTURED DATA
-═══════════════════════════════════════════════ -->
-<script type="application/ld+json">
-{
-  "@context":"https://schema.org",
-  "@graph":[
-    {
-      "@type":"Organization",
-      "@id":"https://fishbrokers.net/#organization",
-      "name":"St. Joseph Fish Brokerage Inc.",
-      "url":"https://fishbrokers.net",
-      "description":"The largest fish brokerage network in the Philippines.",
-      "areaServed":"Philippines",
-      "telephone":"(+63) 946-497-3689"
-    }
-  ]
-}
-</script>
-
 <!-- ═══════════════════════════════════════════════
      SECTION
 ═══════════════════════════════════════════════ -->
@@ -132,7 +97,7 @@
   <div class="pointer-events-none absolute -top-32 -right-40 w-[560px] h-[560px] rounded-full bg-[radial-gradient(circle,rgba(251,146,60,.12)_0%,transparent_70%)]" aria-hidden="true"></div>
   <div class="pointer-events-none absolute -bottom-24 -left-28 w-[420px] h-[420px] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,.09)_0%,transparent_70%)]" aria-hidden="true"></div>
 
-  <div class="relative z-10 mx-auto max-w-6xl px-6 py-24">
+  <div class="relative z-10 mx-auto max-w-6xl px-6 py-10">
 
     <!-- ── HEADER ── -->
     <div class="grid lg:grid-cols-2 gap-10 items-end mb-16">

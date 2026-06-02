@@ -10,6 +10,10 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
 
 $account_id = $_SESSION['account_id'];
 
+$month = date('n');
+$year  = date('Y');
+$base  = 'exports/'; // relative path from your supadmin/ pages
+
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $perPage = 10;
 
@@ -223,6 +227,197 @@ function getPrimaryCategoryId($product_id) {
     .badge-red { background: #fee2e2; color: #991b1b; }
     .badge-gray { background: #f3f4f6; color: #374151; }
     .badge-primary {background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+
+    .pmodal-title{
+      margin:0;
+      font-size:1.1rem;
+      font-weight:800;
+      color:#111827;
+    }
+
+    .pmodal-sub{
+      margin-top:.25rem;
+      font-size:.78rem;
+      color:#6b7280;
+    }
+
+    .pmodal-close{
+      border:none;
+      background:#f3f4f6;
+      color:#6b7280;
+      width:2rem;
+      height:2rem;
+      border-radius:.6rem;
+      cursor:pointer;
+      font-size:.9rem;
+      transition:.15s;
+    }
+
+    .pmodal-close:hover{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+    /* body */
+    .pmodal-body{
+      padding:1.25rem 1.5rem;
+      overflow:auto;
+    }
+
+    /* table */
+    .bp-table-wrap{
+      border:1px solid #f1f5f9;
+      border-radius:1rem;
+      overflow:hidden;
+    }
+
+    .bp-table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    .bp-table thead{
+      background:#fafafa;
+    }
+
+    .bp-table th{
+      padding:.8rem 1rem;
+      text-align:left;
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:#9ca3af;
+      border-bottom:1px solid #f1f5f9;
+    }
+
+    .bp-table td{
+      padding:.9rem 1rem;
+      border-bottom:1px solid #f8fafc;
+      vertical-align:middle;
+    }
+
+    .bp-table tr:last-child td{
+      border-bottom:none;
+    }
+
+    .bp-table tr:hover{
+      background:#fff7ed40;
+    }
+
+    /* product */
+    .bp-product{
+      font-size:.84rem;
+      font-weight:700;
+      color:#111827;
+    }
+
+    /* variant */
+    .bp-variant{
+      font-size:.78rem;
+      font-weight:600;
+      color:#374151;
+    }
+
+    .bp-unit{
+      display:inline-block;
+      margin-left:.35rem;
+      font-size:.68rem;
+      color:#9ca3af;
+    }
+
+    /* inputs */
+    .bp-input-wrap{
+      position:relative;
+      width:100%;
+      max-width:170px;
+    }
+
+    .bp-currency{
+      position:absolute;
+      left:.75rem;
+      top:50%;
+      transform:translateY(-50%);
+      font-size:.78rem;
+      color:#6b7280;
+      font-weight:700;
+    }
+
+    .bp-input{
+      width:100%;
+      padding:.6rem .75rem .6rem 1.8rem;
+      border:1.5px solid #e5e7eb;
+      border-radius:.7rem;
+      font-size:.82rem;
+      font-family:inherit;
+      outline:none;
+      transition:.15s;
+      background:#fff;
+    }
+
+    .bp-input:focus{
+      border-color:#f97316;
+      box-shadow:0 0 0 3px rgba(249,115,22,.12);
+    }
+
+    /* footer */
+    .pmodal-footer{
+      display:flex;
+      justify-content:flex-end;
+      gap:.75rem;
+      padding:1rem 1.5rem;
+      border-top:1px solid #f1f5f9;
+      background:#fafafa;
+    }
+
+    /* buttons */
+    .pmodal-btn{
+      border:none;
+      border-radius:.75rem;
+      padding:.7rem 1.1rem;
+      font-size:.82rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:.15s;
+    }
+
+    .pmodal-btn-light{
+      background:#f3f4f6;
+      color:#374151;
+    }
+
+    .pmodal-btn-light:hover{
+      background:#e5e7eb;
+    }
+
+    .pmodal-btn-primary{
+      background:#f97316;
+      color:#fff;
+      box-shadow:0 4px 12px rgba(249,115,22,.25);
+    }
+
+    .pmodal-btn-primary:hover{
+      background:#ea580c;
+    }
+
+    /* empty */
+    .bp-empty{
+      text-align:center;
+      padding:2rem;
+      font-size:.82rem;
+      color:#9ca3af;
+    }
+
+    @media(max-width:768px){
+
+      .bp-table{
+        min-width:700px;
+      }
+
+      .pmodal-card{
+        width:100%;
+        max-height:95vh;
+      }
+    }
   </style>
 </head>
 
@@ -429,6 +624,142 @@ function getPrimaryCategoryId($product_id) {
     </div>
   </div>
 
+  <!-- ==================== BULK VARIANT PRICE UPDATE MODAL ==================== -->
+  <div id="bulkPriceModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <h3>Bulk Update Prices</h3>
+          <p>Update prices for all product variants without changing stocks.</p>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('bulkPriceModal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <form action="./functions/update.php" method="POST">
+
+        <div class="modal-body">
+
+          <?php
+            $bulkStmt = $conn->prepare("
+                SELECT
+                    pv.variant_id,
+                    pv.variant_name,
+                    pv.variant_price,
+                    pv.discount_price,
+                    pv.unit_type,
+                    p.product_name
+                FROM product_variants pv
+                INNER JOIN products p
+                    ON p.product_id = pv.product_id
+                WHERE
+                    pv.is_deleted = 0
+                    AND p.is_deleted = 0
+                ORDER BY p.product_name ASC, pv.variant_name ASC
+            ");
+
+            $bulkStmt->execute();
+            $bulkVariants = $bulkStmt->get_result();
+          ?>
+
+          <?php if ($bulkVariants && $bulkVariants->num_rows > 0): ?>
+
+            <div class="bp-table-wrap">
+              <table class="bp-table">
+
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Variant</th>
+                    <th>Current Price</th>
+                    <th>Discount Price</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  <?php while($bv = $bulkVariants->fetch_assoc()): ?>
+
+                  <tr>
+                    <!-- Product -->
+                    <td>
+                      <div class="bp-product">
+                        <?= htmlspecialchars($bv['product_name']) ?>
+                      </div>
+                    </td>
+
+                    <!-- Variant -->
+                    <td>
+                      <div class="bp-variant">
+                        <?= htmlspecialchars($bv['variant_name']) ?>
+                        <span class="bp-unit">
+                          <?= htmlspecialchars($bv['unit_type']) ?>
+                        </span>
+                      </div>
+                    </td>
+
+                    <!-- Main Price -->
+                    <td>
+                      <div class="bp-input-wrap">
+                        <span class="bp-currency">₱</span>
+
+                        <input type="number"
+                              step="0.01"
+                              min="0"
+                              name="variant_price[<?= $bv['variant_id'] ?>]"
+                              value="<?= number_format((float)$bv['variant_price'], 2, '.', '') ?>"
+                              class="bp-input"
+                              required>
+                      </div>
+                    </td>
+
+                    <!-- Discount -->
+                    <td>
+                      <div class="bp-input-wrap">
+                        <span class="bp-currency">₱</span>
+
+                        <input type="number"
+                              step="0.01"
+                              min="0"
+                              name="discount_price[<?= $bv['variant_id'] ?>]"
+                              value="<?= !empty($bv['discount_price']) ? number_format((float)$bv['discount_price'], 2, '.', '') : '' ?>"
+                              class="bp-input"
+                              placeholder="Optional">
+                      </div>
+                    </td>
+                  </tr>
+
+                  <?php endwhile; ?>
+
+                </tbody>
+              </table>
+            </div>
+
+          <?php else: ?>
+
+            <div class="bp-empty">
+              No variants available.
+            </div>
+
+          <?php endif; ?>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('bulkPriceModal')">
+            Cancel
+          </button>
+          <button type="submit" name="update_variant_prices" class="btn-primary">
+            Save Price Updates
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== DELETE PRODUCT MODAL ==================== -->
   <div id="deleteProductModal" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:28rem">
@@ -549,6 +880,45 @@ function getPrimaryCategoryId($product_id) {
   });
 
   // ════════════════════════════════════════════════════════════════
+  // HIDE / SHOW PRODUCT
+  // ════════════════════════════════════════════════════════════════
+  window.toggleProductVisibility = function(productId, productName, isHidden) {
+
+    const actionText = isHidden == 1 ? 'show' : 'hide';
+
+    if (!confirm(`Do you want to ${actionText} "${productName}"?`)) {
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.append('action', 'toggle_product_visibility');
+    params.append('product_id', productId);
+
+    fetch('./functions/update.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: params.toString()
+    })
+    .then(r => r.json())
+    .then(data => {
+
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.message || 'Failed to update product visibility.');
+      }
+
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Network error.');
+    });
+  };
+
+  // ════════════════════════════════════════════════════════════════
   // ADD MODAL — variant logic scoped to #addVariantContainer ONLY
   // ════════════════════════════════════════════════════════════════
   (function() {
@@ -659,41 +1029,114 @@ function getPrimaryCategoryId($product_id) {
       },
       body: params.toString()
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(r => r.text())
+    .then(text => {
+      console.log('Raw response:', text); // check browser console to see what PHP returns
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch(e) {
+        console.error('JSON parse failed. Raw response was:', text);
+        if (btn) { btn.disabled = false; btn.textContent = '🗑 Remove'; }
+        alert('Server returned an unexpected response. Check console for details.');
+        return;
+      }
       if (data.success) {
-        // Animate removal
         rowEl.style.transition = 'opacity 0.25s, transform 0.25s';
         rowEl.style.opacity = '0';
         rowEl.style.transform = 'translateX(8px)';
         setTimeout(() => {
           rowEl.remove();
-          // Show "no variants" message if container is now empty
           const container = document.querySelector('.updateVariantContainer');
           if (container && container.querySelectorAll('.variant-row').length === 0) {
             container.innerHTML = '<p class="text-gray-400 text-sm" id="noVariantsMsg">No variants yet. Add one below.</p>';
           }
         }, 250);
       } else {
-        if (btn) { 
-          btn.disabled = false; 
-          btn.textContent = '🗑 Remove'; 
-        }
+        if (btn) { btn.disabled = false; btn.textContent = '🗑 Remove'; }
         alert('Failed to delete variant: ' + data.message);
       }
     })
     .catch(error => {
-      console.error('Error:', error);
-      if (btn) { 
-        btn.disabled = false; 
-        btn.textContent = '🗑 Remove'; 
-      }
-      alert('Network error. Please try again.');
+      console.error('Fetch error:', error);
+      if (btn) { btn.disabled = false; btn.textContent = '🗑 Remove'; }
+      alert('Network error: ' + error.message);
     });
   }
 
   function initEditModal(modal) {
     const variantContainer = modal.querySelector('.updateVariantContainer');
+
+    // ── TOGGLE VARIANT VISIBILITY ──────────────────────────────────
+    variantContainer?.querySelectorAll('.toggleVariantVisibility').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const variantId = this.dataset.variantId;
+        const isHidden  = parseInt(this.dataset.isHidden);
+        const actionText = isHidden ? 'show' : 'hide';
+
+        if (!confirm(`Do you want to ${actionText} this variant?`)) return;
+
+        // Optimistically update UI
+        this.disabled = true;
+        this.textContent = '⏳ Updating...';
+
+        const params = new URLSearchParams();
+        params.append('action', 'toggle_variant_visibility');
+        params.append('variant_id', variantId);
+
+        fetch('./functions/update.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: params.toString()
+        })
+        .then(r => r.text())
+        .then(text => {
+          let data;
+          try { data = JSON.parse(text); }
+          catch(e) {
+            console.error('Raw response:', text);
+            this.disabled = false;
+            this.textContent = isHidden ? '👁 Show' : '🙈 Hide';
+            alert('Unexpected server response.');
+            return;
+          }
+
+          if (data.success) {
+            this.dataset.isHidden = data.is_hidden;
+            this.disabled = false;
+
+            const variantRow = this.closest('.variant-row');
+
+            if (data.is_hidden == 1) {
+              // Hidden state — gray out the row
+              this.textContent = '👁 Show';
+              this.className = 'toggleVariantVisibility mb-2 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200';
+              variantRow.style.opacity = '0.5';
+              variantRow.querySelectorAll('input, select').forEach(el => el.disabled = true);
+            } else {
+              // Visible state — restore the row
+              this.textContent = '🙈 Hide';
+              this.className = 'toggleVariantVisibility mb-2 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100';
+              variantRow.style.opacity = '1';
+              variantRow.querySelectorAll('input, select').forEach(el => el.disabled = false);
+            }
+          } else {
+            this.disabled = false;
+            this.textContent = isHidden ? '👁 Show' : '🙈 Hide';
+            alert(data.message || 'Failed to update variant visibility.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          this.disabled = false;
+          this.textContent = isHidden ? '👁 Show' : '🙈 Hide';
+          alert('Network error.');
+        });
+      });
+    });
 
     // ── AJAX delete for existing variant rows using consolidated delete.php ──
     variantContainer?.querySelectorAll('.variant-row').forEach(row => {

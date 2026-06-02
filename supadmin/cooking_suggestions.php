@@ -509,7 +509,7 @@ while ($p = $productsResult->fetch_assoc()) {
       </div>
 
       <div class="modal-body">
-        <form action="./functions/add_suggestion.php" method="POST" class="space-y-4">
+        <form id="addSuggestionForm" action="./functions/add.php" method="POST" class="space-y-4">
           <p class="section-title">Recipe Details</p>
           
           <div>

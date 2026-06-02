@@ -166,79 +166,109 @@ function validateCartItems(mysqli $conn, array $cart): array {
         try {
             $cart = $_SESSION['cart'] ?? [];
             if (empty($cart)) throw new Exception("Your cart is empty.");
-
+    
+            // ── Order type ────────────────────────────────────────────────────────
+            $orderType = trim($_POST['order_type'] ?? 'delivery');
+            if (!in_array($orderType, ['delivery', 'pickup'])) $orderType = 'delivery';
+            $isPickup = ($orderType === 'pickup');
+    
             // ── Field validation ───────────────────────────────────────────────
-            $requiredFields = [
-                'recipient_first_name', 'recipient_last_name', 'recipient_email',
-                'recipient_phone', 'recipient_address', 'city', 'postal_code', 'payment_method'
+            // Contact fields always required
+            $alwaysRequired = [
+                'recipient_first_name', 'recipient_last_name',
+                'recipient_email', 'recipient_phone', 'payment_method'
             ];
-            foreach ($requiredFields as $field)
+            foreach ($alwaysRequired as $field)
                 if (empty($_POST[$field]))
                     throw new Exception("Please fill in all required fields.");
-
+    
+            // Address fields only required for delivery
+            if (!$isPickup) {
+                $deliveryRequired = ['recipient_address', 'city', 'postal_code'];
+                foreach ($deliveryRequired as $field)
+                    if (empty($_POST[$field]))
+                        throw new Exception("Please fill in all required delivery address fields.");
+            }
+    
             $email = filter_var(trim($_POST['recipient_email']), FILTER_VALIDATE_EMAIL);
             if (!$email) throw new Exception("Please provide a valid email address.");
-
+    
             $phoneNumber = trim($_POST['recipient_phone']);
             if (!preg_match('/^[0-9+\-\s()]+$/', $phoneNumber) || strlen($phoneNumber) < 10)
                 throw new Exception("Please provide a valid phone number.");
-
+    
             $firstName  = trim($_POST['recipient_first_name']);
             $lastName   = trim($_POST['recipient_last_name']);
             if (strlen($firstName) < 2 || strlen($lastName) < 2)
                 throw new Exception("First and last name must be at least 2 characters.");
-
-            $address       = trim($_POST['recipient_address']);
-            $city          = trim($_POST['city']);
-            $postalCode    = trim($_POST['postal_code']);
-            $deliveryNotes = trim($_POST['delivery_notes'] ?? '');
-
-            if (strlen($address) < 10) throw new Exception("Please provide a complete address.");
-            if (strlen($city) < 2)     throw new Exception("Please provide a valid city name.");
-            if (!preg_match('/^[0-9]{4,6}$/', $postalCode))
-                throw new Exception("Please provide a valid postal code (4-6 digits).");
-
+    
+            // For pickup, address / city / postal are optional — default to empty strings
+            $address       = trim($_POST['recipient_address'] ?? '');
+            $city          = trim($_POST['city']              ?? '');
+            $postalCode    = trim($_POST['postal_code']       ?? '');
+            $deliveryNotes = trim($_POST['delivery_notes']    ?? '');
+    
+            if (!$isPickup) {
+                if (strlen($address) < 10)
+                    throw new Exception("Please provide a complete address.");
+                if (strlen($city) < 2)
+                    throw new Exception("Please provide a valid city name.");
+                if (!preg_match('/^[0-9]{4,6}$/', $postalCode))
+                    throw new Exception("Please provide a valid postal code (4-6 digits).");
+            }
+    
             $paymentMethod       = $_POST['payment_method'];
-            $validPaymentMethods = ['cod', 'gcash', 'paymaya', 'grab_pay', 'card', 'qrph'];
+            $validPaymentMethods = ['cod', 'cop', 'gcash', 'paymaya', 'grab_pay', 'card', 'qrph'];
             if (!in_array($paymentMethod, $validPaymentMethods))
                 throw new Exception("Invalid payment method selected.");
-
+    
             // ── Pricing inputs from checkout form ──────────────────────────────
             $submittedSubtotal    = round((float)($_POST['subtotal']        ?? 0), 2);
             $submittedDeliveryFee = round((float)($_POST['delivery_fee']    ?? 0), 2);
             $submittedDiscount    = round((float)($_POST['discount_amount'] ?? 0), 2);
-            // applied_voucher_code is the hidden mirror — always submitted even when input is readonly
             $voucherCode          = trim($_POST['applied_voucher_code'] ?? $_POST['voucher_code'] ?? '');
-
+    
+            // Pickup always has zero delivery fee — ignore whatever the client sent
+            if ($isPickup) $submittedDeliveryFee = 0.00;
+    
             // ── Server-side subtotal verification ─────────────────────────────
             $serverSubtotal = round(array_sum(
                 array_map(fn($i) => (float)$i['price'] * (float)$i['quantity'], $cart)
             ), 2);
-
+    
             if (abs($serverSubtotal - $submittedSubtotal) > 1.00) {
                 error_log("Subtotal mismatch — client: {$submittedSubtotal}, server: {$serverSubtotal}");
                 throw new Exception("Order total mismatch. Please refresh and try again.");
             }
-
+    
             // ── Server-side delivery fee verification ──────────────────────────
             require_once '../functions/discount_helper.php';
-            $serverDeliveryFee = round(getDeliveryFee($city, $serverSubtotal, $conn), 2);
-            if (abs($serverDeliveryFee - $submittedDeliveryFee) > 1.00) {
-                error_log("Delivery fee mismatch — client: {$submittedDeliveryFee}, server: {$serverDeliveryFee}. Using server value.");
-                $submittedDeliveryFee = $serverDeliveryFee;
+            // ── Server-side delivery fee verification ──────────────────────────────────
+            if ($isPickup) {
+                $submittedDeliveryFee = 0.00;  // always zero for pickup, no DB lookup needed
+            } else {
+                if (empty($city)) {
+                    // Delivery requires a city — this shouldn't happen but guard anyway
+                    throw new Exception("Please select a delivery city.");
+                }
+                $serverDeliveryFee = round(getDeliveryFee($city, $serverSubtotal, $conn), 2);
+                if (abs($serverDeliveryFee - $submittedDeliveryFee) > 1.00) {
+                    error_log("Delivery fee mismatch — client: {$submittedDeliveryFee}, server: {$serverDeliveryFee}. Using server value.");
+                    $submittedDeliveryFee = $serverDeliveryFee;
+                }
             }
-
+    
             // ── Server-side voucher + promotion verification ───────────────────
             $verifiedDiscount  = 0.00;
             $verifiedVoucherId = null;
             $verifiedPromoId   = null;
-
+    
             $accountId  = $_SESSION['account_id'] ?? null;
             $userGroups = getUserGroups($accountId, $conn);
-
+    
             if (!empty($voucherCode)) {
                 $voucher = validateVoucher($voucherCode, $serverSubtotal, $userGroups, $accountId, $conn);
-
+    
                 if ($voucher && !isset($voucher['error'])) {
                     $verifiedDiscount  = calculateDiscount(
                         $voucher['discount_type'],
@@ -247,40 +277,33 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         $voucher['max_discount'] ?? null
                     );
                     $verifiedVoucherId = (int)$voucher['voucher_id'];
-
-                    // Voucher-triggered free shipping
+    
                     if (!empty($voucher['free_shipping']) || $verifiedDiscount >= $serverSubtotal) {
                         $submittedDeliveryFee = 0.00;
                     }
-
-                    // Free shipping rules (checked against subtotal after voucher discount)
-                    $freeShippingRule = checkFreeShipping(
-                        $serverSubtotal - $verifiedDiscount,
-                        $userGroups,
-                        $city,
-                        $conn
-                    );
-                    if ($freeShippingRule) {
-                        $submittedDeliveryFee = 0.00;
+    
+                    if (!$isPickup) {
+                        $freeShippingRule = checkFreeShipping(
+                            $serverSubtotal - $verifiedDiscount,
+                            $userGroups, $city, $conn
+                        );
+                        if ($freeShippingRule) $submittedDeliveryFee = 0.00;
                     }
                 } else {
-                    // Server-side validation failed — log for debugging
-                    // The client showed a discount but server re-validated and rejected it
                     $voucherError = $voucher['error'] ?? 'Unknown validation failure';
                     error_log("Voucher '{$voucherCode}' rejected server-side: {$voucherError}. Discount cleared.");
                     $voucherCode      = '';
                     $verifiedDiscount = 0.00;
                 }
             } else {
-                // No voucher — check free shipping rules against full subtotal
-                $freeShippingRule = checkFreeShipping($serverSubtotal, $userGroups, $city, $conn);
-                if ($freeShippingRule) {
-                    $submittedDeliveryFee = 0.00;
+                // No voucher — check free shipping (delivery only)
+                if (!$isPickup) {
+                    $freeShippingRule = checkFreeShipping($serverSubtotal, $userGroups, $city, $conn);
+                    if ($freeShippingRule) $submittedDeliveryFee = 0.00;
                 }
             }
-
+    
             // ── Auto-apply promotions ──────────────────────────────────────────
-            // Apply if: no voucher, OR voucher is stackable (toggle_stackable = 1)
             $voucherIsStackable = false;
             if ($verifiedVoucherId) {
                 $ckStack = $conn->prepare("SELECT toggle_stackable FROM vouchers WHERE voucher_id = ? LIMIT 1");
@@ -290,28 +313,27 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $ckStack->close();
                 $voucherIsStackable = !empty($stackRow['toggle_stackable']);
             }
-
+    
             if ($verifiedVoucherId === null || $voucherIsStackable) {
-                // Find best active auto-apply promotion eligible for this order
                 $promoStmt = $conn->prepare("
                     SELECT p.*
                     FROM promotions p
                     WHERE p.is_active         = 1
-                      AND p.toggle_auto_apply = 1
-                      AND NOW() BETWEEN p.start_date AND p.end_date
-                      AND p.minimum_order     <= ?
-                      AND (
-                          p.applicable_to = 'all'
-                          OR (
-                              p.applicable_to = 'specific_groups'
-                              AND EXISTS (
-                                  SELECT 1 FROM promotion_groups pg
-                                  JOIN account_groups ag ON ag.group_id = pg.group_id
-                                  WHERE pg.promotion_id = p.promotion_id
+                    AND p.toggle_auto_apply = 1
+                    AND NOW() BETWEEN p.start_date AND p.end_date
+                    AND p.minimum_order     <= ?
+                    AND (
+                        p.applicable_to = 'all'
+                        OR (
+                            p.applicable_to = 'specific_groups'
+                            AND EXISTS (
+                                SELECT 1 FROM promotion_groups pg
+                                JOIN account_groups ag ON ag.group_id = pg.group_id
+                                WHERE pg.promotion_id = p.promotion_id
                                     AND ag.account_id   = ?
-                              )
-                          )
-                      )
+                            )
+                        )
+                    )
                     ORDER BY p.discount_value DESC
                     LIMIT 1
                 ");
@@ -319,7 +341,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $promoStmt->execute();
                 $bestPromo = $promoStmt->get_result()->fetch_assoc();
                 $promoStmt->close();
-
+    
                 if ($bestPromo) {
                     $promoDiscount = calculateDiscount(
                         $bestPromo['discount_type'],
@@ -333,16 +355,16 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     }
                 }
             }
-
+    
             // Cap discount — never exceed subtotal
             $verifiedDiscount = min($verifiedDiscount, $serverSubtotal);
-
+    
             // ── Final total (server-authoritative) ────────────────────────────
             $totalAmount = round($serverSubtotal - $verifiedDiscount + $submittedDeliveryFee, 2);
             if ($totalAmount < 0) $totalAmount = 0.00;
             if ($totalAmount <= 0 && $verifiedDiscount < $serverSubtotal)
                 throw new Exception("Invalid order total.");
-
+    
             // ── Cart validation ────────────────────────────────────────────────
             $cartErrors = validateCartItems($conn, $cart);
             if (!empty($cartErrors)) {
@@ -350,22 +372,16 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 header("Location: ../checkout.php");
                 exit();
             }
-
+    
             $conn->begin_transaction();
-
+    
             $accountId = $_SESSION['account_id'] ?? null;
             $isGuest   = $accountId ? 0 : 1;
             $orderCode = generateOrderCode();
-
+    
             // ── Insert order ───────────────────────────────────────────────────
-            // Columns: added voucher_id, promotion_id vs original
-            // bind_param: "isssssssdddsiidsiss" (19 params)
-            //   account_id(i) email(s) phone(s) first(s) last(s)
-            //   address(s) postal(s) city(s)
-            //   subtotal(d) delivery_fee(d) discount(d) voucher_code(s)
-            //   voucher_id(i) promotion_id(i)
-            //   total_price(d) payment_method(s)
-            //   is_guest(i) order_code(s) delivery_notes(s)
+            // Added: order_type column
+            // bind_param: "isssssssdddsiidssiss" (21 params)
             $stmt = $conn->prepare("
                 INSERT INTO orders (
                     account_id, recipient_email, recipient_phone,
@@ -373,22 +389,24 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     recipient_address, postal_code, city,
                     subtotal, delivery_fee, discount_amount, voucher_code, voucher_id, promotion_id,
                     total_price, payment_method,
-                    is_guest_order, order_code, delivery_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_guest_order, order_code, delivery_notes,
+                    order_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("isssssssdddsiidsiss",
+            $stmt->bind_param("isssssssdddsiidsssss",
                 $accountId, $email, $phoneNumber,
                 $firstName, $lastName,
                 $address, $postalCode, $city,
                 $serverSubtotal, $submittedDeliveryFee, $verifiedDiscount, $voucherCode,
                 $verifiedVoucherId, $verifiedPromoId,
                 $totalAmount, $paymentMethod,
-                $isGuest, $orderCode, $deliveryNotes
+                $isGuest, $orderCode, $deliveryNotes,
+                $orderType
             );
             if (!$stmt->execute()) throw new Exception("Failed to create order: " . $conn->error);
             $orderId = $conn->insert_id;
             $stmt->close();
-
+    
             // ── Insert order items ─────────────────────────────────────────────
             $itemStmt = $conn->prepare(
                 "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)"
@@ -412,7 +430,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     exit();
                 }
                 $chk->close();
-
+    
                 $itemStmt->bind_param(
                     "iiiid",
                     $orderId, $item['product_id'], $item['variant_id'],
@@ -422,19 +440,18 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $itemSummary[] = "{$item['product_name']} x{$item['quantity']}";
             }
             $itemStmt->close();
-
+    
             // ── Record voucher usage ───────────────────────────────────────────
             if ($verifiedVoucherId && $verifiedDiscount > 0) {
-                // Only log the voucher portion of the discount if promo also applied
                 $voucherDiscountOnly = $verifiedPromoId
                     ? calculateDiscount(
                         $voucher['discount_type'] ?? 'fixed',
                         $voucher['discount_value'] ?? 0,
                         $serverSubtotal,
                         $voucher['max_discount'] ?? null
-                      )
+                    )
                     : $verifiedDiscount;
-
+    
                 $vuStmt = $conn->prepare(
                     "INSERT INTO voucher_usage (voucher_id, account_id, order_id, discount_amount) VALUES (?, ?, ?, ?)"
                 );
@@ -442,7 +459,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $vuStmt->execute();
                 $vuStmt->close();
             }
-
+    
             // ── Build discount summary for activity log ────────────────────────
             $discountSummary = '';
             if ($verifiedDiscount > 0) {
@@ -453,12 +470,13 @@ function validateCartItems(mysqli $conn, array $cart): array {
                     $parts[] = "Promotion ID: {$verifiedPromoId}";
                 $discountSummary = " | Discount: -₱".number_format($verifiedDiscount, 2)." (".implode(', ', $parts).")";
             }
-
+    
             logActivity(
                 $conn, 'order', $orderId, 'Order created', null,
                 $paymentMethod === 'cod' ? 'Pending' : 'Paid',
                 "Order #{$orderCode} created. " .
                 ($isGuest ? "Guest" : "Account ID: {$accountId}") .
+                " | Type: {$orderType}" .
                 " | Payment: {$paymentMethod}" .
                 " | Subtotal: ₱".number_format($serverSubtotal, 2) .
                 $discountSummary .
@@ -467,8 +485,8 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 " | Items: ".implode(', ', $itemSummary),
                 $accountId, 'customer'
             );
-
-            // ── Save pending checkout for online payment cancel/return ─────────
+    
+            // ── Save pending checkout (includes order_type for cancel/return) ──
             $_SESSION['pending_checkout'] = [
                 'first_name'      => $firstName,
                 'last_name'       => $lastName,
@@ -479,6 +497,7 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 'city'            => $city,
                 'delivery_notes'  => $deliveryNotes,
                 'payment_method'  => $paymentMethod,
+                'order_type'      => $orderType,       // ← new
                 'subtotal'        => $serverSubtotal,
                 'delivery_fee'    => $submittedDeliveryFee,
                 'discount_amount' => $verifiedDiscount,
@@ -490,17 +509,22 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 'created_at'      => time(),
             ];
             $_SESSION['last_checkout_city'] = $city;
-
+    
             // ── Online payment ─────────────────────────────────────────────────
             if (in_array($paymentMethod, ['gcash', 'paymaya', 'grab_pay', 'card', 'qrph'])) {
-
+    
                 $paymongo = new PayMongoHelper($_ENV['PAYMONGO_SECRET_KEY'], $_ENV['PAYMONGO_PUBLIC_KEY']);
                 $baseUrl  = rtrim($_ENV['APP_URL'] ?? 'http://localhost/sjfbi-js', '/');
-
+    
                 $tempReference = 'TMP_' . uniqid() . '_' . time();
                 $_SESSION['temp_checkout_ref']   = $tempReference;
                 $_SESSION['paymongo_session_id'] = null;
-
+    
+                // For pickup orders billing address falls back to a placeholder
+                $billingAddress = $isPickup ? 'Store Pickup' : $address;
+                $billingCity    = $isPickup ? 'N/A'          : $city;
+                $billingPostal  = $isPickup ? '0000'         : $postalCode;
+    
                 $response = $paymongo->createCheckoutSession(
                     $totalAmount,
                     "Order #{$orderCode} Payment",
@@ -516,9 +540,9 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         ],
                         'billing' => [
                             'address' => [
-                                'line1'       => $address,
-                                'city'        => $city,
-                                'postal_code' => $postalCode,
+                                'line1'       => $billingAddress,
+                                'city'        => $billingCity,
+                                'postal_code' => $billingPostal,
                                 'state'       => '',
                                 'country'     => 'PH',
                             ],
@@ -533,26 +557,32 @@ function validateCartItems(mysqli $conn, array $cart): array {
                             'customer_email' => $email,
                             'customer_name'  => "$firstName $lastName",
                             'payment_method' => $paymentMethod,
+                            'order_type'     => $orderType,   // ← new
                         ],
                     ]
                 );
-
+    
                 if (!isset($response['data']['attributes']['checkout_url'])) {
                     unset($_SESSION['pending_checkout'], $_SESSION['temp_checkout_ref']);
                     throw new Exception("Checkout session creation failed. No checkout URL returned.");
                 }
-
+    
                 $_SESSION['paymongo_session_id'] = $response['data']['id'];
-                error_log("Payment initiated — Ref: {$tempReference}, Order: {$orderCode}, Method: {$paymentMethod}");
-
+                error_log("Payment initiated — Ref: {$tempReference}, Order: {$orderCode}, Method: {$paymentMethod}, Type: {$orderType}");
+    
                 // Rollback DB order — will be re-created in payment_callback.php
                 $conn->rollback();
-
+    
                 header("Location: " . $response['data']['attributes']['checkout_url']);
                 exit();
+    
+            // ── Cash on Delivery or Cash on Pickup ────────────────────────────────────────────────────────────
+            } elseif ($paymentMethod === 'cod' || $paymentMethod === 'cop') {
 
-            // ── COD ────────────────────────────────────────────────────────────
-            } elseif ($paymentMethod === 'cod') {
+                $billingAddress = $isPickup ? 'Store Pickup' : $address;
+                $billingCity    = $isPickup ? 'N/A'          : $city;
+                $billingPostal  = $isPickup ? '0000'         : $postalCode;
+                $billingName    = "$firstName $lastName";
 
                 $codStmt = $conn->prepare("
                     INSERT INTO payments (
@@ -560,39 +590,83 @@ function validateCartItems(mysqli $conn, array $cart): array {
                         mode, billing_name, billing_email, billing_phone,
                         billing_line1, billing_city, billing_postal_code, billing_country,
                         source_type, created_at
-                    ) VALUES (?, 'PHP', ?, 'Pending', 'live', ?, ?, ?, ?, ?, ?, 'PH', 'cod', NOW())
+                    ) VALUES (?, 'PHP', ?, 'Pending', 'live', ?, ?, ?, ?, ?, ?, 'PH', ?, NOW())
                 ");
-                $billingName = "$firstName $lastName";
                 $codStmt->bind_param(
-                    "idssssss",
+                    "idsssssss",
                     $orderId, $totalAmount,
                     $billingName, $email, $phoneNumber,
-                    $address, $city, $postalCode
+                    $billingAddress, $billingCity, $billingPostal,
+                    $paymentMethod
                 );
                 if (!$codStmt->execute())
                     error_log("COD payment insert error: " . $codStmt->error);
                 $codStmt->close();
 
+                // ── Generate confirm token ────────────────────────────────────────────
+                $confirmToken = bin2hex(random_bytes(32));
+                $tokenExpiry  = date('Y-m-d H:i:s', strtotime('+48 hours'));
+
+                $tkStmt = $conn->prepare("UPDATE orders SET confirm_token = ?, confirm_token_expiry = ? WHERE order_id = ?");
+                $tkStmt->bind_param('ssi', $confirmToken, $tokenExpiry, $orderId);
+                $tkStmt->execute();
+                $tkStmt->close();
+
                 logActivity(
                     $conn, 'payment', $orderId, 'COD order placed', null, 'Pending',
-                    "COD order #{$orderCode}. Total: ₱".number_format($totalAmount, 2),
+                    strtoupper($paymentMethod) . " {$orderType} order #{$orderCode}. Total: ₱" . number_format($totalAmount, 2),
                     $accountId, 'customer'
                 );
 
                 $conn->commit();
 
-                unset($_SESSION['cart'], $_SESSION['cart_errors'],
-                      $_SESSION['pending_checkout'], $_SESSION['last_checkout_city']);
+                // ── Build confirm URL ─────────────────────────────────────────────────
+                $baseUrl    = rtrim($_ENV['APP_URL'] ?? 'http://localhost/sjfbi-js', '/');
+                $confirmUrl = $baseUrl . '/confirm_order.php?order_id=' . $orderId
+                            . '&token=' . urlencode($confirmToken)
+                            . '&type=' . ($isPickup ? 'pickup' : 'confirm');
+
+                // After $conn->commit() and token generation:
+                require_once '../functions/mail_functions.php';
+
+                $isCOPPickup = ($paymentMethod === 'cop' && $isPickup);
+
+                if ($isCOPPickup) {
+                    // COP pickup — send receipt only, no confirm button
+                    sendPaymentConfirmationEmail($orderId, $confirmToken);
+                } else {
+                    // COD delivery — send receipt + confirm button email
+                    sendPaymentConfirmationEmail($orderId);
+
+                    $orderRow = [
+                        'order_id'             => $orderId,
+                        'order_code'           => $orderCode,
+                        'order_type'           => $orderType,
+                        'recipient_first_name' => $firstName,
+                        'recipient_email'      => $email,
+                        'total_price'          => $totalAmount,
+                        'payment_method'       => $paymentMethod,
+                    ];
+                    email_cod_confirm_order($orderRow, $confirmUrl);
+                }
+
+                // ── Clean up and redirect ────────────────────────────────────────────
+                unset(
+                    $_SESSION['cart'],
+                    $_SESSION['cart_errors'],
+                    $_SESSION['pending_checkout'],
+                    $_SESSION['last_checkout_city']
+                );
                 $_SESSION['order_id']   = $orderId;
                 $_SESSION['order_code'] = $orderCode;
 
                 header("Location: ../order_review.php?order_code=" . $orderCode);
                 exit();
-
+    
             } else {
                 throw new Exception("Unsupported payment method: " . $paymentMethod);
             }
-
+    
         } catch (Exception $e) {
             if (isset($conn)) $conn->rollback();
             error_log("Order processing error: " . $e->getMessage());

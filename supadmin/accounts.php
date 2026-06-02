@@ -7,6 +7,10 @@ if (!isset($_SESSION["loggedinassupadmin"]) || $_SESSION["loggedinassupadmin"] !
     exit;
 }
 
+$month = date('n');
+$year  = date('Y');
+$base  = 'exports/';
+
 // ── Pagination + filters ───────────────────────────────────────────────────
 $page    = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $perPage = 10;
@@ -182,6 +186,24 @@ $groups = $groupsResult ? $groupsResult->fetch_all(MYSQLI_ASSOC) : [];
           Add Account
         </button>
       </form>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+     accounts.php
+    ════════════════════════════════════════════ -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+        <a href="<?= $base ?>export_customers.php" target="_blank"
+          class="btn btn-outline-success btn-sm">
+            <i class="ti ti-file-spreadsheet"></i> Export All Customers
+        </a>
+        <a href="<?= $base ?>export_customers.php?group=vip" target="_blank"
+          class="btn btn-outline-warning btn-sm">
+            <i class="ti ti-star"></i> VIP Only
+        </a>
+        <a href="<?= $base ?>export_customers.php?inactive_days=90" target="_blank"
+          class="btn btn-outline-secondary btn-sm">
+            <i class="ti ti-user-off"></i> Inactive 90d+
+        </a>
     </div>
 
     <!-- Table -->

@@ -4,12 +4,16 @@
  */
 session_start();
 include '../conn.php';
-require_once '../functions/order_helper.php';
+require_once './functions/order_helper.php';
 
 if (!isset($_SESSION['loggedinassupadmin']) || $_SESSION['loggedinassupadmin'] !== true || !isset($_SESSION['account_id'])) {
     header('Location: ../index.php');
     exit;
 }
+
+$month = date('n');
+$year  = date('Y');
+$base  = 'exports/'; // relative path from your supadmin/ pages
 
 $whereConditions = ["p.payment_status IN ('Pending','Paid','Refunded')"];
 $params = [];
@@ -75,7 +79,7 @@ $statusConf = [
     'Cancelled'      => ['badge' => 'bg-red-100 text-red-800',      'card' => 'bg-red-50 border-red-200'],
 ];
 $paymentConf  = ['Paid'=>'bg-green-100 text-green-700','Pending'=>'bg-yellow-100 text-yellow-700','Failed'=>'bg-red-100 text-red-700','Refunded'=>'bg-blue-100 text-blue-700'];
-$methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qrph'=>'QR Ph','cod'=>'COD','card'=>'Card'];
+$methodLabels = ['gcash'=>'GCash','paymaya'=>'Maya','grab_pay'=>'GrabPay','qrph'=>'QR Ph','cod'=>'Cash on Delivery','cop'=>'Cash on Pickup','card'=>'Card'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -155,203 +159,226 @@ $methodLabels = ['gcash'=>'GCash','paymaya'=>'PayMaya','grab_pay'=>'GrabPay','qr
 <div id="toast-wrap"></div>
 
 <div class="w-full lg:ps-64">
-<div class="p-4 sm:p-6 space-y-5">
+  <div class="p-4 sm:p-6 space-y-5">
 
-  <?php if (!empty($_SESSION['message'])):
-    $msg = $_SESSION['message']; unset($_SESSION['message']);
-    $cls = $msg['type'] === 'success' ? 'bg-teal-500' : 'bg-red-500';
-  ?>
-  <div class="<?= $cls ?> text-white text-sm rounded-xl p-4">
-    <span class="font-bold"><?= ucfirst($msg['type']) ?>!</span> <?= htmlspecialchars($msg['text']) ?>
-  </div>
-  <?php endif; ?>
-
-  <!-- Stat cards -->
-  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-    <?php foreach ($statusConf as $status => $cfg): ?>
-    <a href="?status=<?= $status ?>"
-       class="<?= $cfg['card'] ?> border rounded-xl p-3 text-center hover:shadow-sm transition-shadow <?= ($_GET['status'] ?? '') === $status ? 'ring-2 ring-orange-400 ring-offset-1' : '' ?>">
-      <div class="text-2xl font-bold text-gray-800"><?= $counts[$status] ?? 0 ?></div>
-      <div class="text-xs text-gray-500 mt-0.5"><?= STATUS_LABELS[$status] ?></div>
-    </a>
-    <?php endforeach; ?>
-  </div>
-
-  <!-- Table card -->
-  <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-
-    <!-- Filters -->
-    <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
-      <div class="flex-1">
-        <h2 class="text-lg font-semibold text-gray-800">All Orders</h2>
-        <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> orders</p>
-      </div>
-      <form method="GET" class="flex flex-wrap gap-2">
-        <select name="status" onchange="this.form.submit()"
-                class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400">
-          <option value="">All Statuses</option>
-          <?php foreach (STATUS_LABELS as $v => $l): ?>
-          <option value="<?= $v ?>" <?= ($_GET['status'] ?? '') === $v ? 'selected' : '' ?>><?= $l ?></option>
-          <?php endforeach; ?>
-        </select>
-        <div class="relative">
-          <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" 
-                placeholder="Code, name, email..." 
-                class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
-          <button type="submit" class="absolute left-0 top-0 h-full flex items-center ps-3">
-            <svg class="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
-            </svg>
-          </button>
-        </div>
-        <?php if (!empty($_GET['status']) || !empty($_GET['search'])): ?>
-          <a href="orders.php" class="text-sm text-gray-400 hover:text-orange-500 py-2 px-1">✕ Clear</a>
-        <?php endif; ?>
-      </form>
-    </div>
-
-    <!-- Table -->
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-100">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Rider</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100" id="orders-tbody">
-
-          <?php if ($result->num_rows === 0): ?>
-          <tr><td colspan="8" class="py-16 text-center text-gray-400 text-sm">No orders found.</td></tr>
-          <?php else: while ($row = $result->fetch_assoc()):
-            $sBadge = $statusConf[$row['order_status']]['badge'] ?? 'bg-gray-100 text-gray-700';
-            $pBadge = $paymentConf[$row['payment_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700';
-            $mLabel = $methodLabels[$row['payment_method'] ?? ''] ?? ucfirst($row['payment_method'] ?? '—');
-          ?>
-
-          <!-- Main row -->
-          <tr class="order-row cursor-pointer" id="row-<?= $row['order_id'] ?>" onclick="toggleExpand(<?= $row['order_id'] ?>)">
-            <td class="px-5 py-3 text-gray-300">
-              <svg id="chev-<?= $row['order_id'] ?>" class="size-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
-            </td>
-            <td class="px-4 py-3">
-              <a href="order_manage.php?order_id=<?= $row['order_id'] ?>" onclick="event.stopPropagation()"
-                 class="text-sm font-bold text-orange-600 hover:text-orange-700 hover:underline"><?= htmlspecialchars($row['order_code']) ?></a>
-              <div class="text-xs text-gray-400"><?= date('M j, Y · g:i A', strtotime($row['order_date'])) ?></div>
-            </td>
-            <td class="px-4 py-3">
-              <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['recipient_first_name'].' '.$row['recipient_last_name']) ?></div>
-              <div class="text-xs text-gray-400"><?= $row['is_guest_order'] ? 'Guest' : 'Member' ?></div>
-            </td>
-            <td class="px-4 py-3">
-              <span class="order-status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $sBadge ?>">
-                <?= STATUS_LABELS[$row['order_status']] ?? $row['order_status'] ?>
-              </span>
-            </td>
-            <td class="px-4 py-3">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium <?= $pBadge ?>"><?= $row['payment_status'] ?? 'Pending' ?></span>
-              <div class="text-xs text-gray-400 mt-0.5"><?= $mLabel ?></div>
-            </td>
-            <td class="px-4 py-3">
-              <?php if (!empty($row['rider_name'])): ?>
-              <span class="text-xs font-medium text-gray-700"><?= htmlspecialchars($row['rider_name']) ?></span>
-              <?php else: ?>
-              <span class="text-xs text-gray-400">—</span>
-              <?php endif; ?>
-            </td>
-            <td class="px-4 py-3 text-right">
-              <span class="text-sm font-bold text-gray-800">₱<?= number_format($row['total_price'], 2) ?></span>
-            </td>
-            <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
-              <div class="inline-flex gap-1.5">
-                <?php if ($row['order_status'] === 'Pending'): ?>
-                <button id="approve-btn-<?= $row['order_id'] ?>"
-                        onclick="quickApprove(<?= $row['order_id'] ?>, this)"
-                        class="size-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                        title="Approve & Process">
-                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                </button>
-                <?php endif; ?>
-                <a href="order_manage.php?order_id=<?= $row['order_id'] ?>"
-                   class="size-8 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors"
-                   title="Manage Order">
-                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M17.5 2.5a2.121 2.121 0 0 1 3 3L12 14l-4 1 1-4 7.5-7.5z"/></svg>
-                </a>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Expand row -->
-          <tr id="expand-<?= $row['order_id'] ?>" class="hidden expand-row bg-orange-50/20">
-            <td colspan="8" class="px-6 py-4">
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div class="space-y-1.5">
-                  <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Customer Details</p>
-                  <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['recipient_email']) ?></p>
-                  <p class="text-xs text-gray-600"><span class="font-medium">Address:</span> <?= htmlspecialchars($row['recipient_address'].', '.$row['city']) ?></p>
-                  <p class="text-xs text-gray-600"><span class="font-medium">Type:</span> <?= $row['is_guest_order'] ? 'Guest' : 'Registered Member' ?></p>
-                </div>
-                <div class="sm:col-span-2">
-                  <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Order Items</p>
-                  <div id="items-<?= $row['order_id'] ?>" class="space-y-1 min-h-[32px]">
-                    <div class="text-xs text-gray-400 italic">Loading…</div>
-                  </div>
-                  <div class="flex justify-between items-center pt-2 border-t">
-                    <p class="text-xs font-medium text-gray-600">Discount Amount</p>
-                    <p class="text-xs font-semibold text-gray-800">₱<?= number_format($row['discount_amount'], 2) ?></p>
-                  </div>
-                  <div class="flex justify-between items-center">
-                    <p class="text-xs font-medium text-gray-600">Delivery Fee</p>
-                    <p class="text-xs font-semibold text-gray-800">₱<?= number_format($row['delivery_fee'], 2) ?></p>
-                  </div>
-                  <div class="flex gap-2 mt-3">
-                    <a href="order_manage.php?order_id=<?= $row['order_id'] ?>"
-                       class="px-3 py-1.5 text-xs bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors">
-                      Manage Order →
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </tr>
-
-          <?php endwhile; endif; ?>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination -->
-    <?php if ($totalPages > 1): ?>
-    <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-      <p class="text-xs text-gray-500"><?= $totalItems ?> orders · Page <?= $page ?> of <?= $totalPages ?></p>
-      <div class="flex gap-1">
-        <?php if ($page > 1): ?>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>"
-           class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
-        <?php endif; ?>
-        <?php for ($i = max(1, $page-2); $i <= min($totalPages, $page+2); $i++): ?>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"
-           class="px-3 py-1.5 text-xs border rounded-lg <?= $i===$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>">
-          <?= $i ?>
-        </a>
-        <?php endfor; ?>
-        <?php if ($page < $totalPages): ?>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>"
-           class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
-        <?php endif; ?>
-      </div>
+    <?php if (!empty($_SESSION['message'])):
+      $msg = $_SESSION['message']; unset($_SESSION['message']);
+      $cls = $msg['type'] === 'success' ? 'bg-teal-500' : 'bg-red-500';
+    ?>
+    <div class="<?= $cls ?> text-white text-sm rounded-xl p-4">
+      <span class="font-bold"><?= ucfirst($msg['type']) ?>!</span> <?= htmlspecialchars($msg['text']) ?>
     </div>
     <?php endif; ?>
 
-  </div><!-- /table card -->
-</div>
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <?php foreach ($statusConf as $status => $cfg): ?>
+      <a href="?status=<?= $status ?>"
+        class="<?= $cfg['card'] ?> border rounded-xl p-3 text-center hover:shadow-sm transition-shadow <?= ($_GET['status'] ?? '') === $status ? 'ring-2 ring-orange-400 ring-offset-1' : '' ?>">
+        <div class="text-2xl font-bold text-gray-800"><?= $counts[$status] ?? 0 ?></div>
+        <div class="text-xs text-gray-500 mt-0.5"><?= STATUS_LABELS[$status] ?></div>
+      </a>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Table card -->
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+
+      <!-- Filters -->
+      <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold text-gray-800">All Orders</h2>
+          <p class="text-xs text-gray-500"><span class="font-semibold text-gray-700"><?= $totalItems ?></span> orders</p>
+        </div>
+        <form method="GET" class="flex flex-wrap gap-2">
+          <select name="status" onchange="this.form.submit()"
+                  class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400">
+            <option value="">All Statuses</option>
+            <?php foreach (STATUS_LABELS as $v => $l): ?>
+            <option value="<?= $v ?>" <?= ($_GET['status'] ?? '') === $v ? 'selected' : '' ?>><?= $l ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="relative">
+            <input type="text" name="search" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" 
+                  placeholder="Code, name, email..." 
+                  class="ps-9 pe-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none w-64">
+            <button type="submit" class="absolute left-0 top-0 h-full flex items-center ps-3">
+              <svg class="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
+          </div>
+          <?php if (!empty($_GET['status']) || !empty($_GET['search'])): ?>
+            <a href="orders.php" class="text-sm text-gray-400 hover:text-orange-500 py-2 px-1">✕ Clear</a>
+          <?php endif; ?>
+        </form>
+      </div>
+
+      <div class="export-actions" style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+  
+          <a href="<?= $base ?>export_orders.php"
+            class="btn btn-outline-success btn-sm" target="_blank">
+              <i class="ti ti-file-spreadsheet"></i> Export All Orders
+          </a>
+      
+          <a href="<?= $base ?>export_orders.php?month=<?= $month ?>&year=<?= $year ?>"
+            class="btn btn-outline-success btn-sm" target="_blank">
+              <i class="ti ti-calendar-month"></i> Export This Month
+          </a>
+      
+          <!-- If you have status filter already applied, pass it through -->
+          <?php if (!empty($_GET['status'])): ?>
+          <a href="<?= $base ?>export_orders.php?status=<?= urlencode($_GET['status']) ?>"
+            class="btn btn-success btn-sm" target="_blank">
+              <i class="ti ti-filter"></i>
+              Export "<?= htmlspecialchars($_GET['status']) ?>" Orders
+          </a>
+          <?php endif; ?>
+      
+          <!-- Date range — wire to your existing from/to filter inputs -->
+          <?php if (!empty($_GET['from']) && !empty($_GET['to'])): ?>
+          <a href="<?= $base ?>export_orders.php?from=<?= urlencode($_GET['from']) ?>&to=<?= urlencode($_GET['to']) ?>"
+            class="btn btn-success btn-sm" target="_blank">
+              <i class="ti ti-calendar-range"></i>
+              Export Selected Range
+          </a>
+          <?php endif; ?>
+      </div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Rider</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100" id="orders-tbody">
+
+            <?php if ($result->num_rows === 0): ?>
+            <tr><td colspan="8" class="py-16 text-center text-gray-400 text-sm">No orders found.</td></tr>
+            <?php else: while ($row = $result->fetch_assoc()):
+              $sBadge = $statusConf[$row['order_status']]['badge'] ?? 'bg-gray-100 text-gray-700';
+              $pBadge = $paymentConf[$row['payment_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700';
+              $mLabel = $methodLabels[$row['payment_method'] ?? ''] ?? ucfirst($row['payment_method'] ?? '—');
+            ?>
+
+            <!-- Main row -->
+            <tr class="order-row cursor-pointer" id="row-<?= $row['order_id'] ?>" onclick="toggleExpand(<?= $row['order_id'] ?>)">
+              <td class="px-5 py-3 text-gray-300">
+                <svg id="chev-<?= $row['order_id'] ?>" class="size-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+              </td>
+              <td class="px-4 py-3">
+                <a href="order_manage.php?order_id=<?= $row['order_id'] ?>" onclick="event.stopPropagation()"
+                  class="text-sm font-bold text-orange-600 hover:text-orange-700 hover:underline"><?= htmlspecialchars($row['order_code']) ?></a>
+                <div class="text-xs text-gray-400"><?= date('M j, Y · g:i A', strtotime($row['order_date'])) ?></div>
+              </td>
+              <td class="px-4 py-3">
+                <div class="text-sm font-medium text-gray-800"><?= htmlspecialchars($row['recipient_first_name'].' '.$row['recipient_last_name']) ?></div>
+                <div class="text-xs text-gray-400"><?= $row['is_guest_order'] ? 'Guest' : 'Member' ?></div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="order-status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $sBadge ?>">
+                  <?= STATUS_LABELS[$row['order_status']] ?? $row['order_status'] ?>
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium <?= $pBadge ?>"><?= $row['payment_status'] ?? 'Pending' ?></span>
+                <div class="text-xs text-gray-400 mt-0.5"><?= $mLabel ?></div>
+              </td>
+              <td class="px-4 py-3">
+                <?php if (!empty($row['rider_name'])): ?>
+                <span class="text-xs font-medium text-gray-700"><?= htmlspecialchars($row['rider_name']) ?></span>
+                <?php else: ?>
+                <span class="text-xs text-gray-400">—</span>
+                <?php endif; ?>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <span class="text-sm font-bold text-gray-800">₱<?= number_format($row['total_price'], 2) ?></span>
+              </td>
+              <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                <div class="inline-flex gap-1.5">
+                  <a href="order_manage.php?order_id=<?= $row['order_id'] ?>"
+                    class="size-8 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors"
+                    title="Manage Order">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M17.5 2.5a2.121 2.121 0 0 1 3 3L12 14l-4 1 1-4 7.5-7.5z"/></svg>
+                  </a>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Expand row -->
+            <tr id="expand-<?= $row['order_id'] ?>" class="hidden expand-row bg-orange-50/20">
+              <td colspan="8" class="px-6 py-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                  <div class="space-y-1.5">
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Customer Details</p>
+                    <p class="text-xs text-gray-600"><span class="font-medium">Email:</span> <?= htmlspecialchars($row['recipient_email']) ?></p>
+                    <p class="text-xs text-gray-600"><span class="font-medium">Address:</span> <?= htmlspecialchars($row['recipient_address'].', '.$row['city']) ?></p>
+                    <p class="text-xs text-gray-600"><span class="font-medium">Type:</span> <?= $row['is_guest_order'] ? 'Guest' : 'Registered Member' ?></p>
+                  </div>
+                  <div class="sm:col-span-2">
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Order Items</p>
+                    <div id="items-<?= $row['order_id'] ?>" class="space-y-1 min-h-[32px]">
+                      <div class="text-xs text-gray-400 italic">Loading…</div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t">
+                      <p class="text-xs font-medium text-gray-600">Discount Amount</p>
+                      <p class="text-xs font-semibold text-gray-800">₱<?= number_format($row['discount_amount'], 2) ?></p>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <p class="text-xs font-medium text-gray-600">Delivery Fee</p>
+                      <p class="text-xs font-semibold text-gray-800">₱<?= number_format($row['delivery_fee'], 2) ?></p>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                      <a href="order_manage.php?order_id=<?= $row['order_id'] ?>"
+                        class="px-3 py-1.5 text-xs bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors">
+                        Manage Order →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <?php endwhile; endif; ?>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <?php if ($totalPages > 1): ?>
+      <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+        <p class="text-xs text-gray-500"><?= $totalItems ?> orders · Page <?= $page ?> of <?= $totalPages ?></p>
+        <div class="flex gap-1">
+          <?php if ($page > 1): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>"
+            class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
+          <?php endif; ?>
+          <?php for ($i = max(1, $page-2); $i <= min($totalPages, $page+2); $i++): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"
+            class="px-3 py-1.5 text-xs border rounded-lg <?= $i===$page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50' ?>">
+            <?= $i ?>
+          </a>
+          <?php endfor; ?>
+          <?php if ($page < $totalPages): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>"
+            class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+    </div><!-- /table card -->
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>
@@ -418,69 +445,48 @@ function toggleExpand(orderId) {
   var container = document.getElementById('items-' + orderId);
 
   fetch(PROCESS + '?action=get_order_detail&order_id=' + orderId)
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      if (!data.ok) { container.innerHTML = '<div class="text-xs text-red-400">' + data.msg + '</div>'; return; }
-      if (!data.items.length) { container.innerHTML = '<div class="text-xs text-gray-400">No items.</div>'; return; }
-      container.innerHTML = data.items.map(function(item) {
-        var total = (item.quantity * parseFloat(item.price)).toFixed(2);
-        var img = item.image_path
-          ? '<img src="../' + item.image_path + '" class="size-8 rounded object-cover shrink-0" onerror="this.style.display=\'none\'">'
-          : '<div class="size-8 rounded bg-gray-100 shrink-0"></div>';
-        return '<div class="flex items-center justify-between text-xs py-1.5 border-b border-gray-100 last:border-0 gap-2">' +
-          '<div class="flex items-center gap-2 min-w-0">' + img +
-          '<span class="font-medium text-gray-700 truncate">' + item.product_name + '</span>' +
-          '<span class="text-gray-400 shrink-0">(' + item.variant_name + ')</span>' +
-          '</div>' +
-          '<span class="text-gray-600 shrink-0">\u00d7' + item.quantity + ' &nbsp; <strong>\u20b1' + total + '</strong></span>' +
-          '</div>';
-      }).join('');
-      loaded.add(orderId);
-    })
-    .catch(function(){ container.innerHTML = '<div class="text-xs text-red-400">Failed to load.</div>'; });
+  .then(function(r){
+    return r.text();
+  })
+  .then(function(text){
+    console.log(text);
+
+    var data = JSON.parse(text);
+
+    if (!data.ok) {
+      container.innerHTML = '<div class="text-xs text-red-400">' + data.msg + '</div>';
+      return;
+    }
+
+    if (!data.items.length) {
+      container.innerHTML = '<div class="text-xs text-gray-400">No items.</div>';
+      return;
+    }
+
+    container.innerHTML = data.items.map(function(item) {
+      var total = (item.quantity * parseFloat(item.price)).toFixed(2);
+
+      var img = item.image_path
+        ? '<img src="../' + item.image_path + '" class="size-8 rounded object-cover shrink-0" onerror="this.style.display=\'none\'">'
+        : '<div class="size-8 rounded bg-gray-100 shrink-0"></div>';
+
+      return '<div class="flex items-center justify-between text-xs py-1.5 border-b border-gray-100 last:border-0 gap-2">' +
+        '<div class="flex items-center gap-2 min-w-0">' + img +
+        '<span class="font-medium text-gray-700 truncate">' + item.product_name + '</span>' +
+        '<span class="text-gray-400 shrink-0">(' + item.variant_name + ')</span>' +
+        '</div>' +
+        '<span class="text-gray-600 shrink-0">\u00d7' + item.quantity + ' &nbsp; <strong>\u20b1' + total + '</strong></span>' +
+        '</div>';
+    }).join('');
+
+    loaded.add(orderId);
+  })
+  .catch(function(err){
+    console.log(err);
+    container.innerHTML = '<div class="text-xs text-red-400">Failed to load.</div>';
+  });
 }
 
-/* ── Quick approve ──────────────────────────────────────────────────────── */
-function quickApprove(orderId, btn) {
-  btn.disabled = true;
-  btn.innerHTML = '<svg class="size-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>';
-
-  var fd = new FormData();
-  fd.append('action', 'approve_order');
-  fd.append('order_id', orderId);
-
-  fetch(PROCESS, { method:'POST', body:fd })
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      if (data.ok) {
-        showToast('Order approved and moved to Processing.', 'success');
-        var row   = document.getElementById('row-' + orderId);
-        var badge = row ? row.querySelector('.order-status-badge') : null;
-        if (badge) {
-          badge.className = 'order-status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800';
-          badge.textContent = 'Processing';
-        }
-        btn.remove();
-        loaded.delete(orderId);
-      } else {
-        if (data.shortfalls && data.shortfalls.length) {
-          var lines = data.shortfalls.map(function(s){
-            return '<li>' + s.product_name + ' (' + s.variant_name + '): need ' + s.requested + ', only ' + s.available + ' available</li>';
-          }).join('');
-          showToast('Cannot approve \u2014 stock insufficient:<ul class="mt-1 list-disc list-inside text-xs">' + lines + '</ul>', 'error');
-        } else {
-          showToast(data.msg, 'error');
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
-      }
-    })
-    .catch(function() {
-      showToast('Network error. Please try again.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
-    });
-}
 </script>
 </body>
 </html>

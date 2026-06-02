@@ -55,6 +55,9 @@ function getFormValue($field, $userDetails, $savedData) {
     }
     return isset($userDetails[$field]) ? htmlspecialchars($userDetails[$field]) : '';
 }
+
+// Restore saved order_type (default: delivery)
+$savedOrderType = $savedData['order_type'] ?? 'delivery';
 ?>
 
 <div class="max-w-6xl mx-auto">
@@ -107,6 +110,69 @@ function getFormValue($field, $userDetails, $savedData) {
       <!-- ══ LEFT — Form fields ══════════════════════════════════════════════ -->
       <div class="lg:col-span-2 space-y-5">
 
+        <!-- ── Order Type Toggle ──────────────────────────────────────────── -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+            <div class="size-7 rounded-lg bg-orange-100 flex items-center justify-center">
+              <svg class="size-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-gray-800">Order Type</h3>
+              <p class="text-xs text-gray-400">Deliver to your address or pick up from our store.</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-2 gap-3">
+
+              <!-- Delivery option -->
+              <div class="order-type-option">
+                <input type="radio" name="order_type" id="order_type_delivery" value="delivery" class="sr-only"
+                       <?= $savedOrderType !== 'pickup' ? 'checked' : '' ?>>
+                <label for="order_type_delivery" class="order-type-label">
+                  <div class="order-type-icon-wrap bg-orange-100">
+                    <svg class="size-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  </div>
+                  <div class="flex-1">
+                    <span class="order-type-name">Delivery</span>
+                    <span class="order-type-sub">Ship to my address</span>
+                  </div>
+                  <div class="order-type-check">
+                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Pickup option -->
+              <div class="order-type-option">
+                <input type="radio" name="order_type" id="order_type_pickup" value="pickup" class="sr-only"
+                       <?= $savedOrderType === 'pickup' ? 'checked' : '' ?>>
+                <label for="order_type_pickup" class="order-type-label">
+                  <div class="order-type-icon-wrap bg-blue-100">
+                    <svg class="size-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  </div>
+                  <div class="flex-1">
+                    <span class="order-type-name">Pickup</span>
+                    <span class="order-type-sub">No delivery fee</span>
+                  </div>
+                  <div class="order-type-check">
+                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                  </div>
+                </label>
+              </div>
+
+            </div>
+
+            <!-- Pickup info notice (shown only when pickup is selected) -->
+            <div id="pickupNotice" class="<?= $savedOrderType === 'pickup' ? '' : 'hidden' ?> mt-4 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <svg class="size-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p class="text-xs text-blue-700 leading-relaxed">
+                You'll pick up your order directly from our store. No delivery fee will be charged.
+                We'll contact you once your order is ready.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Contact Details -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
@@ -155,8 +221,8 @@ function getFormValue($field, $userDetails, $savedData) {
           </div>
         </div>
 
-        <!-- Delivery Address -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <!-- Delivery Address (hidden when pickup) -->
+        <div id="deliveryAddressSection" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden <?= $savedOrderType === 'pickup' ? 'hidden' : '' ?>">
           <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
             <div class="size-7 rounded-lg bg-orange-100 flex items-center justify-center">
               <svg class="size-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -172,27 +238,67 @@ function getFormValue($field, $userDetails, $savedData) {
               <input type="text" name="recipient_address"
                 value="<?= getFormValue('address', $userDetails, $savedData) ?>"
                 placeholder="House no., Street, Barangay"
-                class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
+                class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm"
+                id="recipient_address_input">
               <p class="hidden text-xs text-red-500 mt-1" id="address-error">Enter your address.</p>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="relative">
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">City / Municipality <span class="text-red-400">*</span></label>
-                <input type="text" id="City" name="city"
-                      value="<?= htmlspecialchars($userDetails['city'] ?? $savedData['city'] ?? '') ?>"
-                      placeholder="Type your city..."
-                      class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm"
-                      autocomplete="off" required>
-                <div id="city-suggestions" class="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-60 overflow-y-auto hidden"></div>
-                <p class="hidden text-xs text-red-500 mt-1" id="city-error">Enter your city.</p>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                  City / Municipality <span class="text-red-400">*</span>
+                </label>
+
+                <?php
+                $savedCity   = $userDetails['city'] ?? $savedData['city'] ?? '';
+                $cityOptions = [];
+
+                // Fetch cities A–Z (no special sorting for pickup)
+                $cityStmt = $conn->prepare("
+                    SELECT city, area_type, base_fee, free_shipping_threshold
+                    FROM delivery_fees
+                    WHERE is_active = 1
+                    ORDER BY city ASC
+                ");
+
+                if ($cityStmt) {
+                    $cityStmt->execute();
+                    $result = $cityStmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        $cityOptions[] = $row;
+                    }
+                    $cityStmt->close();
+                }
+                ?>
+
+                <select id="City" name="city"
+                        class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white"
+                        id="city_select">
+                  <option value="">— Select your city —</option>
+                  <?php foreach ($cityOptions as $c): ?>
+                  <option value="<?= htmlspecialchars($c['city']) ?>"
+                      <?= ($c['city'] === $savedCity) ? 'selected' : '' ?>
+                      data-fee="<?= (float)$c['base_fee'] ?>"
+                      data-threshold="<?= $c['free_shipping_threshold'] !== null ? (float)$c['free_shipping_threshold'] : '' ?>"
+                      data-area="<?= htmlspecialchars($c['area_type']) ?>">
+                    <?= htmlspecialchars($c['city']) . ' — ₱' . number_format((float)$c['base_fee'], 2) ?>
+                    <?php if ($c['free_shipping_threshold']): ?>
+                      (Free over ₱<?= number_format((float)$c['free_shipping_threshold'], 0) ?>)
+                    <?php endif; ?>
+                  </option>
+                  <?php endforeach; ?>
+                </select>
+
+                <p class="hidden text-xs text-red-500 mt-1" id="city-error">Please select your city.</p>
                 <p class="text-xs text-gray-400 mt-1" id="city-fee-preview"></p>
               </div>
+
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Postal Code <span class="text-red-400">*</span></label>
                 <input type="number" name="postal_code"
                   value="<?= getFormValue('postal_code', $userDetails, $savedData) ?>"
                   placeholder="XXXX"
-                  class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm" required>
+                  class="checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm"
+                  id="postal_code_input">
                 <p class="hidden text-xs text-red-500 mt-1" id="postal_code-error">Enter your postal code.</p>
               </div>
             </div>
@@ -252,25 +358,57 @@ function getFormValue($field, $userDetails, $savedData) {
             </div>
           </div>
           <div class="p-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="paymentMethodsGrid">
               <?php
               $savedPayment = $userDetails['payment_method'] ?? '';
+              $isPickupSelected = ($savedData['order_type'] ?? 'delivery') === 'pickup';
               $methods = [
-                ['id'=>'cod',      'val'=>'cod',       'label'=>'Cash on Delivery', 'sub'=>'Pay when delivered',  'icon_type'=>'svg',  'icon'=>'<path d="M7 15h-3a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M7 9m0 1a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1z"/><path d="M12 14a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/>',  'bg'=>'bg-green-100',  'color'=>'text-green-700'],
-                ['id'=>'gcash',    'val'=>'gcash',     'label'=>'GCash',            'sub'=>'Mobile wallet',       'icon_type'=>'img',  'icon'=>'./assets/icons/gcash.png',    'bg'=>'bg-blue-100'],
-                ['id'=>'maya',     'val'=>'paymaya',   'label'=>'Maya',             'sub'=>'Mobile wallet',       'icon_type'=>'img',  'icon'=>'./assets/icons/maya.png',     'bg'=>'bg-green-100'],
-                ['id'=>'qrph',     'val'=>'qrph',      'label'=>'QR Ph',            'sub'=>'Scan to pay',         'icon_type'=>'img',  'icon'=>'./assets/icons/qrph.png',     'bg'=>'bg-indigo-100'],
-                ['id'=>'grab_pay', 'val'=>'grab_pay',  'label'=>'GrabPay',          'sub'=>'Grab wallet',         'icon_type'=>'img',  'icon'=>'./assets/icons/grabpay.png',  'bg'=>'bg-green-100'],
-                ['id'=>'card',     'val'=>'card',       'label'=>'Credit / Debit Card','sub'=>'Visa, Mastercard',  'icon_type'=>'img',  'icon'=>'./assets/icons/card.png',     'bg'=>'bg-purple-100'],
+                // COD — hidden visually but stays in DOM for delivery orders (display:none)
+                ['id'=>'cod',      'val'=>'cod',       'label'=>'Cash on Delivery',   'sub'=>'Pay when delivered',
+                'icon_type'=>'svg', 'bg'=>'bg-green-100', 'color'=>'text-green-700',
+                'icon'=>'<path d="M7 15h-3a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M7 9m0 1a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1z"/><path d="M12 14a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/>',
+                'pickup_only'=>false, 'hidden_default'=>true],   // ← hidden for delivery, not shown
+
+                // COP — only shown when order_type = pickup
+                ['id'=>'cop',      'val'=>'cop',       'label'=>'Cash on Pickup',     'sub'=>'Pay when you collect',
+                'icon_type'=>'svg', 'bg'=>'bg-green-100', 'color'=>'text-green-700',
+                'icon'=>'<path d="M7 15h-3a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M7 9m0 1a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1z"/><path d="M12 14a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/>',
+                'pickup_only'=>true,  'hidden_default'=>false],  // ← only for pickup
+
+                ['id'=>'gcash',    'val'=>'gcash',     'label'=>'GCash',              'sub'=>'Mobile wallet',
+                'icon_type'=>'img', 'icon'=>'./assets/icons/gcash.png',    'bg'=>'bg-blue-100',
+                'pickup_only'=>false, 'hidden_default'=>false],
+
+                ['id'=>'maya',     'val'=>'paymaya',   'label'=>'Maya',               'sub'=>'Mobile wallet',
+                'icon_type'=>'img', 'icon'=>'./assets/icons/maya.png',     'bg'=>'bg-green-100',
+                'pickup_only'=>false, 'hidden_default'=>false],
+
+                ['id'=>'qrph',     'val'=>'qrph',      'label'=>'QR Ph',              'sub'=>'Scan to pay',
+                'icon_type'=>'img', 'icon'=>'./assets/icons/qrph.png',     'bg'=>'bg-indigo-100',
+                'pickup_only'=>false, 'hidden_default'=>false],
+
+                ['id'=>'grab_pay', 'val'=>'grab_pay',  'label'=>'GrabPay',            'sub'=>'Grab wallet',
+                'icon_type'=>'img', 'icon'=>'./assets/icons/grabpay.png',  'bg'=>'bg-green-100',
+                'pickup_only'=>false, 'delivery_only'=>true, 'hidden_default'=>false],  // ← add delivery_only
+
+                ['id'=>'card',     'val'=>'card',      'label'=>'Credit / Debit Card', 'sub'=>'Visa, Mastercard',
+                'icon_type'=>'img', 'icon'=>'./assets/icons/card.png',     'bg'=>'bg-purple-100',
+                'pickup_only'=>false, 'delivery_only'=>true, 'hidden_default'=>false],  // ← add delivery_only
               ];
-              foreach ($methods as $m): ?>
-              <div class="payment-option">
+              ?>
+              <?php foreach ($methods as $m):
+                $pickupOnly    = !empty($m['pickup_only'])   ? 'data-pickup-only="1"'   : '';
+                $deliveryOnly  = !empty($m['delivery_only']) ? 'data-delivery-only="1"' : '';  // ← add this
+                $hiddenDefault = !empty($m['hidden_default']) ? 'style="display:none"' : '';
+              ?>
+              <div class="payment-option" <?= $pickupOnly ?> <?= $deliveryOnly ?> <?= $hiddenDefault ?>>
                 <input type="radio" name="payment_method" id="<?= $m['id'] ?>" value="<?= $m['val'] ?>" class="sr-only"
-                       <?= $savedPayment === $m['val'] ? 'checked' : '' ?>>
+                      <?= $savedPayment === $m['val'] ? 'checked' : '' ?>>
                 <label for="<?= $m['id'] ?>" class="payment-label">
                   <div class="payment-icon-wrap <?= $m['bg'] ?>">
                     <?php if ($m['icon_type'] === 'svg'): ?>
-                    <svg class="size-5 <?= $m['color'] ?? '' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><?= $m['icon'] ?></svg>
+                    <svg class="size-5 <?= $m['color'] ?? '' ?>" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2"><?= $m['icon'] ?></svg>
                     <?php else: ?>
                     <img src="<?= $m['icon'] ?>" alt="<?= $m['label'] ?>" class="size-5 object-contain">
                     <?php endif; ?>
@@ -280,7 +418,9 @@ function getFormValue($field, $userDetails, $savedData) {
                     <span class="payment-sub"><?= $m['sub'] ?></span>
                   </div>
                   <div class="payment-check">
-                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path d="M20 6 9 17l-5-5"/>
+                    </svg>
                   </div>
                 </label>
               </div>
@@ -290,7 +430,7 @@ function getFormValue($field, $userDetails, $savedData) {
           </div>
         </div>
 
-        <input type="hidden" name="total_amount"    id="total_amount"    value="<?= number_format($cartTotal, 2, '.', '') ?>">
+        <input type="hidden" name="total_amount" id="total_amount" value="<?= number_format($cartTotal, 2, '.', '') ?>">
       </div>
 
       <!-- ══ RIGHT — Order Summary ══════════════════════════════════════════ -->
@@ -399,9 +539,9 @@ function getFormValue($field, $userDetails, $savedData) {
               <span id="cart-subtotal" class="font-semibold text-gray-800">₱<?= number_format($cartTotal, 2) ?></span>
             </div>
 
-            <div class="flex justify-between text-sm text-gray-500">
-              <span>Delivery Fee</span>
-              <span id="delivery-fee-display" class="font-semibold text-gray-400">Enter city first</span>
+            <div class="flex justify-between text-sm text-gray-500" id="delivery-fee-line">
+              <span id="delivery-fee-label">Delivery Fee</span>
+              <span id="delivery-fee-display" class="font-semibold text-gray-400">Select city first</span>
             </div>
 
             <!-- Discount (hidden until a voucher is applied) -->
@@ -446,11 +586,13 @@ function getFormValue($field, $userDetails, $savedData) {
             </div>
 
             <!-- Hidden fields — read by add.php on submit -->
-            <input type="hidden" name="delivery_fee"     id="delivery_fee_input"     value="0">
-            <input type="hidden" name="subtotal"         id="subtotal_input"         value="<?= number_format($cartTotal, 2, '.', '') ?>">
-            <input type="hidden" name="discount_amount"  id="discount_amount_input"  value="0">
+            <input type="hidden" name="delivery_fee"          id="delivery_fee_input"          value="0">
+            <input type="hidden" name="subtotal"              id="subtotal_input"              value="<?= number_format($cartTotal, 2, '.', '') ?>">
+            <input type="hidden" name="discount_amount"       id="discount_amount_input"       value="0">
             <!-- Mirror of applied voucher code — always submitted even when input is readonly -->
-            <input type="hidden" name="applied_voucher_code" id="applied_voucher_code_input" value="">
+            <input type="hidden" name="applied_voucher_code"  id="applied_voucher_code_input"  value="">
+            <!-- Order type — submitted to add.php -->
+            <input type="hidden" name="order_type"            id="order_type_hidden"           value="<?= htmlspecialchars($savedOrderType) ?>">
           </div>
         </div>
       </div>
@@ -468,6 +610,8 @@ function getFormValue($field, $userDetails, $savedData) {
   .cart-item input.quantity:focus { outline: 2px solid #f97316; outline-offset: 1px; border-radius: 2px; }
   .cart-item-over-stock .quantity { color: #d97706 !important; font-weight: 700; }
   .cart-item-over-stock .qty-controls { border-color: #f59e0b !important; }
+
+  /* ── Payment method cards ── */
   .payment-label { display:flex; align-items:center; gap:12px; border:2px solid #e5e7eb; border-radius:14px; padding:12px 14px; cursor:pointer; transition:all .2s; background:#fff; }
   .payment-label:hover { border-color:#fdba74; background:#fff7ed; }
   .payment-option input[type="radio"]:checked + .payment-label { border-color:#f97316; background:#fff7ed; box-shadow:0 0 0 3px rgba(249,115,22,.12); }
@@ -477,109 +621,241 @@ function getFormValue($field, $userDetails, $savedData) {
   .payment-sub { display:block; font-size:11px; color:#9ca3af; margin-top:1px; }
   .payment-check { margin-left:auto; width:20px; height:20px; border-radius:9999px; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; color:transparent; transition:all .2s; flex-shrink:0; }
   .payment-option input[type="radio"]:checked + .payment-label .payment-check { background:#f97316; border-color:#f97316; color:#fff; }
+
+  /* ── Order type cards ── */
+  .order-type-label { display:flex; align-items:center; gap:12px; border:2px solid #e5e7eb; border-radius:14px; padding:12px 14px; cursor:pointer; transition:all .2s; background:#fff; }
+  .order-type-label:hover { border-color:#fdba74; background:#fff7ed; }
+  .order-type-option input[type="radio"]:checked + .order-type-label { border-color:#f97316; background:#fff7ed; box-shadow:0 0 0 3px rgba(249,115,22,.12); }
+  .order-type-option input[type="radio"]#order_type_pickup:checked + .order-type-label { border-color:#3b82f6; background:#eff6ff; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+  .order-type-icon-wrap { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .order-type-name { display:block; font-size:13px; font-weight:600; color:#374151; line-height:1.2; }
+  .order-type-option input[type="radio"]:checked + .order-type-label .order-type-name { color:#ea580c; }
+  .order-type-option input[type="radio"]#order_type_pickup:checked + .order-type-label .order-type-name { color:#2563eb; }
+  .order-type-sub { display:block; font-size:11px; color:#9ca3af; margin-top:1px; }
+  .order-type-check { margin-left:auto; width:20px; height:20px; border-radius:9999px; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; color:transparent; transition:all .2s; flex-shrink:0; }
+  .order-type-option input[type="radio"]:checked + .order-type-label .order-type-check { background:#f97316; border-color:#f97316; color:#fff; }
+  .order-type-option input[type="radio"]#order_type_pickup:checked + .order-type-label .order-type-check { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+
+  select.checkout-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-  // ── State ────────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────────────
   window.currentDeliveryFee = 0;
   window.currentDiscount    = 0;
   var currentVoucher = null;
 
-  var voucherInput       = document.getElementById('voucher_code');
-  var applyBtn           = document.getElementById('applyVoucherBtn');
-  var voucherMsg         = document.getElementById('voucherMessage');
-  var appliedVoucher     = document.getElementById('appliedVoucher');
-  var appliedVoucherCode = document.getElementById('appliedVoucherCode');
-  var removeVoucherBtn   = document.getElementById('removeVoucherBtn');
-  var cityInput          = document.getElementById('City');
-  var suggestionsDiv     = document.getElementById('city-suggestions');
-  var cityFeePreview     = document.getElementById('city-fee-preview');
+  var voucherInput   = document.getElementById('voucher_code');
+  var applyBtn       = document.getElementById('applyVoucherBtn');
+  var citySelect     = document.getElementById('City');
 
-  // ── reload: single function that refreshes everything from server ─────────
-  // cart_process.js exposes window.reloadOrderSummary() which calls
-  // fetch_order_summary.php with the current city + discount.
+  // ── Order type logic ──────────────────────────────────────────────────────
+  var orderTypeInputs       = document.querySelectorAll('[name="order_type"]');
+  var orderTypeHidden       = document.getElementById('order_type_hidden');
+  var deliveryAddressSection = document.getElementById('deliveryAddressSection');
+  var pickupNotice          = document.getElementById('pickupNotice');
+  var deliveryFeeLine       = document.getElementById('delivery-fee-line');
+  var deliveryFeeDisplay    = document.getElementById('delivery-fee-display');
+  var deliveryFeeInput      = document.getElementById('delivery_fee_input');
+
+  // Fields that are required only for delivery
+  var addressInput     = document.getElementById('recipient_address_input');
+  var postalCodeInput  = document.getElementById('postal_code_input');
+
+  function isPickup() {
+    var checked = document.querySelector('[name="order_type"]:checked');
+    return checked && checked.value === 'pickup';
+  }
+
+  function applyOrderType() {
+    var pickup = isPickup();
+
+    // Update hidden field
+    if (orderTypeHidden) orderTypeHidden.value = pickup ? 'pickup' : 'delivery';
+
+    // Show / hide address section
+    if (deliveryAddressSection) {
+      deliveryAddressSection.classList.toggle('hidden', pickup);
+    }
+
+    // Show / hide pickup notice
+    if (pickupNotice) {
+      pickupNotice.classList.toggle('hidden', !pickup);
+    }
+
+    // Toggle required on address fields so validation skips them for pickup
+    if (addressInput)    addressInput.required    = !pickup;
+    if (postalCodeInput) postalCodeInput.required = !pickup;
+    if (citySelect)      citySelect.required      = !pickup;
+
+    if (pickup) {
+      // Pickup: zero delivery fee, hide the fee line, reload totals
+      window.currentDeliveryFee = 0;
+      if (deliveryFeeInput)  deliveryFeeInput.value = '0';
+      if (deliveryFeeDisplay) {
+        deliveryFeeDisplay.textContent = 'Free (Pickup)';
+        deliveryFeeDisplay.className   = 'font-semibold text-green-600';
+      }
+      // Recompute grand total locally
+      _recalcGrandTotal();
+    } else {
+      // Delivery: re-run the server-side reload so delivery fee is recalculated
+      if (deliveryFeeDisplay) {
+        deliveryFeeDisplay.textContent = citySelect && citySelect.value ? '…' : 'Select city first';
+        deliveryFeeDisplay.className   = 'font-semibold text-gray-400';
+      }
+      reload();
+    }
+    _filterPaymentMethods(pickup);
+  }
+
+  // Recalculate grand total in-browser (used for pickup / instant feedback)
+  function _recalcGrandTotal() {
+    var subtotal  = parseFloat((document.getElementById('subtotal_input') || {}).value || 0) || 0;
+    var fee       = parseFloat((deliveryFeeInput || {}).value || 0) || 0;
+    var discount  = window.currentDiscount || 0;
+    var total     = Math.max(0, subtotal - discount + fee);
+
+    var gtEl = document.getElementById('cart-grand-total');
+    if (gtEl) gtEl.textContent = '₱' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    var taEl = document.getElementById('total_amount');
+    if (taEl) taEl.value = total.toFixed(2);
+  }
+
+  orderTypeInputs.forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      applyOrderType();
+      // Also save draft
+      scheduleSave();
+    });
+  });
+
+  // Run once on page load to reflect server-restored state
+  applyOrderType();
+
+  function _filterPaymentMethods(pickup) {
+    document.querySelectorAll('.payment-option[data-payment-modes]').forEach(function (el) {
+      var modes = el.dataset.paymentModes;
+      var show  = modes === 'both'
+               || (pickup  && modes === 'pickup')
+               || (!pickup && modes === 'delivery');
+      el.style.display = show ? '' : 'none';
+
+      // If a hidden method is currently selected, deselect it
+      if (!show) {
+        var radio = el.querySelector('input[type="radio"]');
+        if (radio && radio.checked) {
+          radio.checked = false;
+        }
+      }
+    });
+  }
+
+  // Expose so cart_process.js detects we are on the checkout page.
+  window.updateDeliveryFee = reload;
+
+  // ── reload: single call that refreshes everything from the server ──────────
   function reload() {
+    if (isPickup()) {
+      // Don't hit the server for pickup — fee is always zero
+      _recalcGrandTotal();
+      return;
+    }
     if (typeof window.reloadOrderSummary === 'function') {
       window.reloadOrderSummary();
     }
   }
 
-  // Expose so cart_process.js can call _checkAllStock after reload
-  window._checkAllStock = checkAllStock;
+  // Fire immediately if a city is already pre-selected (returning user / saved draft)
+  if (citySelect && citySelect.value !== '' && !isPickup()) {
+    reload();
+  }
 
-  // Also hook updateDeliveryFee so cart_process.js detects we are on checkout
-  // (it checks typeof window.updateDeliveryFee === 'function')
-  window.updateDeliveryFee = reload;
-
-  // ── City autocomplete ────────────────────────────────────────────────────
-  var cityTimeout;
-  if (cityInput) {
-    cityInput.addEventListener('input', function () {
-      clearTimeout(cityTimeout);
-      var query = this.value.trim();
-      if (query.length < 2) {
-        if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
-        if (cityFeePreview) cityFeePreview.textContent = '';
-        return;
-      }
-      cityTimeout = setTimeout(function () {
-        fetch('./functions/city_autocomplete.php?q=' + encodeURIComponent(query))
-          .then(function (r) { return r.json(); })
-          .then(function (cities) {
-            if (!suggestionsDiv) return;
-            if (!cities.length) { suggestionsDiv.classList.add('hidden'); return; }
-            suggestionsDiv.innerHTML = cities.map(function (c) {
-              return '<div class="city-suggestion px-4 py-2 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-0"' +
-                ' data-city="' + _esc(c.city) + '">' +
-                '<div class="font-medium text-sm">' + _esc(c.city) + '</div>' +
-                '<div class="text-xs text-gray-400">' + _esc(c.area_type) + ' · ₱' + parseFloat(c.base_fee).toFixed(2) + ' delivery' +
-                (c.free_shipping_threshold ? ' · Free over ₱' + parseFloat(c.free_shipping_threshold).toLocaleString() : '') +
-                '</div></div>';
-            }).join('');
-            suggestionsDiv.classList.remove('hidden');
-
-            suggestionsDiv.querySelectorAll('.city-suggestion').forEach(function (el) {
-              el.addEventListener('click', function () {
-                cityInput.value = this.dataset.city;
-                suggestionsDiv.classList.add('hidden');
-                reload();
-                if (currentVoucher) _doApplyVoucher();
-              });
-            });
-          });
-      }, 300);
-    });
-
-    cityInput.addEventListener('change', function () {
-      if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
+  // ── City change ───────────────────────────────────────────────────────────
+  if (citySelect) {
+    citySelect.addEventListener('change', function () {
+      var cityHint = document.getElementById('city-fee-preview');
+      if (cityHint) cityHint.textContent = '';
       reload();
       if (currentVoucher) _doApplyVoucher();
     });
   }
 
-  document.addEventListener('click', function (e) {
-    if (suggestionsDiv && cityInput && !cityInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-      suggestionsDiv.classList.add('hidden');
-    }
-  });
+  // ── Show/hide payment methods based on order type ──────────────────────────
+  function syncPaymentMethodsToOrderType() {
+    var isPickup = document.querySelector('[name="order_type"]:checked')?.value === 'pickup'
+                || document.getElementById('order_type_hidden')?.value === 'pickup';
 
-  // ── Voucher ──────────────────────────────────────────────────────────────
+    // COD: always hidden
+    var codEl = document.getElementById('cod')?.closest('.payment-option');
+    if (codEl) codEl.style.display = 'none';
+
+    // COP: only for pickup
+    document.querySelectorAll('[data-pickup-only]').forEach(function(el) {
+      el.style.display = isPickup ? '' : 'none';
+      if (!isPickup) {
+        var radio = el.querySelector('input[type="radio"]');
+        if (radio && radio.checked) radio.checked = false;
+      }
+    });
+
+    // GrabPay, Card: only for delivery  ← new block
+    document.querySelectorAll('[data-delivery-only]').forEach(function(el) {
+      el.style.display = isPickup ? 'none' : '';
+      if (isPickup) {
+        var radio = el.querySelector('input[type="radio"]');
+        if (radio && radio.checked) radio.checked = false;
+      }
+    });
+  }
+
+  // Call on page load
+  syncPaymentMethodsToOrderType();
+
+  // Call when order type toggles (if you have a toggle on the checkout page)
+  document.querySelectorAll('[name="order_type"]').forEach(function(el) {
+    el.addEventListener('change', syncPaymentMethodsToOrderType);
+  });
+  // Also hook into city dropdown — if "Pickup Order" selected → pickup mode
+  var citySelectEl = document.getElementById('City');
+  if (citySelectEl) {
+    citySelectEl.addEventListener('change', function() {
+      var isPickupCity = this.value === 'Pickup Order';
+      var hiddenType = document.getElementById('order_type_hidden');
+      if (hiddenType) hiddenType.value = isPickupCity ? 'pickup' : 'delivery';
+      syncPaymentMethodsToOrderType();
+    });
+    // Trigger on load if city is already "Pickup Order"
+    if (citySelectEl.value === 'Pickup Order') {
+      var hiddenType = document.getElementById('order_type_hidden');
+      if (hiddenType) hiddenType.value = 'pickup';
+      syncPaymentMethodsToOrderType();
+    }
+  }
+
+  // ── Voucher ───────────────────────────────────────────────────────────────
+  var voucherMsg         = document.getElementById('voucherMessage');
+  var appliedVoucher     = document.getElementById('appliedVoucher');
+  var appliedVoucherCode = document.getElementById('appliedVoucherCode');
+  var removeVoucherBtn   = document.getElementById('removeVoucherBtn');
+
   if (applyBtn) applyBtn.addEventListener('click', _doApplyVoucher);
 
   function _doApplyVoucher() {
     var code     = voucherInput ? voucherInput.value.trim().toUpperCase() : '';
-    var subtotal = parseFloat(document.getElementById('subtotal_input').value || 0) || 0;
-    if (!code) { _showVoucherMsg('Please enter a voucher code', 'error'); return; }
+    var subtotal = parseFloat((document.getElementById('subtotal_input') || {}).value || 0) || 0;
+    if (!code) { _showVoucherMsg('Please enter a voucher code.', 'error'); return; }
     if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Applying…'; }
 
     fetch('./functions/validate_voucher.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'code=' + encodeURIComponent(code) +
+      body: 'code='       + encodeURIComponent(code) +
             '&cart_total=' + subtotal +
-            '&city=' + encodeURIComponent(cityInput ? cityInput.value.trim() : '')
+            '&city='       + encodeURIComponent(citySelect ? citySelect.value : '')
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -587,24 +863,26 @@ document.addEventListener('DOMContentLoaded', function () {
         currentVoucher         = data.voucher;
         window.currentDiscount = data.discount_amount;
 
-        document.getElementById('discount_amount_input').value = data.discount_amount.toFixed(2);
+        var di = document.getElementById('discount_amount_input');
+        if (di) di.value = data.discount_amount.toFixed(2);
+
         var dl = document.getElementById('discount-line-container');
         if (dl) dl.classList.remove('hidden');
         var da = document.getElementById('discount-amount');
         if (da) da.textContent = '-₱' + parseFloat(data.discount_amount).toFixed(2);
 
-        // Mirror applied code in hidden input — ensures it submits even when input is readonly
         var mirrorInp = document.getElementById('applied_voucher_code_input');
         if (mirrorInp) mirrorInp.value = data.voucher.code;
 
         _showAppliedVoucher(data);
         _showVoucherMsg(data.message, 'success');
-        reload(); // reload with discount applied
+
+        reload();
       } else {
         _showVoucherMsg(data.message, 'error');
       }
     })
-    .catch(function () { _showVoucherMsg('An error occurred.', 'error'); })
+    .catch(function () { _showVoucherMsg('An error occurred. Please try again.', 'error'); })
     .finally(function () {
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = 'Apply'; }
     });
@@ -612,14 +890,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (removeVoucherBtn) {
     removeVoucherBtn.addEventListener('click', function () {
-      currentVoucher = null;
+      currentVoucher         = null;
       window.currentDiscount = 0;
+
       if (appliedVoucher) appliedVoucher.classList.add('hidden');
-      if (voucherInput) { voucherInput.value = ''; voucherInput.readOnly = false; voucherInput.style.opacity = ''; }
-      document.getElementById('discount_amount_input').value = '0';
+      if (voucherInput)   { voucherInput.value = ''; voucherInput.readOnly = false; voucherInput.style.opacity = ''; }
+
+      var di = document.getElementById('discount_amount_input');
+      if (di) di.value = '0';
+
       var dl = document.getElementById('discount-line-container');
       if (dl) dl.classList.add('hidden');
-      _showVoucherMsg('Voucher removed', 'info');
+
+      var mirrorInp = document.getElementById('applied_voucher_code_input');
+      if (mirrorInp) mirrorInp.value = '';
+
+      _showVoucherMsg('Voucher removed.', 'info');
       reload();
     });
   }
@@ -631,20 +917,20 @@ document.addEventListener('DOMContentLoaded', function () {
         ? data.voucher.discount_value + '% off'
         : '₱' + parseFloat(data.voucher.discount_value).toFixed(2) + ' off');
     if (appliedVoucher) appliedVoucher.classList.remove('hidden');
-    if (voucherInput) { voucherInput.readOnly = true; voucherInput.style.opacity = "0.6"; }
+    if (voucherInput)   { voucherInput.readOnly = true; voucherInput.style.opacity = '0.6'; }
   }
 
   function _showVoucherMsg(msg, type) {
     var el = document.getElementById('voucherMessage');
     if (!el) return;
-    var c = { success:'text-green-600', error:'text-red-600', info:'text-orange-600' };
+    var c = { success: 'text-green-600', error: 'text-red-600', info: 'text-orange-600' };
     el.textContent = msg;
     el.className   = 'text-xs mt-2 ' + (c[type] || 'text-gray-600');
     el.classList.remove('hidden');
     if (type === 'success') setTimeout(function () { el.classList.add('hidden'); }, 5000);
   }
 
-  // ── Stock checking ───────────────────────────────────────────────────────
+  // ── Stock checking ─────────────────────────────────────────────────────────
   function checkItemStock(item) {
     var stock    = parseInt(item.dataset.stockQuantity) || Infinity;
     var qtyEl    = item.querySelector('.quantity');
@@ -662,40 +948,67 @@ document.addEventListener('DOMContentLoaded', function () {
     return exceeded;
   }
 
+  var _stockCheckPending = false; // ← debounce flag
+
   function checkAllStock() {
+    if (_stockCheckPending) return; // ← prevent re-entrant calls
+    _stockCheckPending = true;
+
     var anyExceeded = false;
     var anyHardErr  = document.querySelectorAll('#cart-items-list .cart-item-error').length > 0;
     document.querySelectorAll('#cart-items-list .cart-item:not(.cart-item-error)').forEach(function (item) {
       if (checkItemStock(item)) anyExceeded = true;
     });
+
     var btn      = document.getElementById('submitBtn');
     var hintText = document.getElementById('stockHintText');
-    if (!btn) return;
-    var blocked  = anyHardErr || anyExceeded;
-    if (blocked) {
-      btn.disabled = true;
-      btn.classList.remove('bg-orange-600','hover:bg-orange-500','active:scale-95','text-white');
-      btn.classList.add('bg-gray-200','text-gray-400','cursor-not-allowed');
-      if (anyExceeded && !anyHardErr) {
-        btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Adjust Quantities Above';
-        if (hintText) hintText.classList.remove('hidden');
+
+    if (btn) {
+      var blocked = anyHardErr || anyExceeded;
+      if (blocked) {
+        btn.disabled = true;
+        btn.classList.remove('bg-orange-600','hover:bg-orange-500','active:scale-95','text-white');
+        btn.classList.add('bg-gray-200','text-gray-400','cursor-not-allowed');
+        if (anyExceeded && !anyHardErr) {
+          btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Adjust Quantities Above';
+          if (hintText) hintText.classList.remove('hidden');
+        }
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('bg-gray-200','text-gray-400','cursor-not-allowed');
+        btn.classList.add('bg-orange-600','hover:bg-orange-500','active:scale-95','text-white');
+        btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Complete Order';
+        if (hintText) hintText.classList.add('hidden');
       }
-    } else {
-      btn.disabled = false;
-      btn.classList.remove('bg-gray-200','text-gray-400','cursor-not-allowed');
-      btn.classList.add('bg-orange-600','hover:bg-orange-500','active:scale-95','text-white');
-      btn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Complete Order';
-      if (hintText) hintText.classList.add('hidden');
     }
+
+    // ← Release the flag AFTER all DOM writes are done
+    _stockCheckPending = false;
   }
 
-  checkAllStock();
-  document.addEventListener('input',  function (e) { if (e.target.classList.contains('quantity') && e.target.closest('.cart-item')) checkAllStock(); });
-  document.addEventListener('change', function (e) { if (e.target.classList.contains('quantity') && e.target.closest('.cart-item')) setTimeout(checkAllStock, 200); });
-  var cartList = document.getElementById('cart-items-list');
-  if (cartList && window.MutationObserver) new MutationObserver(checkAllStock).observe(cartList, { childList: true, subtree: true });
+  window._checkAllStock = checkAllStock;
 
-  // ── Form submit validation ───────────────────────────────────────────────
+  checkAllStock();
+
+  document.addEventListener('input', function (e) {
+    if (e.target.classList.contains('quantity') && e.target.closest('.cart-item')) checkAllStock();
+  });
+  document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('quantity') && e.target.closest('.cart-item')) setTimeout(checkAllStock, 200);
+  });
+
+  var cartList = document.getElementById('cart-items-list');
+  if (cartList && window.MutationObserver) {
+    var _stockObserver = new MutationObserver(function (mutations) {
+      // ← Only re-run if the mutations are structural (items added/removed),
+      //   NOT attribute/class changes caused by checkAllStock itself
+      var hasStructural = mutations.some(function (m) { return m.type === 'childList'; });
+      if (hasStructural) checkAllStock();
+    });
+    _stockObserver.observe(cartList, { childList: true, subtree: false }); // ← subtree:false
+  }
+
+  // ── Form submit validation ─────────────────────────────────────────────────
   var checkoutForm = document.getElementById('checkoutForm');
   if (checkoutForm) {
     checkoutForm.addEventListener('submit', function (e) {
@@ -707,18 +1020,25 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         showToast('Please reduce quantities to available stock before proceeding.', 'error');
         var first = document.querySelector('.cart-item-over-stock');
-        if (first) first.scrollIntoView({ behavior:'smooth', block:'center' });
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
+
+      var pickup = isPickup();
+
       var fields = [
-        { name:'recipient_first_name', errId:'first_name-error'   },
-        { name:'recipient_last_name',  errId:'last_name-error'    },
-        { name:'recipient_email',      errId:'email-error'        },
-        { name:'recipient_phone',      errId:'phone_number-error' },
-        { name:'recipient_address',    errId:'address-error'      },
-        { name:'city',                 errId:'city-error'         },
-        { name:'postal_code',          errId:'postal_code-error'  },
+        { name: 'recipient_first_name', errId: 'first_name-error'   },
+        { name: 'recipient_last_name',  errId: 'last_name-error'    },
+        { name: 'recipient_email',      errId: 'email-error'        },
+        { name: 'recipient_phone',      errId: 'phone_number-error' },
       ];
+
+      // Address fields only required for delivery
+      if (!pickup) {
+        fields.push({ name: 'recipient_address', errId: 'address-error'     });
+        fields.push({ name: 'postal_code',        errId: 'postal_code-error' });
+      }
+
       var valid = true;
       fields.forEach(function (f) {
         var el  = document.querySelector('[name="' + f.name + '"]');
@@ -729,29 +1049,87 @@ document.addEventListener('DOMContentLoaded', function () {
         if (err) err.classList.toggle('hidden', ok);
         if (!ok) valid = false;
       });
+
+      // City only required for delivery
+      if (!pickup) {
+        var cityErr = document.getElementById('city-error');
+        var cityOk  = citySelect && citySelect.value !== '';
+        if (citySelect) citySelect.classList.toggle('error', !cityOk);
+        if (cityErr)    cityErr.classList.toggle('hidden', cityOk);
+        if (!cityOk) valid = false;
+      }
+
       var payErr = document.getElementById('payment_method-error');
       var paySel = document.querySelector('[name="payment_method"]:checked');
       if (!paySel) { valid = false; if (payErr) payErr.classList.remove('hidden'); }
       else if (payErr) payErr.classList.add('hidden');
+
       if (!valid) {
         e.preventDefault();
         showToast('Please fill in all required fields.', 'error');
-        var firstErr = document.querySelector('.checkout-input.error');
-        if (firstErr) firstErr.scrollIntoView({ behavior:'smooth', block:'center' });
+        var firstErr = document.querySelector('.checkout-input.error, select.error');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     });
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  function _esc(v) {
-    if (v == null) return '';
-    return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // ── Auto-save draft to session ─────────────────────────────────────────────
+  var saveTimeout;
+
+  function collectFormData() {
+    var data = new URLSearchParams();
+    var map = {
+      'recipient_first_name' : 'first_name',
+      'recipient_last_name'  : 'last_name',
+      'recipient_email'      : 'email',
+      'recipient_phone'      : 'phone_number',
+      'recipient_address'    : 'address',
+      'postal_code'          : 'postal_code',
+      'delivery_notes'       : 'delivery_notes',
+    };
+    Object.keys(map).forEach(function (inputName) {
+      var el = document.querySelector('[name="' + inputName + '"]');
+      if (el) data.append(map[inputName], el.value);
+    });
+    if (citySelect) data.append('city', citySelect.value);
+    var payEl = document.querySelector('[name="payment_method"]:checked');
+    if (payEl) data.append('payment_method', payEl.value);
+    // Save order_type
+    var orderTypeEl = document.querySelector('[name="order_type"]:checked');
+    if (orderTypeEl) data.append('order_type', orderTypeEl.value);
+    return data;
   }
 
-  // ── Initial load ─────────────────────────────────────────────────────────
-  setTimeout(function () {
-    if (cityInput && cityInput.value.trim()) reload();
-  }, 150);
+  function saveDraft() {
+    fetch('./functions/save_checkout_draft.php', {
+      method   : 'POST',
+      headers  : { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body     : collectFormData().toString(),
+      keepalive: true
+    }).catch(function () {});
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveDraft, 600);
+  }
+
+  document.querySelectorAll(
+    '[name="recipient_first_name"],[name="recipient_last_name"],' +
+    '[name="recipient_email"],[name="recipient_phone"],' +
+    '[name="recipient_address"],[name="postal_code"],[name="delivery_notes"]'
+  ).forEach(function (el) {
+    el.addEventListener('input',  scheduleSave);
+    el.addEventListener('change', scheduleSave);
+  });
+
+  if (citySelect) citySelect.addEventListener('change', saveDraft);
+  document.querySelectorAll('[name="payment_method"]').forEach(function (el) {
+    el.addEventListener('change', saveDraft);
+  });
+
+  window.addEventListener('pagehide',     saveDraft);
+  window.addEventListener('beforeunload', saveDraft);
 
 });
 </script>

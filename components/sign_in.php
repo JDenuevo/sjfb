@@ -1,3 +1,9 @@
+<?php
+// Get the base URL for your site
+$baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+
+?>
+
 <!-- sign_in.php — Login Modal -->
 <div id="hs-modal-signin" class="modal-overlay hidden">
   <div class="modal-box" id="signin-white-bg">
@@ -9,7 +15,7 @@
       <div class="signin-brand">
         <div class="signin-brand-inner">
           <div class="signin-logo">
-            <img src="./assets/icons/logo.svg" alt="SJFBI" class="signin-logo-img">
+            <img src="<?= $baseUrl ?>/assets/icons/logo.svg" alt="SJFBI" class="signin-logo-img">
           </div>
           <h2 class="signin-brand-title">Welcome back</h2>
           <p class="signin-brand-sub">Sign in to your St. Joseph Fish Brokerage account to manage orders and track deliveries.</p>
@@ -67,7 +73,7 @@
           <?php unset($_SESSION['error_message']); ?>
           <?php endif; ?>
 
-          <form action="./functions/checker.php" method="POST" autocomplete="on" id="signin-form" name="login">
+          <form action="<?= $baseUrl ?>/functions/checker.php" method="POST" autocomplete="on" id="signin-form" name="login">
             <div class="signin-fields">
 
               <!-- Username -->
