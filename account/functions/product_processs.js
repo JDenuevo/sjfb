@@ -173,60 +173,61 @@ document.addEventListener('DOMContentLoaded', function () {
 // ─────────────────────────────────────────────────────────────────────────────
 function initializeProductFunctionality() {
 
-    // ── Variant selection ──────────────────────────────────────────────────────
-    document.querySelectorAll('.variant-button:not([data-bound])').forEach(function (button) {
-        button.setAttribute('data-bound', '1');
-        button.addEventListener('click', function () {
-            if (button.disabled) return;
+    // ── Variant selection via <select> ────────────────────────────────────────────
+    document.querySelectorAll('.variant-select:not([data-bound])').forEach(function (select) {
+        select.setAttribute('data-bound', '1');
 
-            var productId     = button.dataset.productId;
-            var variantPrice  = parseFloat(button.dataset.variantPrice)  || 0;
-            var discountPrice = parseFloat(button.dataset.discountPrice) || 0;
-            var unitType      = button.dataset.unitType;
-            var minimumOrder  = parseFloat(button.dataset.minimumOrder)  || 1;
-            var orderIncr     = parseFloat(button.dataset.orderIncrement)|| 1;
+        // Trigger once on init to populate hidden fields from the pre-selected option
+        _applyVariantFromSelect(select);
 
-            var form = document.querySelector('.add-to-cart-form[data-product-id="' + productId + '"]');
-            if (!form) return;
-
-            // Deselect all siblings, select this one
-            form.querySelectorAll('.variant-button').forEach(function (b) {
-                b.classList.remove('selected-variant', 'border-amber-400', 'bg-amber-400', 'text-white');
-                b.classList.add('border-gray-300');
-            });
-            button.classList.add('selected-variant', 'border-amber-400', 'bg-amber-400', 'text-white');
-            button.classList.remove('border-gray-300');
-
-            form.querySelector('[name="variant_id"]').value      = button.dataset.variantId;
-            form.querySelector('[name="variant_name"]').value    = button.dataset.variantName;
-            form.querySelector('[name="price"]').value           = discountPrice > 0 ? discountPrice : variantPrice;
-            form.querySelector('[name="unit_type"]').value       = unitType;
-            form.querySelector('[name="minimum_order"]').value   = minimumOrder;
-            form.querySelector('[name="order_increment"]').value = orderIncr;
-
-            var qtyInput = form.querySelector('.quantity');
-            if (qtyInput) {
-                qtyInput.min   = minimumOrder;
-                qtyInput.step  = orderIncr;
-                qtyInput.value = unitType === 'piece' ? Math.round(minimumOrder) : minimumOrder;
-                var hidQty = form.querySelector('[name="quantity"]');
-                if (hidQty) hidQty.value = minimumOrder;
-            }
-
-            var unitDisp = form.querySelector('.unit-display');
-            if (unitDisp) unitDisp.textContent = unitType === 'piece' ? 'pcs' : unitType;
-
-            var minText = form.querySelector('.minimum-order-text');
-            if (minText) minText.textContent = 'Minimum: ' + minimumOrder + ' ' + (unitType === 'piece' ? 'pcs' : unitType);
-
-            _updateCardPriceDisplay(form, variantPrice, discountPrice, minimumOrder);
-
-            var submitBtn = form.querySelector('[name="add_to_cart"]');
-            if (submitBtn) submitBtn.disabled = false;
-
-            form.querySelectorAll('.variant-message, .minimum-error-message').forEach(function (el) { el.classList.add('hidden'); });
+        select.addEventListener('change', function () {
+            _applyVariantFromSelect(select);
         });
     });
+
+    function _applyVariantFromSelect(select) {
+        var productId = select.dataset.productId;
+        var opt = select.options[select.selectedIndex];
+        if (!opt || opt.disabled) return;
+
+        var variantPrice  = parseFloat(opt.dataset.variantPrice)  || 0;
+        var discountPrice = parseFloat(opt.dataset.discountPrice) || 0;
+        var unitType      = opt.dataset.unitType;
+        var minimumOrder  = parseFloat(opt.dataset.minimumOrder)  || 1;
+        var orderIncr     = parseFloat(opt.dataset.orderIncrement)|| 1;
+
+        var form = document.querySelector('.add-to-cart-form[data-product-id="' + productId + '"]');
+        if (!form) return;
+
+        form.querySelector('[name="variant_id"]').value      = opt.dataset.variantId;
+        form.querySelector('[name="variant_name"]').value    = opt.dataset.variantName;
+        form.querySelector('[name="price"]').value           = discountPrice > 0 ? discountPrice : variantPrice;
+        form.querySelector('[name="unit_type"]').value       = unitType;
+        form.querySelector('[name="minimum_order"]').value   = minimumOrder;
+        form.querySelector('[name="order_increment"]').value = orderIncr;
+
+        var qtyInput = form.querySelector('.quantity');
+        if (qtyInput) {
+            qtyInput.min   = minimumOrder;
+            qtyInput.step  = orderIncr;
+            qtyInput.value = unitType === 'piece' ? Math.round(minimumOrder) : minimumOrder;
+            var hidQty = form.querySelector('[name="quantity"]');
+            if (hidQty) hidQty.value = minimumOrder;
+        }
+
+        var unitDisp = form.querySelector('.unit-display');
+        if (unitDisp) unitDisp.textContent = unitType === 'piece' ? 'pcs' : unitType;
+
+        var minText = form.querySelector('.minimum-order-text');
+        if (minText) minText.textContent = 'Minimum: ' + minimumOrder + ' ' + (unitType === 'piece' ? 'pcs' : unitType);
+
+        _updateCardPriceDisplay(form, variantPrice, discountPrice, minimumOrder);
+
+        var submitBtn = form.querySelector('[name="add_to_cart"]');
+        if (submitBtn) submitBtn.disabled = false;
+
+        form.querySelectorAll('.variant-message, .minimum-error-message').forEach(function (el) { el.classList.add('hidden'); });
+    }
 
     // ── Qty − ─────────────────────────────────────────────────────────────────
     document.querySelectorAll('.add-to-cart-form .decrease-quantity:not([data-bound])').forEach(function (btn) {

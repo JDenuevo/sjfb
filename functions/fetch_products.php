@@ -1,32 +1,42 @@
 <?php
 /**
  * functions/fetch_products.php
- * Called by AJAX from product_process.js
- * Returns only the product card HTML (no layout, no sidebar).
+ * Called by AJAX from product_process.js — returns only the inner grid HTML.
+ *
+ * Grid used here must match the FULL SHOP grid in products.php
+ * because this response is injected into #productsContent which sits
+ * inside the sidebar layout (sidebar ~230px wide).
+ *
+ *   xs  <480   → 1 col
+ *   sm  480+   → 2 cols
+ *   md  768+   → 2 cols  (sidebar visible)
+ *   lg  1024+  → 3 cols
+ *   xl  1280+  → 4 cols
  */
 session_start();
 include '../conn.php';
 
-$baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+$baseUrl   = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 $fp_search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// ── Build query ───────────────────────────────────────────────────────────────
-$fp_query = "SELECT 
+// ── Build main query ──────────────────────────────────────────────────────────
+$fp_query = "SELECT
         p.product_id, p.product_name, p.product_unit, p.product_nickname,
-        pi.image_path, 
+        p.created_at,
+        pi.image_path,
         v.variant_id, v.variant_name, v.variant_price, v.discount_price,
         v.unit_type, v.minimum_order, v.order_increment, v.stock_quantity,
         GROUP_CONCAT(DISTINCT c.category_name ORDER BY c.category_name SEPARATOR ', ') AS category_names
       FROM products p
-      LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
-      LEFT JOIN product_variants v ON p.product_id = v.product_id AND v.is_deleted = 0
+      LEFT JOIN product_images pi  ON p.product_id = pi.product_id AND pi.is_primary = 1
+      LEFT JOIN product_variants v ON p.product_id = v.product_id  AND v.is_deleted = 0 AND v.is_hidden = 0
       LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
       LEFT JOIN product_categories c ON pcl.category_id = c.category_id AND c.is_active = 1
       WHERE p.is_deleted = 0 AND p.is_hidden = 0";
 
 $fp_params = []; $fp_types = '';
 
-// ── Category filter (slug-based) ─────────────────────────────────────────────
+// ── Category filter ───────────────────────────────────────────────────────────
 if (!empty($_GET['category']) && $_GET['category'] !== 'all') {
     $slugs = array_filter(array_map('trim', explode(',', $_GET['category'])));
     if (!empty($slugs)) {
@@ -51,7 +61,7 @@ if (!empty($_GET['category']) && $_GET['category'] !== 'all') {
             $fp_types .= str_repeat('i', count($fp_catIds));
             $fp_params = array_merge($fp_params, $fp_catIds);
         } else {
-            $fp_query .= " AND 1=0"; // slug not found → no results
+            $fp_query .= " AND 1=0";
         }
     }
 }
@@ -90,12 +100,14 @@ while ($row = $fp_result->fetch_assoc()) {
             'product_name'     => $row['product_name'],
             'product_unit'     => $row['product_unit'],
             'product_nickname' => $row['product_nickname'],
+            'created_at'       => $row['created_at'],
             'image_url'        => !empty($row['image_path'])
                 ? $baseUrl . 'uploads/products/' . $row['image_path']
                 : $baseUrl . 'uploads/products/default.png',
             'category_names'   => $row['category_names'],
             'variants'         => [],
             'has_stock'        => false,
+            'total_sold'       => 0,
         ];
     }
     if (!empty($row['variant_id'])) {
@@ -116,9 +128,34 @@ while ($row = $fp_result->fetch_assoc()) {
     }
 }
 $fp_stmt->close();
+
+// ── Sold counts ───────────────────────────────────────────────────────────────
+if (!empty($fp_products)) {
+    $pids      = array_keys($fp_products);
+    $pidPH     = implode(',', array_fill(0, count($pids), '?'));
+    $sold_stmt = $conn->prepare(
+        "SELECT oi.product_id, SUM(oi.quantity) AS total_sold
+         FROM order_items oi
+         INNER JOIN orders o ON oi.order_id = o.order_id
+         WHERE oi.product_id IN ($pidPH)
+           AND o.order_status IN ('Delivered','Completed')
+           AND o.is_deleted = 0
+         GROUP BY oi.product_id"
+    );
+    $sold_stmt->bind_param(str_repeat('i', count($pids)), ...$pids);
+    $sold_stmt->execute();
+    $sold_res = $sold_stmt->get_result();
+    while ($sr = $sold_res->fetch_assoc()) {
+        if (isset($fp_products[$sr['product_id']])) {
+            $fp_products[$sr['product_id']]['total_sold'] = intval($sr['total_sold']);
+        }
+    }
+    $sold_stmt->close();
+}
+
 $conn->close();
 ?>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+<!-- Same grid as full-shop in products.php (sidebar is present in the parent page) -->
+<div class="grid grid-cols-2 min-[480px]:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
 <?php include dirname(__DIR__) . '/components/products_card.php'; ?>
-
 </div>

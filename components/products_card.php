@@ -1,186 +1,265 @@
 <?php
 /**
- * components/product_cards.php
+ * components/products_card.php
  *
- * Shared product card renderer.
- * Expects $fp_products (array) and $baseUrl (string) to be in scope.
- * Outputs the inner grid of cards — no wrapping <div class="grid"> here,
- * that wrapper lives in fetch_products.php so AJAX replacement is seamless.
+ * Shopee-style product card. Always stacks vertically — responsive solely
+ * via column width provided by the parent grid. Works in all three contexts:
+ *
+ *   products.php preview ($fp_limit set) → wider cols, bigger feel
+ *   products.php full shop               → sidebar present, 2–4 cols
+ *   fetch_products.php AJAX              → same as full shop
+ *
+ * Expects per iteration (set by caller):
+ *   $fp_products  array   — keyed by product_id
+ *   $baseUrl      string
+ * Each product may have 'created_at' and 'total_sold'.
  */
 
 if (empty($fp_products)): ?>
-<div class="col-span-full">
-    <div class="flex flex-col items-center justify-center py-20 text-center">
-        <div class="flex items-center justify-center w-24 h-24 rounded-full bg-gray-100 mb-4">
-            <svg class="w-16 h-16 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16.69 7.44a6.973 6.973 0 0 0-1.69 4.56c0 1.747.64 3.345 1.699 4.571"/>
-                <path d="M2 9.504c7.715 8.647 14.75 10.265 20 2.498c-5.25-7.761-12.285-6.142-20 2.504"/>
-                <path d="M18 11v.01"/><path d="M11.5 10.5c-.667 1-.667 2 0 3"/>
-            </svg>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-800">No products found</h3>
-        <p class="mt-2 text-gray-500 max-w-sm">Try a different category or clear your filters.</p>
-        <button onclick="clearAllFilters()"
-                class="inline-flex items-center mt-5 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
-            Clear Filters
-        </button>
+<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+        <svg class="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+        </svg>
     </div>
+    <p class="text-sm font-semibold text-gray-700">No products found</p>
+    <p class="text-xs text-gray-400 mt-1">Try a different category or clear your filters.</p>
+    <button onclick="clearAllFilters()"
+            class="mt-4 px-5 py-2 text-xs font-semibold bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors">
+        Clear Filters
+    </button>
 </div>
 <?php return; endif; ?>
 
 <?php foreach ($fp_products as $product_id => $product):
-    $product_name  = $product['product_name'];
-    $product_unit  = $product['product_unit'];
-    $image_url     = $product['image_url'];
-    $variants      = $product['variants'];
-    $category_names = $product['category_names'] ?? '';
-    $hasStock      = $product['has_stock'];
+    $product_name = $product['product_name'];
+    $product_unit = $product['product_unit'];
+    $image_url    = $product['image_url'];
+    $variants     = $product['variants'];
+    $hasStock     = $product['has_stock'];
+    $totalSold    = intval($product['total_sold'] ?? 0);
 
-    $nicknames = [];
-    if (!empty($product['product_nickname'])) {
-        $nd = json_decode($product['product_nickname'], true);
-        if (is_array($nd)) $nicknames = array_slice($nd, 0, 3);
+    // Sold label: 1k+ → "1k"
+    $soldLabel = $totalSold >= 1000 ? round($totalSold / 1000, 1) . 'k' : $totalSold;
+
+    // NEW badge — product added within last 7 days
+    $isNew = false;
+    if (!empty($product['created_at'])) {
+        $createdAt = strtotime($product['created_at']);
+        $isNew = $createdAt && (time() - $createdAt) < (7 * 24 * 60 * 60);
     }
-
-    $shareUrl    = $baseUrl . 'item/' . urlencode(strtolower(str_replace(' ', '-', $product_name)));
-    $shareTitle  = $product_name;
-    $lowestPrice = !empty($variants) ? min(array_column($variants, 'variant_price')) : 0;
-    $shareText   = 'Fresh ' . $product_name . ($lowestPrice > 0 ? ' starting at ₱' . number_format($lowestPrice, 2) : '') . ' — Order from St. Joseph Fish Brokerage Inc.!';
 
     $firstInStock = null;
     foreach ($variants as $v) { if ($v['has_stock']) { $firstInStock = $v; break; } }
-?>
-<div class="flex flex-col h-full bg-white shadow-lg rounded-lg p-5 relative group">
 
-    <!-- Image -->
-    <div class="relative">
-        <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>" class="block">
+    // SALE badge + % off (based on first in-stock variant)
+    $hasSale     = false;
+    $salePercent = 0;
+    if ($firstInStock) {
+        $dp_s = floatval($firstInStock['discount_price'] ?? 0);
+        $vp_s = floatval($firstInStock['variant_price']);
+        if ($dp_s > 0 && $vp_s > 0) {
+            $hasSale     = true;
+            $salePercent = round((($vp_s - $dp_s) / $vp_s) * 100);
+        }
+    }
+
+    // Display price for out-of-stock fallback
+    $displayPrice = 0;
+    if (!empty($variants)) {
+        $displayPrice = floatval($variants[0]['discount_price'] ?? 0) > 0
+            ? floatval($variants[0]['discount_price'])
+            : floatval($variants[0]['variant_price']);
+    }
+
+    // Share helpers
+    $itemUrl    = $baseUrl . 'item/' . urlencode(strtolower(str_replace(' ', '-', $product_name)));
+    $shareUrl   = $itemUrl;
+    $shareTitle = $product_name;
+    $lowestPrice = !empty($variants) ? min(array_column($variants, 'variant_price')) : 0;
+    $shareText  = 'Fresh ' . $product_name . ($lowestPrice > 0 ? ' starting at ₱' . number_format($lowestPrice, 2) : '') . ' — Order from St. Joseph Fish Brokerage Inc.!';
+?>
+<div class="spc group relative flex flex-col bg-white overflow-hidden
+            border border-gray-100 hover:border-orange-300
+            hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] hover:-translate-y-0.5
+            transition-all duration-150 cursor-pointer"
+     data-product-id="<?= $product_id ?>">
+
+    <!-- ── IMAGE ────────────────────────────────────────────────────────────── -->
+    <a href="<?= $shareUrl ?>" class="block relative flex-shrink-0 bg-gray-50 overflow-hidden">
+        <div class="aspect-square overflow-hidden">
             <img src="<?= htmlspecialchars($image_url) ?>"
                  alt="<?= htmlspecialchars($product_name) ?>"
-                 class="w-full h-48 object-cover rounded-md mb-4 shadow-sm <?= !$hasStock ? 'opacity-60' : '' ?>">
-            <?php if (!$hasStock): ?>
-            <div class="absolute inset-0 flex items-center justify-center rounded-md h-48 bg-opacity-100">
-                <span class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg transform -rotate-12 shadow-lg">OUT OF STOCK</span>
-            </div>
-            <?php endif; ?>
-        </a>
-    </div>
-
-    <!-- Name / unit -->
-    <h3 class="text-xl font-semibold text-gray-800 mb-1"><?= htmlspecialchars($product_name) ?></h3>
-    <p class="text-md text-gray-500 mb-4"><?= htmlspecialchars($product_unit) ?></p>
-
-    <!-- Nickname tags -->
-    <?php if (!empty($nicknames)): ?>
-    <div class="flex flex-wrap gap-1 mb-3">
-        <?php foreach ($nicknames as $nick): ?>
-        <span class="px-2 py-1 bg-orange-50 text-orange-700 text-xs rounded-full border border-orange-200">
-            #<?= htmlspecialchars($nick) ?>
-        </span>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Category -->
-    <?php if (!empty($category_names)): ?>
-    <div class="mb-3">
-        <span class="text-xs text-gray-500">Categories: </span>
-        <span class="text-xs font-medium text-gray-700"><?= htmlspecialchars($category_names) ?></span>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($hasStock): ?>
-    <!-- ── Add to Cart Form ── -->
-    <form class="add-to-cart-form flex flex-col flex-grow" data-product-id="<?= $product_id ?>">
-        <input type="hidden" name="add_to_cart"     value="1">
-        <input type="hidden" name="product_id"      value="<?= $product_id ?>">
-        <input type="hidden" name="variant_id"      value="<?= $firstInStock['variant_id'] ?? '' ?>">
-        <input type="hidden" name="product_name"    value="<?= htmlspecialchars($product_name) ?>">
-        <input type="hidden" name="variant_name"    value="<?= $firstInStock ? htmlspecialchars($firstInStock['variant_name']) : '' ?>">
-        <input type="hidden" name="price"           value="<?= $firstInStock ? (floatval($firstInStock['discount_price']) > 0 ? $firstInStock['discount_price'] : $firstInStock['variant_price']) : '' ?>">
-        <input type="hidden" name="image_url"       value="<?= htmlspecialchars($image_url) ?>">
-        <input type="hidden" name="quantity"        value="<?= $firstInStock['minimum_order'] ?? 1 ?>">
-        <input type="hidden" name="unit_type"       value="<?= $firstInStock['unit_type'] ?? '' ?>">
-        <input type="hidden" name="minimum_order"   value="<?= $firstInStock['minimum_order'] ?? 1 ?>">
-        <input type="hidden" name="order_increment" value="<?= $firstInStock['order_increment'] ?? 1 ?>">
-
-        <!-- Variant buttons -->
-        <div class="min-h-[72px]">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Select Size:</label>
-            <div class="flex flex-wrap gap-2">
-                <?php foreach ($variants as $v):
-                    $vHasStock  = $v['has_stock'];
-                    $isSelected = ($firstInStock && $v['variant_id'] == $firstInStock['variant_id']);
-                    $dp = floatval($v['discount_price'] ?? 0);
-                ?>
-                <button type="button"
-                    class="variant-button px-3 py-2 border rounded-lg text-sm font-medium transition-all duration-200
-                           <?= $isSelected ? 'selected-variant border-amber-400 bg-amber-400 text-white' : 'border-gray-300' ?>
-                           <?= !$vHasStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100' ?>"
-                    data-product-id="<?= $product_id ?>"
-                    data-variant-id="<?= $v['variant_id'] ?>"
-                    data-variant-name="<?= htmlspecialchars($v['variant_name']) ?>"
-                    data-variant-price="<?= $v['variant_price'] ?>"
-                    data-discount-price="<?= $dp ?>"
-                    data-unit-type="<?= $v['unit_type'] ?>"
-                    data-minimum-order="<?= $v['minimum_order'] ?>"
-                    data-order-increment="<?= $v['order_increment'] ?>"
-                    data-stock-quantity="<?= $v['stock_quantity'] ?>"
-                    data-has-stock="<?= $vHasStock ? 'true' : 'false' ?>"
-                    <?= !$vHasStock ? 'disabled' : '' ?>>
-                    <?= htmlspecialchars($v['variant_name']) ?>
-                    <?php if (!$vHasStock): ?><span class="ml-1 text-red-400 text-xs">(No Stock)</span><?php endif; ?>
-                </button>
-                <?php endforeach; ?>
-            </div>
+                 loading="lazy"
+                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]
+                        <?= !$hasStock ? 'opacity-55' : '' ?>"
+                 onerror="this.onerror=null;this.src='<?= $baseUrl ?>uploads/products/default.png'">
         </div>
 
-        <!-- Qty -->
-        <div class="mt-3">
-            <div class="flex items-center gap-2">
-                <div class="flex items-center border border-gray-300 rounded">
-                    <button type="button" class="decrease-quantity px-2 py-1 rounded-l text-sm hover:bg-orange-600 hover:text-white transition">−</button>
-                    <input type="number" class="quantity w-14 px-1 py-1 text-center text-sm border-0 focus:outline-none"
+        <!-- SALE badge — Shopee-style, top-right corner tab -->
+        <?php if ($hasSale): ?>
+        <div class="sale-badge absolute top-0 right-0 bg-orange-500 text-white font-bold leading-tight px-1.5 py-0.5
+                    text-[11px] sm:text-xs">
+            🔥 -<?= $salePercent ?>%
+        </div>
+        <?php endif; ?>
+
+        <!-- NEW badge — top-left corner tab -->
+        <?php if ($isNew): ?>
+        <div class="new-badge absolute top-0 left-0 bg-emerald-500 text-white font-bold leading-tight px-1.5 py-0.5
+                    text-[11px] sm:text-xs tracking-wide">
+            ✦ NEW
+        </div>
+        <?php endif; ?>
+
+        <!-- Out of stock overlay -->
+        <?php if (!$hasStock): ?>
+        <div class="absolute inset-0 flex items-center justify-center bg-white/40">
+            <span class="bg-gray-700/80 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full">
+                Out of Stock
+            </span>
+        </div>
+        <?php endif; ?>
+
+    </a><!-- /image -->
+
+    <!-- ── INFO BLOCK ───────────────────────────────────────────────────────── -->
+    <div class="flex flex-col flex-grow px-2 pt-2 pb-2">
+
+        <!-- Product name -->
+        <a href="<?= $shareUrl ?>" class="block mb-1.5">
+            <p class="spc-name font-semibold text-gray-800 leading-snug line-clamp-2 hover:text-orange-500 transition-colors">
+                <?= htmlspecialchars($product_name) ?>
+            </p>
+        </a>
+
+        <?php if ($hasStock && $firstInStock):
+            $dp_init  = floatval($firstInStock['discount_price'] ?? 0);
+            $vp_init  = floatval($firstInStock['variant_price']);
+            $pct_init = ($dp_init > 0 && $vp_init > 0) ? round((($vp_init - $dp_init) / $vp_init) * 100) : 0;
+        ?>
+
+        <form class="add-to-cart-form flex flex-col flex-grow" data-product-id="<?= $product_id ?>">
+            <input type="hidden" name="add_to_cart"     value="1">
+            <input type="hidden" name="product_id"      value="<?= $product_id ?>">
+            <input type="hidden" name="variant_id"      value="<?= $firstInStock['variant_id'] ?? '' ?>">
+            <input type="hidden" name="product_name"    value="<?= htmlspecialchars($product_name) ?>">
+            <input type="hidden" name="variant_name"    value="<?= htmlspecialchars($firstInStock['variant_name'] ?? '') ?>">
+            <input type="hidden" name="price"           value="<?= $dp_init > 0 ? $firstInStock['discount_price'] : $firstInStock['variant_price'] ?>">
+            <input type="hidden" name="image_url"       value="<?= htmlspecialchars($image_url) ?>">
+            <input type="hidden" name="quantity"        value="<?= $firstInStock['minimum_order'] ?? 1 ?>">
+            <input type="hidden" name="unit_type"       value="<?= htmlspecialchars($firstInStock['unit_type'] ?? '') ?>">
+            <input type="hidden" name="minimum_order"   value="<?= $firstInStock['minimum_order'] ?? 1 ?>">
+            <input type="hidden" name="order_increment" value="<?= $firstInStock['order_increment'] ?? 1 ?>">
+
+            <!-- Variant select: shown only when >1 variant; single-variant uses hidden select for JS -->
+            <?php if (count($variants) > 1): ?>
+            <div class="mb-1.5">
+                <select class="variant-select w-full px-2 py-1 border border-gray-200 rounded
+                               text-[11px] text-gray-600 bg-white
+                               focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400
+                               hover:border-orange-300 transition cursor-pointer"
+                        data-product-id="<?= $product_id ?>">
+                    <?php foreach ($variants as $v):
+                        $vdp  = floatval($v['discount_price'] ?? 0);
+                        $vvp  = floatval($v['variant_price']);
+                        $vpct = ($vdp > 0 && $vvp > 0) ? round((($vvp - $vdp) / $vvp) * 100) : 0;
+                        $isSelected = ($v['variant_id'] == $firstInStock['variant_id']);
+                        $label = htmlspecialchars($v['variant_name']);
+                        if (!$v['has_stock']) $label .= ' (No Stock)';
+                        elseif ($vpct > 0)    $label .= ' (-' . $vpct . '%)';
+                    ?>
+                    <option
+                        value="<?= $v['variant_id'] ?>"
+                        data-variant-name="<?= htmlspecialchars($v['variant_name']) ?>"
+                        data-variant-price="<?= $vvp ?>"
+                        data-discount-price="<?= $vdp ?>"
+                        data-discount-percent="<?= $vpct ?>"
+                        data-unit-type="<?= htmlspecialchars($v['unit_type'] ?? 'piece') ?>"
+                        data-minimum-order="<?= floatval($v['minimum_order'] ?? 1) ?>"
+                        data-order-increment="<?= floatval($v['order_increment'] ?? 1) ?>"
+                        data-stock-quantity="<?= intval($v['stock_quantity'] ?? 0) ?>"
+                        data-has-stock="<?= $v['has_stock'] ? 'true' : 'false' ?>"
+                        <?= $isSelected ? 'selected' : '' ?>
+                        <?= !$v['has_stock'] ? 'disabled' : '' ?>>
+                        <?= $label ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php else:
+                $v   = $firstInStock;
+                $vdp = floatval($v['discount_price'] ?? 0);
+            ?>
+            <!-- Hidden single-variant select — needed for product_process.js -->
+            <select class="variant-select hidden" data-product-id="<?= $product_id ?>">
+                <option
+                    value="<?= $v['variant_id'] ?>"
+                    data-variant-name="<?= htmlspecialchars($v['variant_name']) ?>"
+                    data-variant-price="<?= floatval($v['variant_price']) ?>"
+                    data-discount-price="<?= $vdp ?>"
+                    data-discount-percent="<?= $pct_init ?>"
+                    data-unit-type="<?= htmlspecialchars($v['unit_type'] ?? 'piece') ?>"
+                    data-minimum-order="<?= floatval($v['minimum_order'] ?? 1) ?>"
+                    data-order-increment="<?= floatval($v['order_increment'] ?? 1) ?>"
+                    data-stock-quantity="<?= intval($v['stock_quantity'] ?? 0) ?>"
+                    data-has-stock="true"
+                    selected>
+                    <?= htmlspecialchars($v['variant_name']) ?>
+                </option>
+            </select>
+            <?php endif; ?>
+
+            <!-- Qty stepper -->
+            <div class="flex items-center gap-1.5 mb-1.5">
+                <div class="flex items-center border border-gray-200 rounded overflow-hidden flex-shrink-0">
+                    <button type="button"
+                            class="decrease-quantity w-6 h-6 flex items-center justify-center
+                                   text-gray-500 hover:bg-orange-500 hover:text-white transition text-sm font-bold">−</button>
+                    <input type="number"
+                           class="quantity w-14 text-center text-xs font-semibold bg-transparent border-0 focus:outline-none leading-none"
                            value="<?= $firstInStock['minimum_order'] ?? 1 ?>"
                            min="<?= $firstInStock['minimum_order'] ?? 1 ?>"
                            step="<?= $firstInStock['order_increment'] ?? 1 ?>">
-                    <button type="button" class="increase-quantity px-2 py-1 rounded-r text-sm hover:bg-orange-600 hover:text-white transition">+</button>
+                    <button type="button"
+                            class="increase-quantity w-6 h-6 flex items-center justify-center
+                                   text-gray-500 hover:bg-orange-500 hover:text-white transition text-sm font-bold">+</button>
                 </div>
-                <span class="text-sm font-medium text-gray-600 unit-display">
-                    <?php if ($firstInStock): echo $firstInStock['unit_type'] === 'piece' ? 'pcs' : htmlspecialchars($firstInStock['unit_type']); endif; ?>
+                <span class="text-[11px] text-gray-400 unit-display">
+                    <?= $firstInStock['unit_type'] === 'piece' ? 'pcs' : htmlspecialchars($firstInStock['unit_type']) ?>
                 </span>
             </div>
-            <p class="text-xs text-gray-500 mt-1 minimum-order-text">
-                <?php if ($firstInStock): ?>
-                    Minimum: <?= $firstInStock['minimum_order'] ?> <?= $firstInStock['unit_type'] === 'piece' ? 'pcs' : htmlspecialchars($firstInStock['unit_type']) ?>
+
+            <!-- Price row — price left, sold right (updated by product_process.js) -->
+            <div class="flex items-end justify-between mt-auto gap-1">
+                <!-- .price-display filled by _updateCardPriceDisplay() in product_process.js -->
+                <div class="price-display leading-none">
+                    <?php if ($dp_init > 0): ?>
+                        <span class="original-price block text-[10px] line-through text-gray-400">₱<?= number_format($vp_init, 2) ?></span>
+                        <div class="flex items-baseline gap-1 flex-wrap">
+                            <span class="sale-price text-sm font-bold text-red-600">₱<?= number_format($dp_init, 2) ?></span>
+                            <span class="discount-pill text-[10px] font-semibold text-orange-600">-<?= $pct_init ?>%</span>
+                        </div>
+                    <?php else: ?>
+                        <span class="original-price hidden text-[10px] line-through text-gray-400"></span>
+                        <div class="flex items-baseline gap-1">
+                            <span class="sale-price text-sm font-bold text-orange-600">₱<?= number_format($vp_init, 2) ?></span>
+                            <span class="discount-pill hidden text-[10px] font-semibold text-orange-600"></span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php if ($totalSold > 0): ?>
+                <span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0"><?= $soldLabel ?> sold</span>
                 <?php endif; ?>
-            </p>
-        </div>
+            </div>
 
-        <!-- Price -->
-        <div class="price-display mt-3">
-            <?php if ($firstInStock):
-                $dp = floatval($firstInStock['discount_price'] ?? 0);
-                $vp = floatval($firstInStock['variant_price']);
-                $mo = floatval($firstInStock['minimum_order']);
-                if ($dp > 0): ?>
-                    <span style="text-decoration:line-through;color:#9ca3af;font-size:.875rem">₱<?= number_format($vp * $mo, 2) ?></span>
-                    <span style="color:#dc2626;font-weight:700;margin-left:.5rem">₱<?= number_format($dp * $mo, 2) ?></span>
-                <?php else: ?>
-                    <span style="color:#1f2937;font-weight:700">₱<?= number_format($vp * $mo, 2) ?></span>
-                <?php endif;
-            endif; ?>
-        </div>
-
-        <div class="flex-grow"></div>
-
-        <div class="mt-4 pt-4 border-t border-gray-200">
-            <div class="flex gap-2">
+            <!-- Add to Cart button -->
+            <div class="pt-2 mt-1 border-t border-gray-100">
                 <button type="submit" name="add_to_cart"
-                        class="cursor-pointer w-full py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium transition-all duration-300 flex items-center justify-center"
-                        title="Add to Cart">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        class="spc-atc w-full py-1.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700
+                               text-white font-semibold rounded
+                               transition-colors flex items-center justify-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
                         <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
                         <path d="M17 17h-11v-14h-2"/>
@@ -188,55 +267,43 @@ if (empty($fp_products)): ?>
                     </svg>
                     Add to Cart
                 </button>
-                <button type="button" onclick="shareToFacebook('<?= $shareUrl ?>')"
-                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 font-medium transition-all duration-300 flex items-center justify-center" title="Share on Facebook">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none">
-                        <circle cx="16" cy="16" r="14" fill="url(#fbg_pc_<?= $product_id ?>)"/>
-                        <path d="M21.2137 20.2816L21.8356 16.3301H17.9452V13.767C17.9452 12.6857 18.4877 11.6311 20.2302 11.6311H22V8.26699C22 8.26699 20.3945 8 18.8603 8C15.6548 8 13.5617 9.89294 13.5617 13.3184V16.3301H10V20.2816H13.5617V29.8345C14.2767 29.944 15.0082 29.994 15.7534 30C16.4986 30 17.2302 29.944 17.9452 29.8345V20.2816H21.2137Z" fill="white"/>
-                        <defs><linearGradient id="fbg_pc_<?= $product_id ?>" x1="16" y1="2" x2="16" y2="29.917" gradientUnits="userSpaceOnUse"><stop stop-color="#18ACFE"/><stop offset="1" stop-color="#0163E0"/></linearGradient></defs>
-                    </svg>
-                </button>
-                <button type="button" onclick="shareProduct('<?= addslashes($shareTitle) ?>', '<?= addslashes($shareText) ?>', '<?= $shareUrl ?>')"
-                        class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-dark font-medium transition-all duration-300 flex items-center justify-center" title="Share">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M8 9h-1a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1"/>
-                        <path d="M12 14v-11"/><path d="M9 6l3-3 3 3"/>
-                    </svg>
-                </button>
             </div>
-        </div>
 
-        <p class="text-red-500 text-sm mt-2 variant-message hidden">Please select a variant first.</p>
-        <p class="text-red-500 text-sm mt-2 minimum-error-message hidden"></p>
-        <p class="text-red-500 text-sm mt-2 stock-error-message hidden"></p>
-    </form>
+            <p class="text-red-500 text-[10px] mt-1 variant-message hidden">Please select a variant.</p>
+            <p class="text-red-500 text-[10px] mt-1 minimum-error-message hidden"></p>
+            <p class="text-red-500 text-[10px] mt-1 stock-error-message hidden"></p>
+        </form>
 
-    <?php else: ?>
-    <!-- Out of stock -->
-    <div class="flex-grow"></div>
-    <div class="mt-4 pt-4 border-t border-gray-200">
-        <div class="flex gap-2">
-            <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>"
-               class="block w-full py-2 rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-medium transition-all duration-300 text-center">
-                View Details
-            </a>
-            <button type="button" onclick="shareToFacebook('<?= $shareUrl ?>')"
-                    class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 font-medium transition-all duration-300 flex items-center justify-center" title="Share on Facebook">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="14" fill="url(#fbg2_pc_<?= $product_id ?>)"/>
-                    <path d="M21.2137 20.2816L21.8356 16.3301H17.9452V13.767C17.9452 12.6857 18.4877 11.6311 20.2302 11.6311H22V8.26699C22 8.26699 20.3945 8 18.8603 8C15.6548 8 13.5617 9.89294 13.5617 13.3184V16.3301H10V20.2816H13.5617V29.8345C14.2767 29.944 15.0082 29.994 15.7534 30C16.4986 30 17.2302 29.944 17.9452 29.8345V20.2816H21.2137Z" fill="white"/>
-                    <defs><linearGradient id="fbg2_pc_<?= $product_id ?>" x1="16" y1="2" x2="16" y2="29.917" gradientUnits="userSpaceOnUse"><stop stop-color="#18ACFE"/><stop offset="1" stop-color="#0163E0"/></linearGradient></defs>
-                </svg>
-            </button>
-            <button type="button" onclick="shareProduct('<?= addslashes($shareTitle) ?>', '<?= addslashes($shareText) ?>', '<?= $shareUrl ?>')"
-                    class="cursor-pointer w-1/4 py-2 rounded-lg border bg-gray-100 hover:bg-gray-200 text-dark font-medium transition-all duration-300 flex items-center justify-center" title="Share">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 9h-1a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1"/>
-                    <path d="M12 14v-11"/><path d="M9 6l3-3 3 3"/>
-                </svg>
-            </button>
+        <?php else: ?>
+        <!-- Out of stock state -->
+        <div class="flex items-end justify-between mt-auto pt-1 gap-1">
+            <?php if ($displayPrice > 0): ?>
+            <span class="text-sm font-bold text-gray-400">₱<?= number_format($displayPrice, 2) ?></span>
+            <?php endif; ?>
+            <?php if ($totalSold > 0): ?>
+            <span class="text-[10px] text-gray-400 shrink-0"><?= $soldLabel ?> sold</span>
+            <?php endif; ?>
         </div>
-    </div>
-    <?php endif; ?>
-</div>
+        <a href="<?= $shareUrl ?>"
+           class="mt-2 block w-full py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500
+                  text-xs font-semibold text-center rounded transition-colors">
+            View Details
+        </a>
+        <?php endif; ?>
+
+    </div><!-- /info -->
+</div><!-- /spc -->
 <?php endforeach; ?>
+
+<style>
+/* Card: sharp 2px radius, Shopee-style */
+.spc { border-radius: 2px; }
+
+/* Name: 11px mobile → 12px sm+ */
+.spc-name { font-size: 11px; }
+@media (min-width: 640px) { .spc-name { font-size: 12px; } }
+
+/* Add to cart button size */
+.spc-atc { font-size: 11px; }
+@media (min-width: 640px) { .spc-atc { font-size: 12px; } }
+</style>

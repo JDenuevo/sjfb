@@ -1,6 +1,6 @@
 <?php
 /**
- * components/product_cards.php
+ * accounts/components/product_cards.php
  *
  * Shared product card renderer.
  * Expects $fp_products (array) and $baseUrl (string) to be in scope.
@@ -105,21 +105,17 @@ if (empty($fp_products)): ?>
         <input type="hidden" name="minimum_order"   value="<?= $firstInStock['minimum_order'] ?? 1 ?>">
         <input type="hidden" name="order_increment" value="<?= $firstInStock['order_increment'] ?? 1 ?>">
 
-        <!-- Variant buttons -->
-        <div class="min-h-[72px]">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Select Size:</label>
-            <div class="flex flex-wrap gap-2">
+        <!-- Variant select -->
+        <div class="variant-control min-h-[72px]">
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Select Size:</label>
+            <select class="variant-select w-full min-w-0 border border-gray-300 rounded-lg bg-white px-2 py-2 text-xs md:text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" data-product-id="<?= $product_id ?>">
                 <?php foreach ($variants as $v):
-                    $vHasStock  = $v['has_stock'];
+                    $vHasStock = $v['has_stock'];
                     $isSelected = ($firstInStock && $v['variant_id'] == $firstInStock['variant_id']);
                     $dp = floatval($v['discount_price'] ?? 0);
                 ?>
-                <button type="button"
-                    class="variant-button px-3 py-2 border rounded-lg text-sm font-medium transition-all duration-200
-                           <?= $isSelected ? 'selected-variant border-amber-400 bg-amber-400 text-white' : 'border-gray-300' ?>
-                           <?= !$vHasStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100' ?>"
-                    data-product-id="<?= $product_id ?>"
-                    data-variant-id="<?= $v['variant_id'] ?>"
+                <option
+                    value="<?= $v['variant_id'] ?>"
                     data-variant-name="<?= htmlspecialchars($v['variant_name']) ?>"
                     data-variant-price="<?= $v['variant_price'] ?>"
                     data-discount-price="<?= $dp ?>"
@@ -128,18 +124,18 @@ if (empty($fp_products)): ?>
                     data-order-increment="<?= $v['order_increment'] ?>"
                     data-stock-quantity="<?= $v['stock_quantity'] ?>"
                     data-has-stock="<?= $vHasStock ? 'true' : 'false' ?>"
+                    <?= $isSelected ? 'selected' : '' ?>
                     <?= !$vHasStock ? 'disabled' : '' ?>>
-                    <?= htmlspecialchars($v['variant_name']) ?>
-                    <?php if (!$vHasStock): ?><span class="ml-1 text-red-400 text-xs">(No Stock)</span><?php endif; ?>
-                </button>
+                    <?= htmlspecialchars($v['variant_name']) ?><?= !$vHasStock ? ' - No Stock' : '' ?>
+                </option>
                 <?php endforeach; ?>
-            </div>
+            </select>
         </div>
 
         <!-- Qty -->
-        <div class="mt-3">
-            <div class="flex items-center gap-2">
-                <div class="flex items-center border border-gray-300 rounded">
+        <div class="quantity-control mt-2 md:mt-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
                     <button type="button" class="decrease-quantity px-2 py-1 rounded-l text-sm hover:bg-orange-600 hover:text-white transition">−</button>
                     <input type="number" class="quantity w-14 px-1 py-1 text-center text-sm border-0 focus:outline-none"
                            value="<?= $firstInStock['minimum_order'] ?? 1 ?>"
@@ -175,10 +171,10 @@ if (empty($fp_products)): ?>
 
         <div class="flex-grow"></div>
 
-        <div class="mt-4 pt-4 border-t border-gray-200">
+        <div class="product-actions mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200">
             <div class="flex gap-2">
                 <button type="submit" name="add_to_cart"
-                        class="cursor-pointer w-full py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium transition-all duration-300 flex items-center justify-center"
+                        class="add-cart-btn cursor-pointer flex-1 min-w-0 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs md:text-sm font-medium transition-all duration-300 flex items-center justify-center"
                         title="Add to Cart">
                     <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>

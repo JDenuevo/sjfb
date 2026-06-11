@@ -1,4 +1,4 @@
-<!-- components/products.php -->
+<!-- accounts/components/products.php -->
 <!-- JS handled by: cart_process.js (cart ops) + product_process.js (variants, search, add-to-cart, share) -->
 <div class="mx-auto">
 
@@ -462,13 +462,31 @@ function isCatSlugSelected(string $slug, array $selectedSlugs): bool {
 </div>
 
 <style>
-.variant-button { background-color: white; border: 1px solid #d1d5db; color: #374151; transition: all 0.2s ease; }
-.variant-button.selected-variant { background-color: #f59e0b; border-color: #f59e0b; color: #fff; }
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 #autocompleteResults { max-height: 400px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,.1); }
 .autocomplete-item:hover { background-color: #f3f5f6; transform: translateX(2px); }
 #productsContent { transition: opacity 0.3s ease; }
+.variant-select { appearance: auto; max-width: 100%; }
+.price-display { min-height: 1.75rem; line-height: 1.2; }
+.product-actions .add-cart-btn svg { flex-shrink: 0; }
+.product-actions button { min-height: 2.5rem; }
+
+@media (max-width: 420px) {
+  #productsContent .grid { gap: .35rem; }
+  .variant-control label,
+  .minimum-order-text { font-size: 10px; }
+  .variant-select { min-height: 2.25rem; font-size: 11px; padding-left: .45rem; padding-right: .45rem; }
+  .quantity-control { display: none; }
+  .price-display span { font-size: .875rem !important; }
+  .product-actions { margin-top: .5rem; padding-top: .5rem; }
+  .product-actions .flex { gap: .35rem; }
+  .product-actions .add-cart-btn { min-height: 2.25rem; padding-left: .35rem; padding-right: .35rem; }
+  .product-actions .add-cart-btn svg { margin-right: 0; width: 17px; height: 17px; }
+  .product-actions .add-cart-btn { font-size: 0; }
+  .product-actions .add-cart-btn::after { content: "Add"; font-size: 11px; margin-left: .25rem; }
+  .product-actions button[title^="Share"] { width: 2.25rem; flex: 0 0 2.25rem; }
+}
 #productsLoading { pointer-events: none; }
 
 /* Custom checkbox — identical on index.php & shop.php regardless of Preline */

@@ -107,7 +107,6 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
   .float-anim   { animation: float-y 3.5s ease-in-out infinite; }
   .float-anim-2 { animation: float-y 4s ease-in-out infinite .8s; }
 
-
   /* Core values desktop/mobile toggle */
   @media (max-width: 960px) { .core-values-stairs { display: none; } }
   @media (min-width: 960px) { .core-values-accordion { display: none; } }

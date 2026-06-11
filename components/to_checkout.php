@@ -122,7 +122,7 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
             </div>
           </div>
           <div class="p-6">
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid md:grid-cols-2 gap-3">
 
               <!-- Delivery option -->
               <div class="order-type-option">
