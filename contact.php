@@ -14,60 +14,36 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
   <meta property="og:type" content="website"><meta property="og:url" content="https://fishbrokers.net/contact">
   <meta property="og:title" content="Contact Us | St. Joseph Fish Brokerage Inc."><meta property="og:description" content="<?= $metaDescription ?>">
   <meta property="og:image" content="https://fishbrokers.net/assets/icons/logo.svg">
-  <meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="https://fishbrokers.net/contact">
-  <link rel="shortcut icon" href="./assets/icons/logo.ico"><link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <!-- CSS Files -->
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
   <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
 
   <style>
-    /* Absolute minimum custom CSS — only what Preline/Tailwind can't express */
     body { font-family:'Lexend',sans-serif; background:#f9fafb; }
     .font-display { font-family:'Playfair Display',serif; }
-
-    /* Hero — brand gradient */
-    .contact-hero { background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%); padding:7rem 1.5rem 5rem; position:relative; overflow:hidden; }
-    .contact-hero::before { content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 10% 20%,rgba(255,255,255,.05) 0%,transparent 40%),radial-gradient(circle at 90% 80%,rgba(255,255,255,.04) 0%,transparent 40%); }
-    @media (max-width:768px) { .contact-hero { padding:5rem 1.25rem 4rem; } }
-
-    /* Form panel toggle */
-    .form-panel { display:none; }
-    .form-panel.active { display:block; }
-
-    /* Position card (career) */
-    .position-card { padding:1rem 1.125rem; border-radius:.875rem; border:1.5px solid #e5e7eb; cursor:pointer; transition:all .2s; background:white; }
-    .position-card:hover { border-color:#f59e0b; background:#fffbeb; }
-    .position-card.selected { border-color:#f59e0b; background:#fffbeb; box-shadow: 0 0 0 3px rgba(245,158,11,.25); }
-    .position-card input[type="radio"] { display:none; }
-
-    /* Industry tag toggle */
-    .tag-btn { padding:.375rem .625rem; border-radius:.5rem; border:1.5px solid #fbbf24; font-size:.75rem; font-weight:600; cursor:pointer; background:white; color:#92400e; transition:all .15s; }
-    .tag-btn.selected { border-color:#f59e0b; background:#fffbeb; color:#b45309; }
-
-    /* Progress bar gradient */
-    .career-progress-bar { background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%); transition:width .4s ease; }
-
-    /* File dropzone */
-    .file-dropzone { border:2px dashed #d1d5db; border-radius:.875rem; padding:1.5rem; text-align:center; cursor:pointer; transition:all .2s; background:#fafafa; }
-    .file-dropzone:hover, .file-dropzone.dragover { border-color:#f59e0b; background:#fffbeb; }
-
-    /* Form section label */
-    .form-section-label { font-size:.6875rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#f97316; margin:1.5rem 0 .875rem; display:flex; align-items:center; gap:.5rem; }
-    .form-section-label::after { content:''; flex:1; height:1px; background:#e5e7eb; }
-
-    /* Honeypot */
-    .hp { display:none; opacity:0; position:absolute; left:-9999px; }
   </style>
 </head>
 <body>
@@ -76,12 +52,14 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
 <?php include('./components/nav_crumb.php'); ?>
 
 <!-- HERO -->
-<section class="contact-hero">
+<section class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-400 to-amber-400 px-6 pt-20 pb-20 md:pt-28 md:pb-20">
+  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,.05)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,rgba(255,255,255,.04)_0%,transparent_40%)]"></div>
+
   <div class="relative z-10 max-w-3xl mx-auto text-center text-white">
     <div data-aos="fade-up" data-aos-duration="700">
-      <span class="text-xs font-bold tracking-widest uppercase text-green-300 block mb-4">Reach Out</span>
+      <span class="block mb-4 text-xs font-bold tracking-widest uppercase text-white">Reach Out</span>
       <h1 class="font-display text-4xl md:text-6xl font-bold mb-5">
-        Let's Talk <em class="not-italic text-orange-300">Fish</em>
+        Let's Talk <em class="not-italic text-white">Fish</em>
       </h1>
       <p class="text-lg text-white/75 leading-relaxed max-w-xl mx-auto">
         Whether you're a buyer looking for fresh supply, a fisherman wanting a trusted broker, or someone ready to build a career with us — we're here and ready.
@@ -89,7 +67,7 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
     </div>
   </div>
   <div class="absolute bottom-0 left-0 right-0">
-    <svg viewBox="0 0 1440 60" fill="none" preserveAspectRatio="none" style="width:100%;display:block">
+    <svg viewBox="0 0 1440 60" fill="none" preserveAspectRatio="none" class="block w-full">
       <path d="M0,20 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" fill="#f9fafb"/>
     </svg>
   </div>
@@ -97,30 +75,32 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
 
 <!-- MAIN CONTENT -->
 <section class="py-16">
-  <div class="max-w-6xl mx-auto px-6">
+  <div class="max-w-7xl mx-auto px-6">
     <div class="grid lg:grid-cols-[1fr_340px] gap-10 items-start">
 
       <!-- LEFT: FORM AREA -->
       <div>
-        <!-- Tab Toggle — Preline pill nav pattern -->
+        <!-- Tab Toggle — Preline hs-tab pill nav -->
         <div class="mb-8" data-aos="fade-up">
           <p class="text-sm font-semibold text-gray-500 mb-3">What brings you here today?</p>
-          <div class="inline-flex bg-gray-100 rounded-2xl p-1 gap-1">
-            <button id="tab-inquiry" onclick="switchForm('inquiry',this)"
-                    class="form-tab active inline-flex items-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-all bg-white text-blue-800 shadow-sm">
+          <nav class="inline-flex gap-1 rounded-2xl bg-gray-100 p-1" role="tablist" aria-label="Contact reason">
+            <button type="button" id="tab-inquiry"
+                    class="hs-tab-active:bg-white hs-tab-active:text-blue-800 hs-tab-active:shadow-sm active inline-flex items-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold text-gray-500 transition-all hover:text-gray-700 focus:outline-none"
+                    data-hs-tab="#panel-inquiry" aria-controls="panel-inquiry" role="tab">
               <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               General Inquiry
             </button>
-            <button id="tab-career" onclick="switchForm('career',this)"
-                    class="form-tab inline-flex items-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-all text-gray-500 hover:text-gray-700">
+            <button type="button" id="tab-career"
+                    class="hs-tab-active:bg-white hs-tab-active:text-blue-800 hs-tab-active:shadow-sm inline-flex items-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold text-gray-500 transition-all hover:text-gray-700 focus:outline-none"
+                    data-hs-tab="#panel-career" aria-controls="panel-career" role="tab">
               <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               Apply / Careers
             </button>
-          </div>
+          </nav>
         </div>
 
         <!-- PANEL 1: GENERAL INQUIRY -->
-        <div class="form-panel active" id="panel-inquiry" data-aos="fade-up" data-aos-delay="100">
+        <div id="panel-inquiry" role="tabpanel" aria-labelledby="tab-inquiry" data-aos="fade-up" data-aos-delay="100">
           <div class="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
             <h2 class="font-display text-xl font-bold text-gray-900 mb-1">Send Us a Message</h2>
             <p class="text-sm text-gray-500 mb-6">For orders, partnership inquiries, supplier registration, or general questions.</p>
@@ -132,7 +112,7 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
             </div>
             <div id="inq-success" class="hidden mb-4 flex items-center gap-3 p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm font-medium">
               <svg class="size-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Message sent! We'll get back to you within 1–2 business days.
+              <p>Message sent! We'll get back to you within 1–2 business days.</p>
             </div>
             <div id="inq-error" class="hidden mb-4 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm font-medium">
               <svg class="size-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -142,10 +122,9 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
             <form id="inquiry-form" method="POST" enctype="multipart/form-data" novalidate>
               <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
               <input type="hidden" name="form_type" value="inquiry">
-              <div class="hp"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+              <div class="hidden"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
 
               <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                <!-- Preline input pattern: py-3 px-4 border border-gray-200 rounded-lg focus:ring-2 -->
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 mb-1.5">First Name <span class="text-red-500">*</span></label>
                   <input type="text" name="firstName" placeholder="Juan" required
@@ -202,8 +181,10 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
               </div>
               <div class="mb-6">
                 <label class="block text-xs font-semibold text-gray-700 mb-1.5">Attachments <span class="text-gray-400 font-normal">(optional)</span></label>
-                <div class="file-dropzone" id="inq-dropzone" onclick="document.getElementById('inq-files').click()">
-                  <div class="size-10 bg-orange-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div id="inq-dropzone"
+                     class="cursor-pointer rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center transition-all hover:border-amber-500 hover:bg-amber-50"
+                     onclick="document.getElementById('inq-files').click()">
+                  <div class="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-orange-200">
                     <svg class="size-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                   </div>
                   <p class="text-sm font-semibold text-gray-700">Click to upload or drag & drop</p>
@@ -214,7 +195,7 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
               </div>
               <!-- Preline button style -->
               <button type="submit" id="inq-submit"
-                      class="w-full py-3 px-4 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-600 text-white font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                      class="w-full py-3 px-4 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                 Send Message
               </button>
@@ -224,205 +205,169 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
         </div>
 
         <!-- PANEL 2: CAREER -->
-        <div class="form-panel" id="panel-career" data-aos="fade-up">
-          <div class="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-            <h2 class="font-display text-xl font-bold text-gray-900 mb-1">Apply to Join Our Team</h2>
-            <p class="text-sm text-gray-500 mb-4">We're always looking for hardworking, honest people who are passionate about the fishing industry.</p>
+        <div id="panel-career" class="hidden" role="tabpanel" aria-labelledby="tab-career" data-aos="fade-up">
 
-            <!-- Preline progress bar -->
-            <div class="flex items-center gap-2 mb-6">
-              <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div class="career-progress-bar h-full rounded-full" id="career-progress" style="width:0%"></div>
-              </div>
-              <span class="text-xs font-semibold text-gray-400" id="career-pct">0%</span>
+          <!-- ── HR Branding Header ── -->
+          <div class="text-center mb-10">
+            <div class="flex items-center justify-center gap-4 mb-4">
+              <span class="h-px w-16 bg-orange-500"></span>
+              <span class="size-1.5 rounded-full bg-orange-500"></span>
+              <span class="h-px w-16 bg-orange-500"></span>
             </div>
-
-            <!-- Alerts -->
-            <div id="career-loading" class="hidden mb-4 flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium">
-              <svg class="animate-spin size-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="60" stroke-dashoffset="20"/></svg>
-              Submitting your application…
-            </div>
-            <div id="career-success" class="hidden mb-4 flex items-center gap-3 p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm font-medium">
-              <svg class="size-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Application received! We'll review it and reach out if you're a good fit. Thank you!
-            </div>
-            <div id="career-error" class="hidden mb-4 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm font-medium">
-              <svg class="size-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span id="career-error-text">Something went wrong. Please try again.</span>
-            </div>
-
-            <form id="career-form" method="POST" enctype="multipart/form-data" novalidate>
-              <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
-              <input type="hidden" name="form_type" value="career">
-              <div class="hp"><input type="text" name="website2" tabindex="-1" autocomplete="off"></div>
-
-              <div class="form-section-label">Personal Information</div>
-              <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">First Name <span class="text-red-500">*</span></label>
-                  <input type="text" name="firstName" placeholder="Juan" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Last Name <span class="text-red-500">*</span></label>
-                  <input type="text" name="lastName" placeholder="dela Cruz" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-              </div>
-              <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Email <span class="text-red-500">*</span></label>
-                  <input type="email" name="email" placeholder="you@example.com" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Contact Number <span class="text-red-500">*</span></label>
-                  <input type="tel" name="contact" placeholder="+63 9XX XXX XXXX" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-              </div>
-              <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Age</label>
-                  <input type="number" name="age" min="18" max="65" placeholder="e.g. 25" class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Current Address <span class="text-red-500">*</span></label>
-                  <input type="text" name="address" placeholder="City, Province" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                </div>
-              </div>
-
-              <div class="form-section-label">Position & Location</div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Location applying for <span class="text-red-500">*</span></label>
-                <select name="apply_location" required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                  <option value="">— Select a market —</option>
-                  <option value="navotas">Navotas Fish Port Complex</option>
-                  <option value="malabon">Malabon Consignacion</option>
-                  <option value="davao">Davao Toril Fish Port</option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-2">Position Interested In <span class="text-red-500">*</span></label>
-                <div class="grid sm:grid-cols-2 gap-2">
-                  <?php foreach ([
-                    ['broker','🤝 Fish Broker','Negotiate between fishermen and buyers'],
-                    ['coordinator','📋 Market Coordinator','Manage daily stall operations'],
-                    ['logistics','🚚 Logistics Officer','Handle transport & delivery'],
-                    ['accounting','📊 Finance & Accounting','Billing, records, and reports'],
-                    ['quality','✅ Quality Control','Inspect and grade fish products'],
-                    ['operations','⚙️ Port Operations','On-ground port support'],
-                  ] as [$val,$lbl,$desc]): ?>
-                  <label class="position-card" onclick="selectPosition(this)">
-                    <input type="radio" name="position" value="<?= $val ?>" class="career-field">
-                    <p class="text-sm font-semibold text-gray-900"><?= $lbl ?></p>
-                    <p class="text-xs text-gray-400 mt-0.5"><?= $desc ?></p>
-                  </label>
-                  <?php endforeach; ?>
-                </div>
-                <input type="text" name="position_other" placeholder="Other position (if not listed above)" class="mt-3 py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white font-[Lexend]">
-              </div>
-
-              <div class="form-section-label">Work Experience</div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Years of Experience <span class="text-red-500">*</span></label>
-                <select name="experience_years" required class="pe-9 py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                  <option value="">— Select —</option>
-                  <option value="fresh">Fresh Graduate / No experience</option>
-                  <option value="1-2">1–2 years</option>
-                  <option value="3-5">3–5 years</option>
-                  <option value="5+">5+ years</option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-2">Industry Background</label>
-                <div class="flex flex-wrap gap-2">
-                  <?php foreach (['Fish / Seafood Industry','Food & Beverage','Logistics / Trucking','Market Trading','Government / BFAR','Banking / Finance','Fresh Graduate'] as $ind): ?>
-                  <button type="button" class="tag-btn" onclick="toggleTag(this,'industry_tags')"><?= $ind ?></button>
-                  <?php endforeach; ?>
-                </div>
-                <input type="hidden" name="industry_tags" id="industry_tags">
-              </div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Brief Work History <span class="text-red-500">*</span></label>
-                <textarea name="work_history" rows="4" placeholder="Describe your relevant experience, previous employers, and roles..." required class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white resize-y career-field font-[Lexend]"></textarea>
-              </div>
-
-              <div class="form-section-label">Availability</div>
-              <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Available to Start <span class="text-red-500">*</span></label>
-                  <select name="start_date" required class="pe-9 py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white career-field font-[Lexend]">
-                    <option value="">— Select —</option>
-                    <option value="immediately">Immediately</option>
-                    <option value="2-weeks">In 2 weeks</option>
-                    <option value="1-month">In 1 month</option>
-                    <option value="negotiable">Negotiable</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">Work Arrangement</label>
-                  <select name="work_type" class="pe-9 py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white font-[Lexend]">
-                    <option value="">— Any —</option>
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contractual">Contractual / Project-based</option>
-                  </select>
-                </div>
-              </div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Expected Salary Range</label>
-                <select name="expected_salary" class="pe-9 py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white font-[Lexend]">
-                  <option value="">— Prefer not to say —</option>
-                  <option value="minimum">Minimum wage</option>
-                  <option value="15k-20k">₱15,000 – ₱20,000/month</option>
-                  <option value="20k-30k">₱20,000 – ₱30,000/month</option>
-                  <option value="30k+">₱30,000+/month</option>
-                  <option value="negotiable">Negotiable</option>
-                </select>
-              </div>
-
-              <div class="form-section-label">Resume & Documents</div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Upload Resume / CV <span class="text-red-500">*</span></label>
-                <div class="file-dropzone" onclick="document.getElementById('career-resume').click()">
-                  <div class="size-10 bg-orange-200 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg class="size-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                  </div>
-                  <p class="text-sm font-semibold text-gray-700">Upload your resume</p>
-                  <p class="text-xs text-gray-400 mt-1">PDF or DOCX preferred — max 5MB</p>
-                </div>
-                <input type="file" id="career-resume" name="resume" accept=".pdf,.doc,.docx" class="hidden career-field" required>
-                <div id="career-resume-list" class="mt-2 space-y-1"></div>
-              </div>
-              <div class="mb-4">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Supporting Documents <span class="text-gray-400 font-normal">(optional)</span></label>
-                <div class="file-dropzone" onclick="document.getElementById('career-docs').click()">
-                  <div class="size-10 bg-orange-200 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg class="size-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                  </div>
-                  <p class="text-sm font-semibold text-gray-700">TOR, Certificates, IDs</p>
-                  <p class="text-xs text-gray-400 mt-1">JPG, PNG, PDF — max 2MB each</p>
-                </div>
-                <input type="file" id="career-docs" name="documents[]" multiple accept=".jpg,.jpeg,.png,.pdf" class="hidden">
-                <div id="career-docs-list" class="mt-2 space-y-1"></div>
-              </div>
-              <div class="mb-6">
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Anything else you'd like us to know?</label>
-                <textarea name="extra_notes" rows="3" placeholder="Special skills, language abilities, references, etc." class="py-3 px-4 block w-full border border-gray-200 rounded-lg text-sm focus:border-orange-500 focus:ring-orange-500 outline-none transition bg-white resize-y font-[Lexend]"></textarea>
-              </div>
-
-              <button type="submit" id="career-submit"
-                      class="w-full py-3 px-4 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-                Submit Application
-              </button>
-              <p class="text-center text-xs text-gray-400 mt-3">We review all applications and contact qualified candidates within 5–7 business days.</p>
-            </form>
+            <h2 class="font-display text-3xl md:text-4xl font-extrabold text-emerald-950 tracking-tight mb-2">HR BRANDING</h2>
+            <p class="text-sm md:text-base font-medium text-gray-500">
+              <span class="text-emerald-900 font-semibold">Built on Trust.</span>
+              <span class="text-orange-600 font-semibold">Strengthened by People.</span>
+              <span class="text-emerald-900 font-semibold">Defined by Legacy.</span>
+            </p>
           </div>
+
+          <!-- ── Two Column Cards ── -->
+          <div class="grid md:grid-cols-2 gap-6 mb-8">
+
+            <!-- WHO WE ARE -->
+            <div class="rounded-2xl border border-gray-100 shadow-sm overflow-hidden bg-white">
+              <div class="flex items-center gap-3 bg-emerald-950 px-5 py-4">
+                <div class="size-9 rounded-full bg-emerald-900 border-2 border-emerald-700 flex items-center justify-center shrink-0">
+                  <svg class="size-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                </div>
+                <h3 class="text-white font-bold text-sm tracking-wide">WHO WE ARE</h3>
+              </div>
+              <div class="divide-y divide-gray-100">
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A <strong class="text-emerald-950">stable</strong> and <strong class="text-emerald-950">resilient</strong> organization</p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m5-4.13a4 4 0 100-8 4 4 0 000 8zm7 4c1.66 0 3-1.34 3-3a3 3 0 00-3-3m-14 0a3 3 0 00-3 3c0 1.66 1.34 3 3 3"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">Employees who are <strong class="text-emerald-950">pioneers</strong> — many have stayed with us for <strong class="text-emerald-950">over 30 years</strong></p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 21C12 21 4 16.5 4 10.5C4 7.42 6.42 5 9.5 5C11.04 5 12.5 5.8 13.4 7.05C14.3 5.8 15.75 5 17.29 5C20.37 5 22.79 7.42 22.79 10.5C22.79 16.5 14.79 21 14.79 21H12Z"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5"><strong class="text-emerald-950">No layoffs</strong> even during the pandemic, because we value people beyond circumstances</p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1118.879 6.196 9 9 0 015.12 17.804zM15 10a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A workplace where careers last, with many employees proudly retiring at ages <strong class="text-emerald-950">60–65</strong></p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A company that believes in recognizing potential and <strong class="text-emerald-950">promoting from within</strong></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- WHAT WE WANT TO BE -->
+            <div class="rounded-2xl border border-gray-100 shadow-sm overflow-hidden bg-white">
+              <div class="flex items-center gap-3 bg-orange-600 px-5 py-4">
+                <div class="size-9 rounded-full bg-orange-500 border-2 border-orange-300 flex items-center justify-center shrink-0">
+                  <svg class="size-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                </div>
+                <h3 class="text-white font-bold text-sm tracking-wide">WHAT WE WANT TO BE</h3>
+              </div>
+              <div class="divide-y divide-gray-100">
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A <strong class="text-orange-600">fun</strong> and <strong class="text-orange-600">engaging</strong> place to work</p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9-9v9m0 9H3m11 0h5m-5 0v-5a2 2 0 00-2-2h-2a2 2 0 00-2 2v5"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A workplace that feels like a <strong class="text-orange-600">second home</strong> — supportive, warm, and welcoming</p>
+                </div>
+                <div class="flex items-start gap-4 px-5 py-4">
+                  <div class="size-9 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                  </div>
+                  <p class="text-sm text-gray-700 leading-relaxed pt-1.5">A culture where people <strong class="text-orange-600">grow, belong</strong>, and <strong class="text-orange-600">thrive</strong> together</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── HR Brand Promise Banner ── -->
+          <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 to-emerald-900 px-6 md:px-8 py-6 mb-10">
+            <svg class="absolute right-0 bottom-0 h-full opacity-15" viewBox="0 0 200 100" fill="none" preserveAspectRatio="xMaxYMax meet">
+              <path d="M10 80 L60 60 L110 75 L160 55 L195 65 L195 100 L10 100 Z" fill="white"/>
+            </svg>
+            <div class="relative flex flex-col md:flex-row items-center gap-5 text-center md:text-left">
+              <div class="size-16 rounded-full border-2 border-orange-500 flex items-center justify-center shrink-0">
+                <svg class="size-7 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21C12 21 4 16.5 4 10.5C4 7.42 6.42 5 9.5 5C11.04 5 12.5 5.8 13.4 7.05C14.3 5.8 15.75 5 17.29 5C20.37 5 22.79 7.42 22.79 10.5C22.79 16.5 14.79 21 14.79 21H12Z"/></svg>
+              </div>
+              <div>
+                <span class="inline-block bg-orange-500 text-white text-[0.65rem] font-bold tracking-widest uppercase rounded-full px-3 py-1 mb-2">Our HR Brand Promise</span>
+                <p class="text-lg md:text-xl font-extrabold text-white leading-tight">
+                  Where <span class="text-orange-500">Careers</span> Last. Where <span class="text-orange-500">People Belong</span>.
+                </p>
+                <p class="text-sm text-white/70 mt-1">
+                  Stability is not just our message — it is <strong class="text-white">our track record</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Hiring / Contact Card ── -->
+          <div class="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+            <div class="flex items-start gap-4 mb-5">
+              <div class="size-11 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                <svg class="size-5 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </div>
+              <div>
+                <h2 class="font-display text-xl font-bold text-gray-900 mb-1">We're always looking for people who stay.</h2>
+                <p class="text-sm text-gray-500 leading-relaxed">
+                  We don't have a long list of open roles posted here — that's on purpose. We hire in small numbers, when we know a role is a real, lasting fit, not just a seat to fill.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid sm:grid-cols-3 gap-4 mb-6">
+              <div class="rounded-xl bg-gray-50 p-4 text-center">
+                <div class="text-2xl font-extrabold text-emerald-950">30+</div>
+                <div class="text-xs text-gray-500 mt-1">years, our longest-tenured teammates</div>
+              </div>
+              <div class="rounded-xl bg-gray-50 p-4 text-center">
+                <div class="text-2xl font-extrabold text-emerald-950">0</div>
+                <div class="text-xs text-gray-500 mt-1">layoffs, even through the pandemic</div>
+              </div>
+              <div class="rounded-xl bg-gray-50 p-4 text-center">
+                <div class="text-2xl font-extrabold text-emerald-950">60–65</div>
+                <div class="text-xs text-gray-500 mt-1">the age many of our team retire at, with us</div>
+              </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-6">
+              <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                If that sounds like the kind of place you want to build a career, not just take a job, send us your resume and a short note about what you're looking for. Our HR team reads every message personally.
+              </p>
+              <a href="mailto:hrd@fishbrokers.net?subject=Job%20Application%20-%20St.%20Joseph%20Fish%20Brokerage"
+                class="inline-flex items-center gap-2 py-3 px-6 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 hover:-translate-y-0.5 transition-all shadow-lg shadow-orange-600/25">
+                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                Email hrd@fishbrokers.net
+              </a>
+              <p class="text-xs text-gray-400 mt-3">We typically respond within 3–5 business days.</p>
+            </div>
+          </div>
+
         </div>
       </div>
 
       <!-- RIGHT: SIDEBAR -->
       <div data-aos="fade-left" data-aos-delay="200" class="space-y-4">
 
-        <!-- Market Locations — Preline card -->
+        <!-- Market Locations -->
         <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <h4 class="flex items-center gap-2 text-sm font-bold text-gray-900 mb-4">
             <svg class="size-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -468,8 +413,8 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
           </div>
         </div>
 
-        <!-- Response Times — Preline gradient card -->
-        <div class="rounded-2xl p-5 shadow-sm" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24  100%);">
+        <!-- Response Times -->
+        <div class="rounded-2xl bg-gradient-to-br from-orange-500 via-orange-400 to-amber-400 p-5 shadow-sm">
           <h4 class="flex items-center gap-2 text-sm font-bold text-white mb-4">
             <svg class="size-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Response Times
@@ -487,7 +432,6 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
         <!-- Career Perks — hidden initially -->
         <div id="career-perks-card" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm">
           <h4 class="text-sm font-bold text-amber-800 mb-3">⭐ Why Work With Us</h4>
-          <!-- Preline list -->
           <ul class="space-y-1.5 text-xs text-amber-800">
             <?php foreach (['Good minimum compensation + benefits','SSS, PhilHealth, Pag-IBIG covered','13th month pay + performance bonuses','Career growth within our growing network','Stable, family-oriented workplace culture','Meals / allowances for port-side roles'] as $perk): ?>
             <li class="flex items-center gap-2">
@@ -510,37 +454,21 @@ $metaDescription = 'Get in touch with St. Joseph Fish Brokerage Inc. — send us
 <script>
 AOS.init({ once:true });
 
-// Tab switch
-function switchForm(type, btn) {
-  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.form-tab').forEach(b => {
-    b.classList.remove('bg-white','text-blue-800','shadow-sm');
-    b.classList.add('text-gray-500');
-  });
-  document.getElementById('panel-'+type).classList.add('active');
-  btn.classList.add('bg-white','text-blue-800','shadow-sm');
-  btn.classList.remove('text-gray-500');
-  const perks = document.getElementById('career-perks-card');
-  perks.classList.toggle('hidden', type !== 'career');
-}
-
-// Position picker
-function selectPosition(label) {
-  document.querySelectorAll('.position-card').forEach(c => c.classList.remove('selected'));
-  label.classList.add('selected');
-  label.querySelector('input[type="radio"]').checked = true;
-}
-
-// Tag toggle
-function toggleTag(btn, hiddenId) {
-  btn.classList.toggle('selected');
-  const sel = [...document.querySelectorAll('.tag-btn.selected')].map(b => b.textContent.trim());
-  document.getElementById(hiddenId).value = sel.join(', ');
-}
+// Tab switching (panel show/hide + hs-tab-active styling) is now handled by
+// Preline's HSTabs plugin via data-hs-tab, auto-initialized from preline.min.js.
+// We only need this tiny listener to also toggle the sidebar "career perks" card,
+// which isn't part of what HSTabs manages.
+document.getElementById('tab-inquiry').addEventListener('click', () => {
+  document.getElementById('career-perks-card').classList.add('hidden');
+});
+document.getElementById('tab-career').addEventListener('click', () => {
+  document.getElementById('career-perks-card').classList.remove('hidden');
+});
 
 // File input
 function setupFileInput(inputId, listId) {
   const input = document.getElementById(inputId), list = document.getElementById(listId);
+  if (!input || !list) return;
   let files = [];
   input.addEventListener('change', function() { files.push(...Array.from(this.files)); render(); });
   function render() {
@@ -556,44 +484,26 @@ function setupFileInput(inputId, listId) {
   }
 }
 setupFileInput('inq-files','inq-file-list');
-setupFileInput('career-resume','career-resume-list');
-setupFileInput('career-docs','career-docs-list');
 
-// Drag & drop
+// Drag & drop (visual feedback swapped to Tailwind utility classes instead of a custom .dragover class)
 ['inq-dropzone'].forEach(id => {
   const el = document.getElementById(id); if(!el) return;
-  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
-  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
-  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('dragover'); });
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('border-amber-500','bg-amber-50'); });
+  el.addEventListener('dragleave', () => el.classList.remove('border-amber-500','bg-amber-50'));
+  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('border-amber-500','bg-amber-50'); });
 });
 
-// Career progress
-const careerFields = document.querySelectorAll('.career-field');
-careerFields.forEach(f => f.addEventListener('input', updateProgress));
-function updateProgress() {
-  const filled = [...careerFields].filter(f => f.type==='radio' ? document.querySelector(`[name="${f.name}"]:checked`) : f.value.trim()).length;
-  const pct = Math.round((filled/careerFields.length)*100);
-  document.getElementById('career-progress').style.width = pct+'%';
-  document.getElementById('career-pct').textContent = pct+'%';
-}
-// Form submits
+// Form submit handler
 async function submitForm(formId, loadingId, successId, errorId, errorTextId, btnId) {
     const form = document.getElementById(formId);
     const [loading, success, error, btn] = [loadingId, successId, errorId, btnId].map(id => document.getElementById(id));
-    
-    // Hide all messages
+
     [loading, success, error].forEach(el => el.classList.add('hidden'));
     loading.classList.remove('hidden');
     btn.disabled = true;
 
     try {
         const formData = new FormData(form);
-        
-        // Debug log
-        console.log('Submitting form:', formId);
-        for (let pair of formData.entries()) {
-            console.log(pair[0] + ': ' + pair[1]);
-        }
 
         const response = await fetch('./functions/process_contact.php', {
             method: 'POST',
@@ -605,34 +515,15 @@ async function submitForm(formId, loadingId, successId, errorId, errorTextId, bt
         }
 
         const data = await response.json();
-        
+
         loading.classList.add('hidden');
         btn.disabled = false;
 
         if (data.status === 'success') {
             success.classList.remove('hidden');
             form.reset();
-            
-            // Clear file lists
             document.querySelectorAll(`#${formId} [id$="-list"]`).forEach(list => list.innerHTML = '');
-            
-            // Reset career-specific UI if it's the career form
-            if (formId === 'career-form') {
-                document.querySelectorAll('.position-card').forEach(c => c.classList.remove('selected'));
-                document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
-                document.getElementById('career-progress').style.width = '0%';
-                document.getElementById('career-pct').textContent = '0%';
-                
-                // Show application reference if provided
-                if (data.app_ref) {
-                    const successMsg = success.querySelector('p');
-                    if (successMsg) {
-                        successMsg.innerHTML = `Application received! Reference: <strong>${data.app_ref}</strong><br>We'll review it and reach out if you're a good fit. Thank you!`;
-                    }
-                }
-            }
-            
-            // Auto-hide success message after 5 seconds
+
             setTimeout(() => {
                 success.classList.add('hidden');
             }, 5000);
@@ -649,20 +540,28 @@ async function submitForm(formId, loadingId, successId, errorId, errorTextId, bt
     }
 }
 
-// Bind form submissions
-document.getElementById('inquiry-form').addEventListener('submit', e => { 
-    e.preventDefault(); 
-    submitForm('inquiry-form', 'inq-loading', 'inq-success', 'inq-error', 'inq-error-text', 'inq-submit'); 
+// Bind form submission
+document.getElementById('inquiry-form').addEventListener('submit', e => {
+    e.preventDefault();
+    submitForm('inquiry-form', 'inq-loading', 'inq-success', 'inq-error', 'inq-error-text', 'inq-submit');
 });
 
-document.getElementById('career-form').addEventListener('submit', e => { 
-    e.preventDefault(); 
-    submitForm('career-form', 'career-loading', 'career-success', 'career-error', 'career-error-text', 'career-submit'); 
-});
+// FIXED: there is no <form id="career-form"> anywhere in panel-career (it's an HR-branding
+// block with only a mailto: link, no application form fields). Calling .addEventListener on
+// a null element throws and used to silently kill the rest of this script — including the
+// ?tab=career auto-switch below. Guarded so the page keeps working; add a real #career-form
+// here if/when you build one.
+const careerForm = document.getElementById('career-form');
+if (careerForm) {
+  careerForm.addEventListener('submit', e => {
+    e.preventDefault();
+    submitForm('career-form', 'career-loading', 'career-success', 'career-error', 'career-error-text', 'career-submit');
+  });
+}
 
-// Auto-switch via URL param
+// Auto-switch via URL param — triggers Preline's tab click handling directly
 if (new URLSearchParams(location.search).get('tab') === 'career') {
-  switchForm('career', document.getElementById('tab-career'));
+  document.getElementById('tab-career').click();
 }
 </script>
 </body>

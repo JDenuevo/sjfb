@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
     }
 
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("UPDATE accounts SET password_hash = ?, reset_otp = NULL, otp_expiry = NULL WHERE email = ?");
+    // Uses renamed column: account_email (was email)
+    $stmt = $conn->prepare("UPDATE accounts SET password_hash = ?, reset_otp = NULL, otp_expiry = NULL WHERE account_email = ?");
     $stmt->bind_param("ss", $hash, $email);
 
     if ($stmt->execute()) {
@@ -59,171 +60,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reset Password | St. Joseph Fish Brokerage Inc.</title>
+  <meta property="og:title" content="Verify Email | St. Joseph Fish Brokerage Inc.">
   <meta property="og:image" content="https://fishbrokers.net/assets/icons/logo.svg">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="google-site-verification" content="SEvyztm_VEss7pZNU7eN79PfVCh0D6MskG7f9mKpJow">
+
   <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
   <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
-  
-  <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <style>
-  :root{--or:#ea580c;--or2:#f97316;--or-bg:#fff7ed;--or-dim:rgba(234,88,12,.12);--red:#ef4444;--grn:#10b981;--g1:#f3f4f6;--g2:#e5e7eb;--g4:#9ca3af;--g9:#111827}
-  *,*::before,*::after{box-sizing:border-box}
-  body{font-family:'Lexend',sans-serif;background:#f8f6f3;margin:0;min-height:100vh;display:flex;flex-direction:column}
-  .ap-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:2.5rem 1rem;
-    background:radial-gradient(ellipse at 80% 15%,rgba(251,146,60,.08) 0%,transparent 55%),
-               radial-gradient(ellipse at 10% 85%,rgba(234,88,12,.05) 0%,transparent 55%),#f8f6f3}
-  .ap-card{display:grid;grid-template-columns:1fr 1.35fr;width:100%;max-width:52rem;border-radius:1.375rem;
-    overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.08),0 28px 56px rgba(0,0,0,.07);
-    animation:apIn .3s cubic-bezier(.22,.61,.36,1) both}
-  @keyframes apIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-  @media(max-width:620px){.ap-card{grid-template-columns:1fr}.ap-brand{display:none}}
-  .ap-brand{position:relative;background:linear-gradient(148deg,#c2410c 0%,#ea580c 38%,#f97316 72%,#fbbf24 100%);
-    padding:2.75rem 2.25rem;display:flex;flex-direction:column;justify-content:center;overflow:hidden;min-height:460px}
-  .ap-brand::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);background-size:22px 22px}
-  .ap-brand-in{position:relative;z-index:1}
-  .ap-logo{display:block;height:48px;filter:brightness(0) invert(1);margin-bottom:1.875rem}
-  .ap-brand h2{font-size:1.5rem;font-weight:800;color:#fff;line-height:1.2;margin:0 0 .625rem}
-  .ap-brand-sub{font-size:.8125rem;color:rgba(255,255,255,.8);line-height:1.7;margin:0 0 1.75rem}
-  .ap-steps{display:flex;flex-direction:column;gap:0}
-  .ap-step{display:flex;align-items:center;gap:.75rem}
-  .ap-sn{width:1.75rem;height:1.75rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
-  .ap-sn.done{background:rgba(255,255,255,.35);color:#fff}
-  .ap-sn.active{background:#fff;color:var(--or)}
-  .ap-sl{font-size:.8125rem;font-weight:600}
-  .ap-step.done   .ap-sl{color:rgba(255,255,255,.7)}
-  .ap-step.active .ap-sl{color:#fff}
-  .ap-conn{width:2px;height:1.125rem;background:rgba(255,255,255,.2);margin-left:.875rem}
-  .ap-wave{position:absolute;right:-1px;top:0;bottom:0;height:100%;width:52px}
-  /* tip box */
-  .ap-tip{background:rgba(255,255,255,.13);border-radius:.875rem;padding:1.125rem 1.25rem;margin-top:1.5rem}
-  .ap-tip-title{font-size:.8rem;font-weight:700;color:#fff;margin:0 0 .5rem;display:flex;align-items:center;gap:.4rem}
-  .ap-tip ul{margin:0;padding:0 0 0 1rem;display:flex;flex-direction:column;gap:.25rem}
-  .ap-tip li{font-size:.78rem;color:rgba(255,255,255,.8);line-height:1.5}
-  .ap-form-panel{background:#fff;display:flex;flex-direction:column}
-  .ap-form-in{padding:2.5rem 2.25rem;flex:1}
-  .ap-badge{display:inline-flex;align-items:center;gap:.5rem;font-size:.7rem;font-weight:700;letter-spacing:.12em;
-    text-transform:uppercase;color:var(--or);background:var(--or-bg);border:1px solid rgba(234,88,12,.2);
-    border-radius:9999px;padding:.3rem .875rem;margin-bottom:1rem}
-  .ap-dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--or);animation:apDot 2s ease-in-out infinite}
-  @keyframes apDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.65)}}
-  .ap-heading{margin:0 0 1.5rem}
-  .ap-heading h1{font-size:1.375rem;font-weight:800;color:var(--g9);margin:0 0 .25rem;line-height:1.2}
-  .ap-heading p{font-size:.8125rem;color:var(--g4);margin:0}
-  .ap-alert{display:flex;align-items:flex-start;gap:.625rem;border-radius:.625rem;padding:.75rem 1rem;
-    font-size:.8125rem;font-weight:500;margin-bottom:1.25rem;line-height:1.5}
-  .ap-alert svg{flex-shrink:0;margin-top:.1rem}
-  .ap-err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
-  .ap-suc{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
-  .ap-fields{display:flex;flex-direction:column;gap:1rem}
-  .ap-field{display:flex;flex-direction:column}
-  .ap-lbl{font-size:.8125rem;font-weight:600;color:#374151;margin-bottom:.325rem;display:flex;align-items:center;gap:.25rem}
-  .ap-star{color:var(--red)}
-  .ap-iw{position:relative}
-  .ap-ico{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--g4);display:flex;pointer-events:none;z-index:1}
-  .ap-inp{width:100%;padding:.625rem .875rem .625rem 2.375rem;border:1.5px solid var(--g2);border-radius:.625rem;
-    font-size:.875rem;color:var(--g9);font-family:'Lexend',sans-serif;background:#fff;
-    transition:border-color .15s,box-shadow .15s;outline:none}
-  .ap-inp:focus{border-color:var(--or);box-shadow:0 0 0 3px var(--or-dim)}
-  .ap-inp.eb{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(239,68,68,.1)!important}
-  .ap-inp.sb{border-color:var(--grn)!important;box-shadow:0 0 0 3px rgba(16,185,129,.1)!important}
-  .ap-eye{position:absolute;right:.625rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g4);display:flex;padding:.25rem;transition:color .15s}
-  .ap-eye:hover{color:#4b5563}
-  .ap-rlist{margin:.375rem 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.225rem}
-  .ap-ri{display:flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--g4);transition:color .2s}
-  .ap-ri svg{flex-shrink:0}
-  .ap-ri.ok{color:var(--grn)}
-  .ap-ferr{font-size:.75rem;color:var(--red);margin-top:.3rem;display:none}
-  .ap-ferr.show{display:block}
-  /* strength bar */
-  .str-wrap{height:.3125rem;border-radius:9999px;background:var(--g2);overflow:hidden;margin-top:.375rem}
-  #str-bar{height:100%;border-radius:9999px;transition:width .3s,background .3s;width:0}
-  .ap-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:.5rem;
-    background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;font-family:'Lexend',sans-serif;
-    font-size:.9375rem;font-weight:700;border:none;border-radius:.75rem;padding:.8125rem 1.5rem;cursor:pointer;
-    margin-top:.25rem;box-shadow:0 4px 14px rgba(234,88,12,.28);transition:transform .15s,box-shadow .15s}
-  .ap-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(234,88,12,.38)}
-  .ap-btn:active{transform:translateY(0)}
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
-<body>
+<body class="font-lexend m-0 min-h-screen flex flex-col">
   <?php include('./components/preloaders.php'); ?>
   <?php include('./components/navigation.php'); ?>
 
-  <main class="ap-wrap">
-    <div class="ap-card">
+  <main class="flex-1 flex items-center justify-center px-4 py-10
+    bg-[radial-gradient(ellipse_at_80%_15%,rgba(251,146,60,.08)_0%,transparent_55%),radial-gradient(ellipse_at_10%_85%,rgba(234,88,12,.05)_0%,transparent_55%)]">
 
-      <!-- ── Brand panel ── -->
-      <div class="ap-brand">
-        <div class="ap-brand-in">
-          <img src="./assets/icons/logo.svg" alt="SJFBI" class="ap-logo">
-          <h2>Almost there!</h2>
-          <p class="ap-brand-sub">You're on the final step. Create a strong new password for your account.</p>
-          <div class="ap-steps">
-            <div class="ap-step done">
-              <div class="ap-sn done"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
-              <span class="ap-sl">Email entered</span>
+    <div class="grid grid-cols-1 sm:grid-cols-[1fr_1.35fr] w-full max-w-3xl rounded-[1.375rem] overflow-hidden
+      shadow-[0_2px_4px_rgba(0,0,0,.04),0_8px_24px_rgba(0,0,0,.08),0_28px_56px_rgba(0,0,0,.07)]
+      animate-[fadeInUp_.3s_cubic-bezier(.22,.61,.36,1)_both]">
+
+        <div class="relative z-10">
+          <img src="./assets/icons/logo.svg" alt="SJFBI" class="h-12 mb-7 brightness-0 invert">
+
+          <h2 class="text-2xl font-extrabold text-white leading-tight mb-2.5">Almost there!</h2>
+          <p class="text-sm text-white/80 leading-relaxed mb-7">
+            You're on the final step. Create a strong new password for your account.
+          </p>
+
+          <div class="flex flex-col">
+            <!-- Step 1 (done) -->
+            <div class="flex items-center gap-3">
+              <div class="size-7 rounded-full flex items-center justify-center shrink-0 bg-white/35 text-white">
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <span class="text-sm font-semibold text-white/70">Email entered</span>
             </div>
-            <div class="ap-conn"></div>
-            <div class="ap-step done">
-              <div class="ap-sn done"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
-              <span class="ap-sl">OTP verified</span>
+            <div class="w-0.5 h-[1.125rem] bg-white/20 ml-3.5"></div>
+            <!-- Step 2 (done) -->
+            <div class="flex items-center gap-3">
+              <div class="size-7 rounded-full flex items-center justify-center shrink-0 bg-white/35 text-white">
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <span class="text-sm font-semibold text-white/70">OTP verified</span>
             </div>
-            <div class="ap-conn"></div>
-            <div class="ap-step active">
-              <div class="ap-sn active">3</div>
-              <span class="ap-sl">Set new password</span>
+            <div class="w-0.5 h-[1.125rem] bg-white/20 ml-3.5"></div>
+            <!-- Step 3 (active) -->
+            <div class="flex items-center gap-3">
+              <div class="size-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-white text-orange-600">3</div>
+              <span class="text-sm font-semibold text-white">Set new password</span>
             </div>
           </div>
-          <div class="ap-tip">
-            <p class="ap-tip-title">
+
+          <div class="bg-white/[.13] rounded-2xl px-5 py-4.5 mt-6">
+            <p class="text-[0.8rem] font-bold text-white mb-2 flex items-center gap-1.5">
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               Strong password tips
             </p>
-            <ul>
-              <li>At least 8 characters</li>
-              <li>Mix uppercase and lowercase</li>
-              <li>Include numbers and symbols</li>
-              <li>Avoid using personal info</li>
+            <ul class="m-0 pl-4 flex flex-col gap-1 list-disc">
+              <li class="text-[0.78rem] text-white/80 leading-relaxed">At least 8 characters</li>
+              <li class="text-[0.78rem] text-white/80 leading-relaxed">Mix uppercase and lowercase</li>
+              <li class="text-[0.78rem] text-white/80 leading-relaxed">Include numbers and symbols</li>
+              <li class="text-[0.78rem] text-white/80 leading-relaxed">Avoid using personal info</li>
             </ul>
           </div>
         </div>
-        <svg class="ap-wave" viewBox="0 0 200 400" preserveAspectRatio="none">
+
+        <svg class="absolute right-0 top-0 h-full w-13" viewBox="0 0 200 400" preserveAspectRatio="none">
           <path d="M200,0 L200,400 L0,400 Q60,300 30,200 Q0,100 60,0 Z" fill="rgba(255,255,255,0.07)"/>
         </svg>
       </div>
 
       <!-- ── Form panel ── -->
-      <div class="ap-form-panel">
-        <div class="ap-form-in">
+      <div class="flex flex-col bg-white">
+        <div class="p-9 flex-1">
 
-          <div class="ap-badge"><span class="ap-dot"></span> Step 3 of 3 — Final Step</div>
+          <div class="inline-flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.12em] uppercase text-orange-600 bg-orange-50 border border-orange-600/20 rounded-full px-3.5 py-1.5 mb-4">
+            <span class="size-2 rounded-full bg-orange-600 animate-pulse"></span> Step 3 of 3 — Final Step
+          </div>
 
-          <div class="ap-heading">
-            <h1>Set New Password</h1>
-            <p>Choose a strong password to secure your account.</p>
+          <div class="mb-6">
+            <h1 class="text-[1.375rem] font-extrabold text-gray-900 leading-tight mb-1">Set New Password</h1>
+            <p class="text-sm text-gray-400">Choose a strong password to secure your account.</p>
           </div>
 
           <?php if (!empty($_SESSION['reset_error'])): ?>
-          <div class="ap-alert ap-err">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm font-medium mb-5 leading-relaxed bg-red-50 border border-red-200 text-red-700">
+            <svg class="shrink-0 mt-0.5 size-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <?= htmlspecialchars($_SESSION['reset_error']); unset($_SESSION['reset_error']); ?>
           </div>
           <?php endif; ?>
 
           <?php if (!empty($_SESSION['message'])): $m=$_SESSION['message']; unset($_SESSION['message']); ?>
-          <div class="ap-alert <?= $m['type']==='success'?'ap-suc':'ap-err' ?>">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <div class="flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm font-medium mb-5 leading-relaxed
+            <?= $m['type']==='success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-700' ?>">
+            <svg class="shrink-0 mt-0.5 size-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <?= $m['type']==='success'
                 ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
                 : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' ?>
@@ -232,44 +186,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
           </div>
           <?php endif; ?>
 
-          <form method="POST" action="reset_password.php" id="resetForm">
-            <div class="ap-fields">
+          <form method="POST" action="reset_password.php" id="resetForm" class="flex flex-col gap-4">
 
-              <!-- New Password -->
-              <div class="ap-field">
-                <label class="ap-lbl">New Password <span class="ap-star">*</span></label>
-                <div class="ap-iw">
-                  <span class="ap-ico"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-                  <input type="password" id="Password" name="password" placeholder="Create a strong password" class="ap-inp" required autocomplete="new-password">
-                  <button type="button" class="ap-eye" onclick="apEye('Password',this)"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg></button>
-                </div>
-                <div class="str-wrap"><div id="str-bar"></div></div>
-                <ul class="ap-rlist">
-                  <li class="ap-ri" id="plen"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>At least 8 characters</li>
-                  <li class="ap-ri" id="pup"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 uppercase letter</li>
-                  <li class="ap-ri" id="pnum"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 number</li>
-                  <li class="ap-ri" id="pspc"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 special character</li>
-                </ul>
-                <span class="ap-ferr" id="pw-err">Password does not meet the requirements.</span>
+            <!-- New Password -->
+            <div>
+              <label class="flex items-center gap-1 text-sm font-semibold text-gray-700 mb-1.5">
+                New Password <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input type="password" id="Password" name="password" placeholder="Create a strong password"
+                  required autocomplete="new-password"
+                  class="py-2.5 pl-10 pr-10 block w-full border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition
+                    invalid:border-red-500">
+                <button type="button" class="ap-eye absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1" onclick="apEye('Password',this)">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg>
+                </button>
               </div>
-
-              <!-- Confirm Password -->
-              <div class="ap-field">
-                <label class="ap-lbl">Confirm Password <span class="ap-star">*</span></label>
-                <div class="ap-iw">
-                  <span class="ap-ico"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
-                  <input type="password" id="ConfirmPassword" name="confirm_password" placeholder="Re-enter your password" class="ap-inp" required autocomplete="new-password">
-                  <button type="button" class="ap-eye" onclick="apEye('ConfirmPassword',this)"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg></button>
-                </div>
-                <span class="ap-ferr" id="cp-err">Passwords do not match.</span>
+              <div class="h-[0.3125rem] rounded-full bg-gray-200 overflow-hidden mt-1.5">
+                <div id="str-bar" class="h-full rounded-full transition-all duration-300" style="width:0"></div>
               </div>
-
-              <button type="submit" name="reset_password" class="ap-btn">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Reset Password
-              </button>
-
+              <ul class="mt-1.5 p-0 list-none flex flex-col gap-1">
+                <li class="flex items-center gap-1.5 text-[0.74rem] text-gray-400 transition-colors" id="plen">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>At least 8 characters
+                </li>
+                <li class="flex items-center gap-1.5 text-[0.74rem] text-gray-400 transition-colors" id="pup">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 uppercase letter
+                </li>
+                <li class="flex items-center gap-1.5 text-[0.74rem] text-gray-400 transition-colors" id="pnum">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 number
+                </li>
+                <li class="flex items-center gap-1.5 text-[0.74rem] text-gray-400 transition-colors" id="pspc">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>1 special character
+                </li>
+              </ul>
+              <span class="text-xs text-red-500 mt-1 hidden" id="pw-err">Password does not meet the requirements.</span>
             </div>
+
+            <!-- Confirm Password -->
+            <div>
+              <label class="flex items-center gap-1 text-sm font-semibold text-gray-700 mb-1.5">
+                Confirm Password <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </span>
+                <input type="password" id="ConfirmPassword" name="confirm_password" placeholder="Re-enter your password"
+                  required autocomplete="new-password"
+                  class="py-2.5 pl-10 pr-10 block w-full border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition">
+                <button type="button" class="ap-eye absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1" onclick="apEye('ConfirmPassword',this)">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg>
+                </button>
+              </div>
+              <span class="text-xs text-red-500 mt-1 hidden" id="cp-err">Passwords do not match.</span>
+            </div>
+
+            <button type="submit" name="reset_password"
+              class="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-gradient-to-r from-orange-600 to-orange-500 rounded-xl py-3.5 mt-1 shadow-lg shadow-orange-600/30 hover:shadow-orange-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Reset Password
+            </button>
           </form>
         </div>
       </div>
@@ -291,27 +270,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
   const pwErr= document.getElementById('pw-err');
   const cpErr= document.getElementById('cp-err');
 
-  function sf(inp,errEl,ok){inp.classList.toggle('eb',!ok);inp.classList.toggle('sb',ok&&inp.value.length>0);if(errEl)errEl.classList.toggle('show',!ok);}
+  function setFieldState(inp, errEl, ok) {
+    inp.classList.toggle('border-red-500', !ok);
+    inp.classList.toggle('ring-2', !ok);
+    inp.classList.toggle('ring-red-100', !ok);
+    inp.classList.toggle('border-green-500', ok && inp.value.length > 0);
+    if (errEl) errEl.classList.toggle('hidden', ok);
+  }
+
+  function setReqState(el, ok) {
+    el.classList.toggle('text-green-600', ok);
+    el.classList.toggle('text-gray-400', !ok);
+  }
 
   function vPass(){
     const p=pw.value;
     const c={l:p.length>=8,u:/[A-Z]/.test(p),n:/\d/.test(p),s:/[\W_]/.test(p)};
-    document.getElementById('plen').classList.toggle('ok',c.l);
-    document.getElementById('pup').classList.toggle('ok',c.u);
-    document.getElementById('pnum').classList.toggle('ok',c.n);
-    document.getElementById('pspc').classList.toggle('ok',c.s);
+    setReqState(document.getElementById('plen'), c.l);
+    setReqState(document.getElementById('pup'),  c.u);
+    setReqState(document.getElementById('pnum'), c.n);
+    setReqState(document.getElementById('pspc'), c.s);
     const sc=Object.values(c).filter(Boolean).length;
     bar.style.width=(sc*25)+'%';
     bar.style.background=sc<2?'#ef4444':sc<3?'#f97316':sc<4?'#fbbf24':'#10b981';
-    const ok=Object.values(c).every(Boolean);sf(pw,pwErr,ok);return ok;
+    const ok=Object.values(c).every(Boolean); setFieldState(pw,pwErr,ok); return ok;
   }
-  function vConf(){const ok=pw.value===cp.value&&cp.value!=='';sf(cp,cpErr,ok);return ok;}
+  function vConf(){const ok=pw.value===cp.value&&cp.value!=='';setFieldState(cp,cpErr,ok);return ok;}
 
   pw.addEventListener('input',()=>{vPass();if(cp.value)vConf();});
   cp.addEventListener('input',vConf);
 
   document.getElementById('resetForm').addEventListener('submit',function(e){
-    if(![vPass(),vConf()].every(Boolean)){e.preventDefault();document.querySelector('.eb')?.scrollIntoView({behavior:'smooth',block:'center'});}
+    if(![vPass(),vConf()].every(Boolean)){
+      e.preventDefault();
+      document.querySelector('.border-red-500')?.scrollIntoView({behavior:'smooth',block:'center'});
+    }
   });
   </script>
 </body>

@@ -15,6 +15,26 @@
  * Each product may have 'created_at' and 'total_sold'.
  */
 
+if (!function_exists('fp_slugify')) {
+    /**
+     * Turn any product name into a URL-safe slug: lowercase a-z0-9 and
+     * single hyphens only. Any run of spaces, slashes, parentheses,
+     * ampersands, etc. collapses to one hyphen, so the output always
+     * satisfies the .htaccess pattern ^item/([a-zA-Z0-9-]+)$ and never
+     * contains a raw "/" that Apache could mistake for a path separator.
+     *
+     * IMPORTANT: this is a one-way transform. To look the product back
+     * up in item.php, run this SAME function over each candidate
+     * product_name and compare — don't try to reverse hyphens back
+     * into the original name, since punctuation is discarded.
+     */
+    function fp_slugify(string $text): string {
+        $slug = strtolower($text);
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        return trim($slug, '-');
+    }
+}
+
 if (empty($fp_products)): ?>
 <div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
@@ -73,7 +93,7 @@ if (empty($fp_products)): ?>
     }
 
     // Share helpers
-    $itemUrl    = $baseUrl . 'item/' . urlencode(strtolower(str_replace(' ', '-', $product_name)));
+    $itemUrl    = $baseUrl . 'item/' . fp_slugify($product_name);
     $shareUrl   = $itemUrl;
     $shareTitle = $product_name;
     $lowestPrice = !empty($variants) ? min(array_column($variants, 'variant_price')) : 0;

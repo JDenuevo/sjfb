@@ -637,6 +637,59 @@ elseif (isset($_POST['update_blog'])) {
     header("Location: ../blogs.php");
     exit;
 }
+ 
+// ── UPDATE EVENT ─────────────────────────────────────────────────────────────
+elseif (isset($_POST['update_event'])) {
+ 
+    $event_id = (int)$_POST['event_id'];
+    $current = $conn->prepare("SELECT event_title,event_slug,event_image FROM company_events WHERE event_id = ? ");
+    $current->bind_param("i", $event_id);
+    $current->execute();
+    $event = $current->get_result()->fetch_assoc();
+    $current->close();
+ 
+    if (!$event) { redirectWithMessage("../events.php", "Event not found.", "error"); }
+    $event_title = trim($_POST['event_title']);
+    $event_slug = ($event['event_title'] !== $event_title) ? getUniqueSlug($conn, $event_title, 'company_events', $event_id) : $event['event_slug'];
+    $conn->begin_transaction();
+ 
+    try { $query = "UPDATE company_events SET event_title=?, event_slug=?, event_status=?, event_date=?, event_end_date=?, event_time=?, event_location=?, event_address=?, event_category=?, event_audience=?, event_excerpt=?, event_content=?, event_rsvp_url=?, event_rsvp_deadline=?, event_meta_title=?, event_meta_description=?, event_meta_keywords=? ";
+        $params = [ $_POST['event_title'], $event_slug, $_POST['event_status'], $_POST['event_date'], $_POST['event_end_date'] ?: null, $_POST['event_time'], $_POST['event_location'], $_POST['event_address'], $_POST['event_category'], $_POST['event_audience'], $_POST['event_excerpt'], cleanContent($_POST['event_content']), $_POST['event_rsvp_url'], $_POST['event_rsvp_deadline'] ?: null, $_POST['event_meta_title'], $_POST['event_meta_description'], $_POST['event_meta_keywords'] ];
+        $types = str_repeat("s", 17);
+        $newImage = ( isset($_FILES['event_image']) && $_FILES['event_image']['error'] === UPLOAD_ERR_OK );
+        if ($newImage) { $query .= ", event_image=?"; $types .= "s"; }
+        $query .= " WHERE event_id=?";
+        $types .= "i";
+        if ($newImage) { $target_dir = "../../uploads/events/";
+            if (!file_exists($target_dir)) { mkdir($target_dir, 0777, true); }
+            $ext = strtolower(pathinfo($_FILES['event_image']['name'], PATHINFO_EXTENSION));
+            $filename = uniqid() . '_' . time() . '.' . $ext;
+            $target_path = $target_dir . $filename;
+            move_uploaded_file( $_FILES['event_image']['tmp_name'], $target_path );
+            $event_image = '/sjfbi-js/uploads/events/' . $filename;
+            $params[] = $event_image;
+        }
+ 
+        $params[] = $event_id;
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param($types, ...$params);
+        if (!$stmt->execute()) { throw new Exception($stmt->error); }
+        if ($newImage && !empty($event['event_image'])) {
+            $oldImage = $_SERVER['DOCUMENT_ROOT'] . $event['event_image'];
+            if (file_exists($oldImage)) { unlink($oldImage); }
+        }
+ 
+        logActivity( $conn, 'event', $event_id, 'Event updated', null, json_encode(['title' => $event_title]), "Event '{$event_title}' updated.", $actorId, $actorType );
+        $conn->commit();
+        $_SESSION['message'] = [ 'type' => 'success', 'text' => 'Event updated successfully.' ];
+ 
+    } catch (Exception $e) {
+        $conn->rollback();
+        $_SESSION['message'] = [ 'type' => 'error', 'text' => $e->getMessage() ];
+    }
+    header("Location: ../events.php");
+    exit;
+}
 
 // ── UPDATE SUGGESTION ─────────────────────────────────────────────────────────
 elseif (isset($_POST['update_suggestion'])) {
@@ -715,7 +768,13 @@ elseif (isset($_POST['update_market'])) {
     $location_full = htmlspecialchars(trim($_POST['location_full']));
     $description   = htmlspecialchars(trim($_POST['description']));
     $stall_count   = intval($_POST['stall_count']);
-    $map_embed     = htmlspecialchars(trim($_POST['map_embed'] ?? ''));
+
+    $raw_map_input = trim($_POST['map_embed'] ?? '');
+    preg_match('/src=["\']([^"\']+)["\']/', $raw_map_input, $map_matches);
+    $map_embed = isset($map_matches[1])
+        ? filter_var($map_matches[1], FILTER_SANITIZE_URL)
+        : filter_var($raw_map_input, FILTER_SANITIZE_URL);
+
     $accent_color  = $_POST['accent_color'] ?? '#f97316';
     $display_order = intval($_POST['display_order'] ?? 0);
 

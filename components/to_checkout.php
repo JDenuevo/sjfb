@@ -60,7 +60,7 @@ function getFormValue($field, $userDetails, $savedData) {
 $savedOrderType = $savedData['order_type'] ?? 'delivery';
 ?>
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
   <form action="./functions/add.php" method="POST" id="checkoutForm">
 
     <?php if ($hasErrors): ?>
@@ -311,41 +311,6 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
           </div>
         </div>
 
-        <!-- Voucher -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-            <div class="size-7 rounded-lg bg-orange-100 flex items-center justify-center">
-              <svg class="size-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-gray-800">Voucher / Discount Code</h3>
-              <p class="text-xs text-gray-400">Enter a code to get a discount</p>
-            </div>
-          </div>
-          <div class="p-6">
-            <div class="flex gap-2">
-              <input type="text" name="voucher_code" id="voucher_code"
-                    value="<?= htmlspecialchars($_POST['voucher_code'] ?? '') ?>"
-                    placeholder="e.g. VIP10, WELCOME20"
-                    class="flex-1 checkout-input w-full border border-gray-200 rounded-xl px-4 py-3 text-sm"
-                    autocomplete="off" style="text-transform:uppercase">
-              <button type="button" id="applyVoucherBtn"
-                      class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      <?= $blockCheckout ? 'disabled' : '' ?>>
-                Apply
-              </button>
-            </div>
-            <div id="voucherMessage" class="text-xs mt-2 hidden"></div>
-            <div id="appliedVoucher" class="hidden mt-3 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <svg class="size-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span class="text-sm font-medium text-green-800" id="appliedVoucherCode"></span>
-              </div>
-              <button type="button" id="removeVoucherBtn" class="text-xs text-green-700 hover:text-red-600 font-medium">Remove</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Payment Method -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
@@ -499,14 +464,14 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
                   <?php else: ?>
                   <div class="flex items-center justify-between mt-2">
                     <div class="qty-controls flex items-center border <?= $isOverStock ? 'border-amber-400' : 'border-gray-200' ?> rounded-lg overflow-hidden">
-                      <button type="button" class="decrease-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">−</button>
+                      <button type="button" class="decrease-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-600 hover:text-white transition-colors text-sm font-bold">−</button>
                       <input type="number"
                              class="quantity w-14 text-center text-xs font-semibold bg-transparent border-0 py-1 focus:outline-none <?= $isOverStock ? 'text-amber-600' : '' ?>"
                              value="<?= $displayQty ?>"
                              min="<?= $minOrder ?>"
                              step="<?= $orderIncr ?>"
                              max="<?= $stockQty ?>">
-                      <button type="button" class="increase-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-500 hover:text-white transition-colors text-sm font-bold">+</button>
+                      <button type="button" class="increase-quantity px-2.5 py-1 text-gray-500 hover:bg-orange-600 hover:text-white transition-colors text-sm font-bold">+</button>
                     </div>
                     <span class="item-price text-sm font-bold text-gray-800">
                       ₱<?= number_format($price * $qty, 2) ?>
@@ -530,6 +495,31 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
             <?php else: ?>
               <div class="py-10 text-center text-gray-400 text-sm">Your cart is empty.</div>
             <?php endif; ?>
+          </div>
+          
+          <!-- Voucher -->
+          <div class="p-3">
+            <p class="text-xs text-gray-400 mb-1">Enter a code to get a discount</p>
+            <div class="flex gap-2">
+              <input type="text" name="voucher_code" id="voucher_code"
+                    value="<?= htmlspecialchars($_POST['voucher_code'] ?? '') ?>"
+                    placeholder="Voucher / Discount Code"
+                    class="flex-1 checkout-input w-full border border-gray-200 rounded-xl px-3 py-3 text-xs"
+                    autocomplete="off" style="text-transform:uppercase">
+              <button type="button" id="applyVoucherBtn"
+                      class="px-3 py-3 text-xs bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      <?= $blockCheckout ? 'disabled' : '' ?>>
+                Apply
+              </button>
+            </div>
+            <div id="voucherMessage" class="text-xs mt-2 hidden"></div>
+            <div id="appliedVoucher" class="hidden mt-3 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="size-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="text-sm font-medium text-green-800" id="appliedVoucherCode"></span>
+              </div>
+              <button type="button" id="removeVoucherBtn" class="text-xs text-green-700 hover:text-red-600 font-medium">Remove</button>
+            </div>
           </div>
 
           <!-- Totals -->
@@ -582,8 +572,25 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
               <span class="flex items-center gap-1 text-xs text-gray-400"><svg class="size-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 3v5h-2"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Fast Delivery</span>
             </div>
             <div class="text-center pt-1">
-              <a href="shop.php" class="text-xs text-orange-500 hover:text-orange-600 hover:underline">← Continue Shopping</a>
+              <a href="shop" class="text-xs text-orange-500 hover:text-orange-600 hover:underline">← Continue Shopping</a>
             </div>
+
+            <button type="button" onclick="openShippingRefundModal()"
+              class="w-full flex items-center justify-between gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 mt-1 text-left transition-colors duration-150 hover:bg-orange-50 hover:border-orange-100 group">
+              <span class="flex items-center gap-2 text-xs font-medium text-gray-600 group-hover:text-orange-600">
+                <svg class="size-4 text-gray-400 group-hover:text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-truck-delivery">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                  <path d="M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                  <path d="M5 17h-2v-4m-1 -8h11v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" />
+                  <path d="M3 9l4 0" />
+                </svg>
+                View Shipping &amp; Refund Policy
+              </span>
+              <svg class="size-3.5 text-gray-300 group-hover:text-orange-400 transition-transform duration-150 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
 
             <!-- Hidden fields — read by add.php on submit -->
             <input type="hidden" name="delivery_fee"          id="delivery_fee_input"          value="0">
@@ -600,6 +607,8 @@ $savedOrderType = $savedData['order_type'] ?? 'delivery';
     </div>
   </form>
 </div>
+
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/shipping_refund.php'; ?>
 
 <style>
   .checkout-input { transition: border-color .2s, box-shadow .2s; font-family: 'Lexend', sans-serif; }
@@ -1132,4 +1141,24 @@ document.addEventListener('DOMContentLoaded', function () {
   window.addEventListener('beforeunload', saveDraft);
 
 });
+
+// ── Shipping and Refund Policy modal (self-contained, no shared globals) ──
+function openShippingRefundModal() {
+  document.getElementById('shippingRefundModal')?.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+}
+
+function closeShippingRefundModal() {
+  document.getElementById('shippingRefundModal')?.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+document.getElementById('shippingRefundModal')?.addEventListener('click', function (e) {
+  if (e.target === this) closeShippingRefundModal();
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeShippingRefundModal();
+});
+
 </script>

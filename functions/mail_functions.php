@@ -102,6 +102,57 @@ function sendOTPEmail(string $to, string $otp): bool {
     return sendEmail($to, $subject, $body, true);
 }
 
+function sendVerificationEmail(string $to, string $username, string $verifyLink): bool {
+    $subject = "Verify your St. Joseph Fish Brokerage account";
+ 
+    $safeUsername = htmlspecialchars($username);
+    $safeLink     = htmlspecialchars($verifyLink);
+ 
+    $body = _emailHead() . "
+ 
+      <!-- Header -->
+      <div style='background:linear-gradient(135deg,#ea580c,#f97316);padding:32px;text-align:center;'>
+        <h1 style='margin:0;color:#fff;font-size:22px;font-weight:800;'>Verify Your Email</h1>
+        <p style='margin:8px 0 0;color:rgba(255,255,255,.85);font-size:14px;'>
+          One more step to activate your account
+        </p>
+      </div>
+ 
+      <div class='content'>
+        <p style='font-size:14px;color:#374151;line-height:1.65;'>
+          Hi {$safeUsername}, thanks for registering with St. Joseph Fish Brokerage Inc.
+          Please confirm your email address to activate your account.
+        </p>
+ 
+        <!-- CTA Button -->
+        <div style='text-align:center;margin:28px 0;'>
+          <a href='{$safeLink}'
+             style='background:#ea580c;color:#fff;text-decoration:none;padding:14px 32px;
+                    border-radius:8px;display:inline-block;font-weight:700;font-size:14px;'>
+            Verify Email
+          </a>
+        </div>
+ 
+        <p style='margin:0 0 8px;font-size:12px;color:#9ca3af;text-align:center;'>
+          &#9200; This link expires in <strong>24 hours</strong>
+        </p>
+ 
+        <div style='background:#fef2f2;border:1px solid #fecaca;border-radius:10px;
+                    padding:12px 14px;margin:20px 0;font-size:13px;color:#b91c1c;'>
+          &#128274; If you didn't create this account, you can safely ignore this email.
+        </div>
+ 
+        <p style='font-size:13px;color:#6b7280;line-height:1.65;'>
+          Having trouble with the button? Copy and paste this link into your browser:<br>
+          <span style='word-break:break-all;color:#ea580c;'>{$safeLink}</span>
+        </p>
+      </div>
+ 
+    " . _emailFoot();
+ 
+    return sendEmail($to, $subject, $body, true);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  DB HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -640,7 +691,7 @@ function sendPaymentFailedEmail(int $orderId): bool {
 
             <p style='font-size:14px;color:#374151;margin-top:20px;'>
               If you need help, reach us at:<br>
-              <strong>Email:</strong> " . $_ENV['MAIL_USERNAME'] . "<br>
+              <strong>Email:</strong> " . ($_ENV['MAIL_FROM'] ?? '') . "<br>
               <strong>Phone:</strong> [Your Phone Number]
             </p>
           </div>

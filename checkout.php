@@ -88,8 +88,6 @@ if (!empty($savedData)) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout | St. Joseph Fish Brokerage Inc.</title>
-  <meta name="base-url" content="/sjfbi-js">
-
   <meta property="og:type"        content="website">
   <meta property="og:url"         content="https://fishbrokers.net/">
   <meta property="og:title"       content="St. Joseph Fish Brokerage Inc.">
@@ -101,31 +99,29 @@ if (!empty($savedData)) {
   <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
   <meta name="twitter:image"       content="https://fishbrokers.net/assets/icons/logo.svg">
 
-  <link rel="shortcut icon"             href="./assets/icons/logo.ico">
-  <link rel="icon" type="image/x-icon"  href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="apple-touch-icon"          href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
 
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
 
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-
-  <!--
-    IMPORTANT: cart_process.js must load BEFORE any component that renders cart items.
-    It defines window.updateDeliveryFee which to_checkout.php checks via typeof.
-  -->
   <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
 
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
   </noscript>
+
   <style>
     body { font-family: 'Lexend', sans-serif; }
   </style>
@@ -145,7 +141,7 @@ if (!empty($savedData)) {
         : 'bg-red-50 border-red-300 text-red-800';
   unset($_SESSION['success'], $_SESSION['error']);
 ?>
-<div class="mx-auto max-w-6xl px-4 pt-4">
+<div class="mx-auto max-w-7xl px-4 pt-4">
   <div class="flex items-center gap-3 <?= $cls ?> border rounded-xl px-4 py-3 text-sm font-medium">
     <?php if ($type === 'success'): ?>
       <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -158,7 +154,7 @@ if (!empty($savedData)) {
 <?php endif; ?>
 
 <?php if (isset($cancelMessage)): ?>
-<div class="mx-auto max-w-6xl px-4 pt-4">
+<div class="mx-auto max-w-7xl px-4 pt-4">
   <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm font-medium text-amber-800">
     <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
     <?= htmlspecialchars($cancelMessage) ?>
@@ -167,7 +163,7 @@ if (!empty($savedData)) {
 <?php endif; ?>
 
 <?php if (isset($errorMessage)): ?>
-<div class="mx-auto max-w-6xl px-4 pt-4">
+<div class="mx-auto max-w-7xl px-4 pt-4">
   <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium text-red-800">
     <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <?= htmlspecialchars($errorMessage) ?>
@@ -177,7 +173,7 @@ if (!empty($savedData)) {
 
 <!-- Page header -->
 <div class="bg-white border-b border-gray-100 py-6 px-4">
-  <div class="max-w-6xl mx-auto flex items-center justify-between">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Order Checkout</h1>
       <p class="text-sm text-gray-500 mt-0.5">Complete your order below.</p>

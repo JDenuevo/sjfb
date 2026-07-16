@@ -2,6 +2,11 @@
 session_start();
 include 'conn.php';
 
+// This page is display-only. Submitting the form posts to process/add.php
+// (its 'submit_review' branch), which validates the token, inserts the
+// review + photos, and redirects back here. $submitted / $validationErrors
+// below are just reading that redirect's flash data out of the session.
+
 // ── Variables ───────────────────────────────────────────────────────────────
 $orderCode       = isset($_GET['order']) ? trim($_GET['order']) : '';
 $token           = isset($_GET['token']) ? trim($_GET['token']) : '';
@@ -9,68 +14,18 @@ $token           = isset($_GET['token']) ? trim($_GET['token']) : '';
 $error           = null;
 $order           = null;
 $orderItems      = [];
-$submitted       = false;
 $alreadyReviewed = false;
-$validationErrors = [];
-$reviewedCount   = 0;
 $pageTitle       = 'Leave a Review';
 
-// ── Token Generator ─────────────────────────────────────────────────────────
+// ── Token Generator (still needed here to validate the link itself) ────────
 function generateReviewToken(string $orderCode, string $email, string $salt = 'sjfbi_review_2025'): string {
     return strtoupper(substr(hash('sha256', $orderCode . $email . $salt), 0, 12));
 }
 
-// ── Safe Photo Handler (No Imagick required) ────────────────────────────────
-function handleReviewPhoto(
-    string $tmpPath,
-    string $origName,
-    int    $fileSize,
-    string $mimeType,
-    string $uploadDir,
-    int    $reviewId,
-    int    $index
-): ?array {
-
-    $isHeic = str_contains(strtolower($mimeType), 'heic') ||
-              in_array(strtolower(pathinfo($origName, PATHINFO_EXTENSION)), ['heic', 'heif']);
-
-    $uid      = uniqid();
-    $baseName = "review_{$reviewId}_{$index}_{$uid}";
-
-    if ($isHeic) {
-        // Save HEIC as-is (most browsers don't display HEIC, but admin can download it)
-        $destName = $baseName . '.heic';
-        $destPath = $uploadDir . $destName;
-
-        if (move_uploaded_file($tmpPath, $destPath)) {
-            return [
-                'path' => 'uploads/reviews/' . $destName,
-                'name' => $destName,
-                'size' => $fileSize,
-                'mime' => 'image/heic'
-            ];
-        }
-    } else {
-        // Normal images (jpg, png, webp, etc.)
-        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION)) ?: 'jpg';
-        $ext = preg_replace('/[^a-z0-9]/', '', $ext) ?: 'jpg'; // sanitize
-
-        $destName = $baseName . '.' . $ext;
-        $destPath = $uploadDir . $destName;
-
-        if (move_uploaded_file($tmpPath, $destPath)) {
-            return [
-                'path' => 'uploads/reviews/' . $destName,
-                'name' => $destName,
-                'size' => $fileSize,
-                'mime' => $mimeType
-            ];
-        }
-    }
-
-    error_log("Failed to save review photo: " . $origName);
-    return null;
-}
+// ── Flash data left behind by process/add.php's redirect ───────────────────
+$submitted        = !empty($_SESSION['review_submitted']);
+$validationErrors = $_SESSION['review_errors'] ?? [];
+unset($_SESSION['review_submitted'], $_SESSION['review_errors']);
 
 // ── Fetch Order & Validate Token ────────────────────────────────────────────
 if (!$orderCode || !$token) {
@@ -117,122 +72,6 @@ if (!$orderCode || !$token) {
         }
     }
 }
-
-// ── Handle Form Submission ──────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !$error && !$alreadyReviewed && $order) {
-
-    if (isset($_SESSION['review_submitted']) && $_SESSION['review_submitted']) {
-        $submitted = true;
-        unset($_SESSION['review_submitted'], $_SESSION['review_errors']);
-    } else {
-        $postedOrder = trim($_POST['order_code'] ?? '');
-        $postedToken = trim($_POST['token'] ?? '');
-
-        if ($postedOrder !== $orderCode || strtoupper($postedToken) !== strtoupper($token)) {
-            $error = 'invalid_token';
-        } else {
-            foreach ($orderItems as $item) {
-                if ($item['is_reviewed']) continue;
-
-                $itemId    = $item['order_item_id'];
-                $productId = $item['product_id'];
-                $rating    = intval($_POST["rating_{$itemId}"] ?? 0);
-                $feedback  = trim($_POST["feedback_{$itemId}"] ?? '');
-
-                if (!$rating && !$feedback) continue;
-
-                if ($rating < 1 || $rating > 5) {
-                    $validationErrors[] = "Please select a star rating for " . htmlspecialchars($item['product_name']);
-                    continue;
-                }
-                if (strlen($feedback) < 10) {
-                    $validationErrors[] = "Review for \"" . htmlspecialchars($item['product_name']) . "\" must be at least 10 characters.";
-                    continue;
-                }
-
-                $fullName = trim(($order['recipient_first_name'] ?? '') . ' ' . ($order['recipient_last_name'] ?? ''));
-                $email    = $order['recipient_email'] ?? '';
-                $position = trim($_POST['position'] ?? '');
-                $company  = trim($_POST['company'] ?? '');
-                $ip       = $_SERVER['REMOTE_ADDR'] ?? null;
-                $ua       = $_SERVER['HTTP_USER_AGENT'] ?? null;
-
-                $rStmt = $conn->prepare("
-                    INSERT INTO reviews (
-                        order_id, order_item_id, product_id,
-                        reviewer_name, reviewer_email, rating, feedback,
-                        position, company, is_verified_purchase, status,
-                        reviewer_ip, user_agent
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?, ?)
-                ");
-
-                $rStmt->bind_param('iiisissssss',
-                    $order['order_id'], $itemId, $productId,
-                    $fullName, $email, $rating, $feedback,
-                    $position, $company, $ip, $ua
-                );
-
-                if ($rStmt->execute()) {
-                    $reviewId = $conn->insert_id;
-                    $rStmt->close();
-
-                    // Photo Upload Handling
-                    $photoKey = "photos_{$itemId}";
-                    if (!empty($_FILES[$photoKey]['name'][0])) {
-                        $uploadDir = __DIR__ . '/uploads/reviews/';
-                        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-
-                        $allowedMimes = ['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif'];
-                        $photoCount = count($_FILES[$photoKey]['tmp_name']);
-                        $saved = 0;
-
-                        for ($idx = 0; $idx < $photoCount && $saved < 5; $idx++) {
-                            if ($_FILES[$photoKey]['error'][$idx] !== UPLOAD_ERR_OK) continue;
-
-                            $tmpPath  = $_FILES[$photoKey]['tmp_name'][$idx];
-                            $origName = $_FILES[$photoKey]['name'][$idx];
-                            $fileSize = (int)$_FILES[$photoKey]['size'][$idx];
-                            $mimeType = strtolower(mime_content_type($tmpPath));
-
-                            if ($fileSize > 5 * 1024 * 1024) continue;
-                            if (!in_array($mimeType, $allowedMimes)) continue;
-
-                            $result = handleReviewPhoto($tmpPath, $origName, $fileSize, $mimeType, $uploadDir, $reviewId, $idx);
-                            if (!$result) continue;
-
-                            $aStmt = $conn->prepare("
-                                INSERT INTO review_attachments 
-                                (review_id, file_path, file_name, file_size, mime_type, upload_order)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                            ");
-                            $aStmt->bind_param('issiis', $reviewId, $result['path'], $result['name'], $result['size'], $result['mime'], $saved + 1);
-                            $aStmt->execute();
-                            $aStmt->close();
-                            $saved++;
-                        }
-                    }
-
-                    // Mark item as reviewed
-                    $uStmt = $conn->prepare("UPDATE order_items SET is_reviewed = 1, review_id = ? WHERE order_item_id = ?");
-                    $uStmt->bind_param('ii', $reviewId, $itemId);
-                    $uStmt->execute();
-                    $uStmt->close();
-
-                    $reviewedCount++;
-                } else {
-                    $rStmt->close();
-                    $validationErrors[] = "Failed to save review for \"" . htmlspecialchars($item['product_name']) . "\".";
-                }
-            }
-
-            if (empty($validationErrors) && $reviewedCount > 0) {
-                $submitted = true;
-            } elseif (empty($validationErrors) && $reviewedCount === 0) {
-                $validationErrors[] = "Please fill in at least one product review before submitting.";
-            }
-        }
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -244,131 +83,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
   <meta name="robots" content="noindex, nofollow">
 
   <link rel="shortcut icon" href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
 
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
 
-   <!-- ✅ UNIFIED CART CORE — must load before cart.php / products.php -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Playfair Display"', 'serif'],
+            sans: ['Lexend', 'ui-sans-serif', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50:  '#fff7ed',
+              100: '#ffedd5',
+              200: '#fed7aa',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+            },
+          },
+          keyframes: {
+            dash: { to: { 'stroke-dashoffset': '0' } },
+          },
+          animation: {
+            'dash-circle': 'dash .9s ease forwards .2s',
+            'dash-tick':   'dash .4s ease forwards .9s',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script>window.CART_BASE = '';</script>
   <script src="./functions/cart_process.js"></script>
 
-  <style>
-    :root {
-      --orange:     #ea580c;
-      --orange-lt:  #fff7ed;
-      --orange-mid: #fed7aa;
-      --gray-900:   #111827;
-      --gray-600:   #4b5563;
-      --gray-200:   #e5e7eb;
-      --gray-50:    #f9fafb;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Lexend', sans-serif; background: #fafaf9; min-height: 100vh; margin: 0; }
-
-    /* Hero */
-    .review-hero { background: linear-gradient(135deg, #f97316 0%, #fb923c 55%, #fbbf24 100%); padding: 3rem 1.5rem 5rem; position: relative; overflow: hidden; }
-    .review-hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 80% 10%, rgba(255,255,255,.12) 0%, transparent 55%), radial-gradient(ellipse at 10% 90%, rgba(0,0,0,.06) 0%, transparent 45%); }
-    .review-hero .inner { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; text-align: center; }
-    .review-hero .fish-icon { width: 64px; height: 64px; background: rgba(255,255,255,.2); border-radius: 1.25rem; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; backdrop-filter: blur(6px); }
-    .review-hero h1 { font-family: 'Playfair Display', serif; font-size: 2.25rem; color: white; margin: 0 0 .5rem; line-height: 1.2; }
-    .review-hero p  { color: rgba(255,255,255,.8); font-size: .9375rem; margin: 0; }
-    .order-badge { display: inline-flex; align-items: center; gap: .5rem; background: rgba(255,255,255,.18); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.3); border-radius: 9999px; padding: .375rem 1rem; color: white; font-size: .8125rem; font-weight: 600; margin-top: 1rem; letter-spacing: .06em; }
-
-    /* Layout */
-    .main-wrap { max-width: 680px; margin: -2.5rem auto 3rem; padding: 0 1rem; position: relative; z-index: 2; }
-
-    /* Cards */
-    .review-card { background: white; border-radius: 1.5rem; box-shadow: 0 4px 24px rgba(0,0,0,.07); margin-bottom: 1.25rem; overflow: hidden; border: 1px solid #f3f4f6; }
-    .review-card .card-head { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f9fafb; }
-    .card-thumb { width: 52px; height: 52px; border-radius: .75rem; object-fit: cover; background: #f9fafb; flex-shrink: 0; border: 1px solid #f3f4f6; }
-    .card-thumb-placeholder { width: 52px; height: 52px; border-radius: .75rem; background: linear-gradient(135deg,#ffedd5,#fed7aa); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
-    .card-product-name { font-size: .9375rem; font-weight: 700; color: var(--gray-900); }
-    .card-variant      { font-size: .75rem; color: #6b7280; margin-top: .15rem; }
-    .card-body         { padding: 1.5rem; }
-
-    /* Stars */
-    .star-group { display: flex; gap: .375rem; margin-bottom: 1.25rem; }
-    .star-group label { cursor: pointer; }
-    .star-input { display: none; }
-    .star-svg   { fill: #e5e7eb; transition: fill .15s; }
-    .star-svg.filled { fill: #f59e0b; }
-    .rating-label { font-size: .8125rem; font-weight: 600; color: #f59e0b; min-height: 1.25rem; margin-bottom: .75rem; }
-
-    /* Textarea */
-    .review-textarea { width: 100%; padding: .875rem 1rem; border: 1.5px solid var(--gray-200); border-radius: 1rem; font-family: 'Lexend', sans-serif; font-size: .875rem; color: var(--gray-900); resize: vertical; min-height: 110px; transition: border-color .15s, box-shadow .15s; outline: none; background: white; }
-    .review-textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(234,88,12,.1); }
-    .char-count { font-size: .7rem; color: #9ca3af; text-align: right; margin-top: .25rem; }
-
-    /* Photo upload */
-    .photo-zone { border: 2px dashed #e5e7eb; border-radius: 1rem; padding: 1.25rem; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; margin-top: 1rem; background: #fafafa; }
-    .photo-zone:hover, .photo-zone.dragover { border-color: var(--orange); background: var(--orange-lt); }
-    .photo-preview { display: flex; flex-wrap: wrap; gap: .625rem; margin-top: .875rem; }
-    .photo-thumb { position: relative; width: 72px; height: 72px; border-radius: .625rem; overflow: hidden; border: 1px solid #e5e7eb; }
-    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-thumb .rm-btn { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.6); color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; line-height: 1; }
-
-    /* Badges */
-    .reviewed-badge { display: inline-flex; align-items: center; gap: .375rem; background: #dcfce7; color: #166534; padding: .35rem .8rem; border-radius: 9999px; font-size: .75rem; font-weight: 600; }
-
-    /* Submit button */
-    .submit-btn { width: 100%; padding: 1rem; background: var(--orange); color: white; border: none; border-radius: 1rem; font-family: 'Lexend', sans-serif; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .15s, transform .1s, box-shadow .15s; display: flex; align-items: center; justify-content: center; gap: .625rem; box-shadow: 0 4px 12px rgba(234,88,12,.3); }
-    .submit-btn:hover   { background: #c2410c; box-shadow: 0 6px 20px rgba(234,88,12,.4); }
-    .submit-btn:active  { transform: scale(.98); }
-    .submit-btn:disabled{ background: #d1d5db; cursor: not-allowed; box-shadow: none; }
-
-    /* Validation error */
-    .val-error { background: #fee2e2; border: 1px solid #fecaca; border-radius: 1rem; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-    .val-error p { font-size: .875rem; color: #991b1b; font-weight: 500; margin: .25rem 0; }
-
-    /* Success */
-    .success-wrap { text-align: center; padding: 3rem 1.5rem; }
-    .success-anim { width: 90px; height: 90px; margin: 0 auto 1.5rem; }
-    @keyframes dash { to { stroke-dashoffset: 0; } }
-    .anim-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: dash .9s ease forwards .2s; }
-    .anim-tick   { stroke-dasharray: 48;  stroke-dashoffset: 48;  animation: dash .4s ease forwards .9s; }
-    .success-wrap h2 { font-family: 'Playfair Display',serif; font-size: 1.875rem; color: var(--gray-900); margin: 0 0 .5rem; }
-    .success-wrap p  { color: var(--gray-600); font-size: .9375rem; margin: 0 0 1.5rem; }
-
-    /* Error */
-    .error-wrap { background: white; border-radius: 1.5rem; box-shadow: 0 4px 24px rgba(0,0,0,.07); padding: 3rem 2rem; text-align: center; }
-    .error-icon { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; }
-    .error-wrap h2 { font-size: 1.375rem; font-weight: 700; color: var(--gray-900); margin: 0 0 .5rem; }
-    .error-wrap p  { font-size: .9rem; color: var(--gray-600); margin: 0 0 1.5rem; }
-
-    /* Greeting */
-    .greeting-card { background: white; border-radius: 1.25rem; border: 1px solid #f3f4f6; padding: 1rem 1.5rem; display: flex; align-items: center; gap: .875rem; margin-bottom: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
-    .greeting-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,#f97316,#fbbf24); color: white; font-weight: 800; font-size: 1.125rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-    .section-label { font-size: .6875rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--orange); margin: 0 0 .5rem; }
-    .hidden { display: none; }
-    .spin { animation: spin .8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    @media (max-width: 480px) {
-      .review-hero h1 { font-size: 1.75rem; }
-      .card-body { padding: 1.125rem; }
-    }
-  </style>
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
 </head>
-<body>
+<body class="min-h-screen m-0 font-sans bg-stone-50">
 
 <!-- Hero -->
-<div class="review-hero">
-  <div class="inner">
-    <div class="fish-icon">
+<div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-400 to-amber-400 px-6 pt-12 pb-20">
+  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_10%,rgba(255,255,255,.12),transparent_55%),radial-gradient(ellipse_at_10%_90%,rgba(0,0,0,.06),transparent_45%)]"></div>
+  <div class="relative z-10 max-w-xl mx-auto text-center">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md mb-5">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
         <path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.46-3.44 6-7 6-3.56 0-7.56-2.54-8.5-6z"/>
         <path d="M18 12h.01M2 12c1 2 2.5 3 4 3s3-1 4-3-1.5-3-4-3-3 1-4 3z"/>
       </svg>
     </div>
-    <h1>How was your order?</h1>
-    <p>Your feedback helps us serve you better — and helps other buyers make great choices.</p>
+    <h1 class="font-display text-3xl sm:text-4xl text-white mb-2 leading-tight">How was your order?</h1>
+    <p class="text-white/80 text-sm">Your feedback helps us serve you better — and helps other buyers make great choices.</p>
     <?php if ($order): ?>
-    <div class="order-badge">
+    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-1.5 text-white text-xs font-semibold mt-4 tracking-wider">
       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
       Order <?= htmlspecialchars($orderCode) ?>
     </div>
@@ -377,31 +158,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
 </div>
 
 <!-- Main -->
-<div class="main-wrap">
+<div class="max-w-xl mx-auto px-4 -mt-10 relative z-20 mb-12">
 
   <?php if ($error): ?>
   <!-- ERROR -->
-  <div class="error-wrap">
+  <div class="bg-white rounded-3xl shadow-lg shadow-black/5 border border-gray-100 p-12 text-center">
     <?php if ($error === 'not_delivered'): ?>
-      <div class="error-icon" style="background:#fef9c3">
+      <div class="w-[72px] h-[72px] rounded-full flex items-center justify-center mx-auto mb-5 bg-yellow-100">
         <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#ca8a04" stroke-width="2"><path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       </div>
-      <h2>Not yet delivered</h2>
-      <p>You can leave a review once your order has been delivered. We'll send you a link when it's ready!</p>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Not yet delivered</h2>
+      <p class="text-sm text-gray-600 mb-6">You can leave a review once your order has been delivered. We'll send you a link when it's ready!</p>
     <?php elseif ($error === 'invalid_token'): ?>
-      <div class="error-icon" style="background:#fee2e2">
+      <div class="w-[72px] h-[72px] rounded-full flex items-center justify-center mx-auto mb-5 bg-red-100">
         <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </div>
-      <h2>Invalid review link</h2>
-      <p>This review link is invalid or has expired. Please use the original link sent to your email or SMS.</p>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Invalid review link</h2>
+      <p class="text-sm text-gray-600 mb-6">This review link is invalid or has expired. Please use the original link sent to your email or SMS.</p>
     <?php else: ?>
-      <div class="error-icon" style="background:#fee2e2">
+      <div class="w-[72px] h-[72px] rounded-full flex items-center justify-center mx-auto mb-5 bg-red-100">
         <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </div>
-      <h2>Link not found</h2>
-      <p>We couldn't find a valid review link. Please check the link in your email or SMS and try again.</p>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Link not found</h2>
+      <p class="text-sm text-gray-600 mb-6">We couldn't find a valid review link. Please check the link in your email or SMS and try again.</p>
     <?php endif; ?>
-    <a href="index.php" style="display:inline-flex;align-items:center;gap:.5rem;background:var(--orange);color:white;padding:.75rem 1.5rem;border-radius:.875rem;font-weight:700;font-size:.9rem;text-decoration:none">
+    <a href="index.php" class="inline-flex items-center gap-2 bg-brand-600 text-white py-3 px-6 rounded-2xl font-bold text-sm no-underline hover:bg-brand-700 transition-colors">
       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       Back to Homepage
     </a>
@@ -409,20 +190,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
 
   <?php elseif ($submitted): ?>
   <!-- SUCCESS -->
-  <div class="review-card">
-    <div class="success-wrap">
-      <svg class="success-anim" viewBox="0 0 52 52">
-        <circle class="anim-circle" cx="26" cy="26" r="25" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/>
-        <path   class="anim-tick"   fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/>
+  <div class="bg-white rounded-3xl shadow-lg shadow-black/5 border border-gray-100 overflow-hidden">
+    <div class="text-center py-12 px-6">
+      <svg class="w-[90px] h-[90px] mx-auto mb-6" viewBox="0 0 52 52">
+        <circle class="[stroke-dasharray:166] [stroke-dashoffset:166] animate-dash-circle" cx="26" cy="26" r="25" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/>
+        <path   class="[stroke-dasharray:48] [stroke-dashoffset:48] animate-dash-tick"   fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/>
       </svg>
-      <h2>Thank you, <?= htmlspecialchars($order['recipient_first_name']) ?>!</h2>
-      <p>Your review is pending approval and will appear on the product page soon. We really appreciate your time.</p>
-      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
-        <a href="index.php" style="display:inline-flex;align-items:center;gap:.5rem;background:var(--orange);color:white;padding:.75rem 1.5rem;border-radius:.875rem;font-weight:700;font-size:.875rem;text-decoration:none">
+      <h2 class="font-display text-3xl text-gray-900 mb-2">Thank you, <?= htmlspecialchars($order['recipient_first_name']) ?>!</h2>
+      <p class="text-sm text-gray-600 mb-6">Your review is pending approval and will appear on the product page soon. We really appreciate your time.</p>
+      <div class="flex gap-3 justify-center flex-wrap">
+        <a href="index.php" class="inline-flex items-center gap-2 bg-brand-600 text-white py-3 px-6 rounded-2xl font-bold text-sm no-underline hover:bg-brand-700 transition-colors">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
           Shop Again
         </a>
-        <a href="track.php?order_code=<?= urlencode($orderCode) ?>" style="display:inline-flex;align-items:center;gap:.5rem;background:white;color:#374151;padding:.75rem 1.5rem;border-radius:.875rem;font-weight:600;font-size:.875rem;text-decoration:none;border:1px solid #e5e7eb">
+        <a href="track.php?order_code=<?= urlencode($orderCode) ?>" class="inline-flex items-center gap-2 bg-white text-gray-700 py-3 px-6 rounded-2xl font-semibold text-sm no-underline border border-gray-200 hover:bg-gray-50 transition-colors">
           Track Order
         </a>
       </div>
@@ -431,12 +212,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
 
   <?php elseif ($alreadyReviewed): ?>
   <!-- ALREADY REVIEWED -->
-  <div class="review-card">
-    <div class="success-wrap">
-      <div style="font-size:3.5rem;margin-bottom:1rem">⭐</div>
-      <h2>Already reviewed!</h2>
-      <p>You've already submitted your review for this order. Thank you for taking the time!</p>
-      <a href="index.php" style="display:inline-flex;align-items:center;gap:.5rem;background:var(--orange);color:white;padding:.75rem 1.5rem;border-radius:.875rem;font-weight:700;font-size:.875rem;text-decoration:none">
+  <div class="bg-white rounded-3xl shadow-lg shadow-black/5 border border-gray-100 overflow-hidden">
+    <div class="text-center py-12 px-6">
+      <div class="text-5xl mb-4">⭐</div>
+      <h2 class="font-display text-3xl text-gray-900 mb-2">Already reviewed!</h2>
+      <p class="text-sm text-gray-600 mb-6">You've already submitted your review for this order. Thank you for taking the time!</p>
+      <a href="index.php" class="inline-flex items-center gap-2 bg-brand-600 text-white py-3 px-6 rounded-2xl font-bold text-sm no-underline hover:bg-brand-700 transition-colors">
         Back to Shop
       </a>
     </div>
@@ -446,16 +227,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
   <!-- REVIEW FORM -->
 
   <!-- Greeting card — uses renamed recipient_* columns -->
-  <div class="greeting-card">
-    <div class="greeting-avatar"><?= strtoupper(substr($order['recipient_first_name'], 0, 1)) ?></div>
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 flex items-center gap-3.5 mb-5">
+    <div class="w-11 h-11 rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-white font-extrabold text-lg flex items-center justify-center flex-shrink-0">
+      <?= strtoupper(substr($order['recipient_first_name'], 0, 1)) ?>
+    </div>
     <div>
-      <p style="font-size:.8125rem;color:#6b7280;margin:0">Reviewing as</p>
-      <p style="font-size:.9375rem;font-weight:700;color:var(--gray-900);margin:.1rem 0 0">
+      <p class="text-[13px] text-gray-500 m-0">Reviewing as</p>
+      <p class="text-[15px] font-bold text-gray-900 mt-0.5 mb-0">
         <?= htmlspecialchars($order['recipient_first_name'].' '.$order['recipient_last_name']) ?>
-        · <span style="font-weight:400;color:#6b7280"><?= htmlspecialchars($order['recipient_email']) ?></span>
+        · <span class="font-normal text-gray-500"><?= htmlspecialchars($order['recipient_email']) ?></span>
       </p>
     </div>
-    <span class="reviewed-badge" style="margin-left:auto;flex-shrink:0">
+    <span class="ml-auto flex-shrink-0 inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-xs font-semibold">
       <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
       Verified Purchase
     </span>
@@ -463,41 +246,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
 
   <!-- Validation errors -->
   <?php if (!empty($validationErrors)): ?>
-  <div class="val-error">
-    <p style="font-weight:700;margin:0 0 .375rem">Please fix the following:</p>
+  <div class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-5">
+    <p class="font-bold text-red-800 text-sm m-0 mb-1.5">Please fix the following:</p>
     <?php foreach ($validationErrors as $ve): ?>
-    <p><?= htmlspecialchars($ve) ?></p>
+    <p class="text-sm text-red-800 font-medium my-1"><?= htmlspecialchars($ve) ?></p>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
 
-  <form method="POST" enctype="multipart/form-data" id="reviewForm">
+  <!-- Adjust this path if your add.php lives somewhere other than process/add.php -->
+  <form method="POST" action="process/add.php" enctype="multipart/form-data" id="reviewForm">
     <input type="hidden" name="submit_review" value="1">
     <input type="hidden" name="order_code" value="<?= htmlspecialchars($orderCode) ?>">
     <input type="hidden" name="token"      value="<?= htmlspecialchars($token) ?>">
 
-    <p class="section-label" style="margin-bottom:.75rem">
+    <p class="text-[11px] font-bold tracking-widest uppercase text-brand-600 mb-3">
       <?= count($orderItems) ?> Product<?= count($orderItems) !== 1 ? 's' : '' ?> in this Order
     </p>
 
     <?php foreach ($orderItems as $item):
       $iid = $item['order_item_id'];
     ?>
-    <div class="review-card" id="card-<?= $iid ?>">
-      <div class="card-head">
+    <div class="bg-white rounded-3xl shadow-lg shadow-black/5 border border-gray-100 mb-5 overflow-hidden" id="card-<?= $iid ?>">
+      <div class="flex items-center gap-4 px-6 py-5 border-b border-gray-50">
         <?php if (!empty($item['product_image'])): ?>
-          <img src="./uploads/products/<?= htmlspecialchars($item['product_image']) ?>" alt="" class="card-thumb">
+          <img src="./uploads/products/<?= htmlspecialchars($item['product_image']) ?>" alt="" class="w-[52px] h-[52px] rounded-xl object-cover bg-gray-50 border border-gray-100 flex-shrink-0">
         <?php else: ?>
-          <div class="card-thumb-placeholder">🐟</div>
+          <div class="w-[52px] h-[52px] rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-2xl flex-shrink-0">🐟</div>
         <?php endif; ?>
-        <div style="flex:1;min-width:0">
-          <p class="card-product-name"><?= htmlspecialchars($item['product_name']) ?></p>
+        <div class="flex-1 min-w-0">
+          <p class="text-[15px] font-bold text-gray-900"><?= htmlspecialchars($item['product_name']) ?></p>
           <?php if (!empty($item['variant_name'])): ?>
-          <p class="card-variant"><?= htmlspecialchars($item['variant_name']) ?> · Qty: <?= $item['quantity'] ?></p>
+          <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars($item['variant_name']) ?> · Qty: <?= $item['quantity'] ?></p>
           <?php endif; ?>
         </div>
         <?php if ($item['is_reviewed']): ?>
-        <span class="reviewed-badge">
+        <span class="inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-xs font-semibold">
           <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
           Reviewed
         </span>
@@ -505,50 +289,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
       </div>
 
       <?php if (!$item['is_reviewed']): ?>
-      <div class="card-body">
+      <div class="p-6">
         <!-- Star rating -->
-        <p class="section-label">Your Rating</p>
-        <div class="star-group" data-item="<?= $iid ?>">
+        <p class="text-[11px] font-bold tracking-widest uppercase text-brand-600 mb-2">Your Rating</p>
+        <div class="flex gap-1.5 mb-5 star-group" data-item="<?= $iid ?>">
           <?php for ($s = 1; $s <= 5; $s++): ?>
-          <label>
-            <input type="radio" name="rating_<?= $iid ?>" value="<?= $s ?>" class="star-input">
-            <svg width="36" height="36" viewBox="0 0 24 24" class="star-svg" data-val="<?= $s ?>" data-item="<?= $iid ?>">
+          <label class="cursor-pointer">
+            <input type="radio" name="rating_<?= $iid ?>" value="<?= $s ?>" class="hidden star-input">
+            <svg width="36" height="36" viewBox="0 0 24 24" class="fill-gray-200 transition-colors duration-150 star-svg" data-val="<?= $s ?>" data-item="<?= $iid ?>">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
           </label>
           <?php endfor; ?>
         </div>
-        <p class="rating-label" id="rating-label-<?= $iid ?>">Click to rate</p>
+        <p class="text-[13px] font-semibold text-amber-500 min-h-[1.25rem] mb-3" id="rating-label-<?= $iid ?>">Click to rate</p>
 
         <!-- Feedback -->
-        <p class="section-label">Your Review</p>
+        <p class="text-[11px] font-bold tracking-widest uppercase text-brand-600 mb-2">Your Review</p>
         <textarea
           name="feedback_<?= $iid ?>"
-          class="review-textarea"
+          class="w-full px-4 py-3.5 border-[1.5px] border-gray-200 rounded-2xl font-sans text-sm text-gray-900 resize-y min-h-[110px] bg-white transition-colors focus:outline-none focus:border-brand-600 focus:ring-[3px] focus:ring-brand-600/10"
           placeholder="What did you like or dislike? Was it fresh? Would you order again? (min. 10 characters)"
           maxlength="1000"
           data-counter="counter-<?= $iid ?>"
           oninput="updateCounter(this)"><?= htmlspecialchars($_POST["feedback_{$iid}"] ?? '') ?></textarea>
-        <p class="char-count" id="counter-<?= $iid ?>">0 / 1000</p>
+        <p class="text-[11px] text-gray-400 text-right mt-1" id="counter-<?= $iid ?>">0 / 1000</p>
 
         <!-- Photos -->
-        <p class="section-label" style="margin-top:1rem">Add Photos <span style="font-weight:400;color:#9ca3af">(optional)</span></p>
-        <div class="photo-zone" id="zone-<?= $iid ?>"
+        <p class="text-[11px] font-bold tracking-widest uppercase text-brand-600 mt-4 mb-2">Add Photos <span class="font-normal text-gray-400 normal-case tracking-normal">(optional)</span></p>
+        <div class="photo-zone border-2 border-dashed border-gray-200 rounded-2xl p-5 text-center cursor-pointer transition-colors duration-200 mt-2 bg-gray-50"
+             id="zone-<?= $iid ?>"
              onclick="document.getElementById('photos-<?= $iid ?>').click()"
              ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropFiles(event,<?= $iid ?>)">
-          <div style="width:36px;height:36px;background:var(--orange-lt);border-radius:.625rem;display:flex;align-items:center;justify-content:center;margin:0 auto .5rem">
+          <div class="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center mx-auto mb-2">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ea580c" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </div>
-          <p style="font-size:.875rem;font-weight:600;color:#374151;margin:0">Upload photos</p>
-          <p style="font-size:.75rem;color:#9ca3af;margin:.25rem 0 0">JPG, PNG, WebP — max 5MB each, up to 5 photos</p>
+          <p class="text-sm font-semibold text-gray-700 m-0">Upload photos</p>
+          <p class="text-xs text-gray-400 mt-1 mb-0">JPG, PNG, WebP — max 5MB each, up to 5 photos</p>
         </div>
         <input type="file" id="photos-<?= $iid ?>" name="photos_<?= $iid ?>[]"
                multiple accept="image/*,.heic,.heif" class="hidden"
                onchange="handleFiles(this, <?= $iid ?>)">
-        <div class="photo-preview" id="preview-<?= $iid ?>"></div>
+        <div class="flex flex-wrap gap-2.5 mt-3.5" id="preview-<?= $iid ?>"></div>
       </div>
       <?php else: ?>
-      <div class="card-body" style="padding:.875rem 1.5rem;color:#6b7280;font-size:.875rem">
+      <div class="px-6 py-3.5 text-gray-500 text-sm">
         ✓ You've already reviewed this product. Thank you!
       </div>
       <?php endif; ?>
@@ -559,35 +344,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
     <?php if (!empty($hasUnreviewed)): ?>
 
     <!-- Reviewer context -->
-    <div class="review-card">
-      <div class="card-body">
-        <p class="section-label">About You <span style="font-weight:400;color:#9ca3af">(optional)</span></p>
-        <p style="font-size:.8125rem;color:#6b7280;margin:0 0 1rem">Share a bit about yourself to give your review more context.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem">
+    <div class="bg-white rounded-3xl shadow-lg shadow-black/5 border border-gray-100 mb-5 overflow-hidden">
+      <div class="p-6">
+        <p class="text-[11px] font-bold tracking-widest uppercase text-brand-600 mb-2">About You <span class="font-normal text-gray-400 normal-case tracking-normal">(optional)</span></p>
+        <p class="text-[13px] text-gray-500 mb-4">Share a bit about yourself to give your review more context.</p>
+        <div class="grid grid-cols-2 gap-3.5">
           <div>
-            <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.375rem">Your Title / Role</label>
+            <label class="block text-[13px] font-semibold text-gray-700 mb-1.5">Your Title / Role</label>
             <input type="text" name="position" placeholder="e.g. Restaurant Owner"
                    value="<?= htmlspecialchars($_POST['position'] ?? '') ?>"
-                   style="width:100%;padding:.625rem .875rem;border:1.5px solid #e5e7eb;border-radius:.75rem;font-family:'Lexend',sans-serif;font-size:.875rem;outline:none"
-                   onfocus="this.style.borderColor='#ea580c'" onblur="this.style.borderColor='#e5e7eb'">
+                   class="w-full py-2.5 px-3.5 border-[1.5px] border-gray-200 rounded-xl font-sans text-sm outline-none transition-colors focus:border-brand-600 focus:ring-[3px] focus:ring-brand-600/10">
           </div>
           <div>
-            <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.375rem">Company / Restaurant</label>
+            <label class="block text-[13px] font-semibold text-gray-700 mb-1.5">Company / Restaurant</label>
             <input type="text" name="company" placeholder="e.g. Dela Cruz Eatery"
                    value="<?= htmlspecialchars($_POST['company'] ?? '') ?>"
-                   style="width:100%;padding:.625rem .875rem;border:1.5px solid #e5e7eb;border-radius:.75rem;font-family:'Lexend',sans-serif;font-size:.875rem;outline:none"
-                   onfocus="this.style.borderColor='#ea580c'" onblur="this.style.borderColor='#e5e7eb'">
+                   class="w-full py-2.5 px-3.5 border-[1.5px] border-gray-200 rounded-xl font-sans text-sm outline-none transition-colors focus:border-brand-600 focus:ring-[3px] focus:ring-brand-600/10">
           </div>
         </div>
       </div>
     </div>
 
-    <p style="font-size:.75rem;color:#9ca3af;text-align:center;margin:0 0 1rem;line-height:1.6">
+    <p class="text-xs text-gray-400 text-center mb-4 leading-relaxed">
       By submitting, you confirm this review is based on a genuine purchase and represents your honest experience.
       Reviews are moderated before publishing.
     </p>
 
-    <button type="submit" class="submit-btn" id="submitBtn">
+    <button type="submit" class="w-full py-4 bg-brand-600 text-white border-0 rounded-2xl font-sans text-base font-bold cursor-pointer flex items-center justify-center gap-2.5 shadow-lg shadow-brand-600/30 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/40 active:scale-[.98] disabled:bg-gray-300 disabled:cursor-not-allowed disabled:shadow-none" id="submitBtn">
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       Submit My Review
     </button>
@@ -597,8 +380,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && !
   <?php endif; ?>
 
   <!-- Footer -->
-  <div style="text-align:center;padding:2rem 0;font-size:.75rem;color:#9ca3af">
-    <img src="./assets/icons/logo.svg" alt="SJFBI" style="height:28px;opacity:.4;margin:0 auto .5rem;display:block">
+  <div class="text-center py-8 text-xs text-gray-400">
+    <img src="./assets/icons/logo.svg" alt="SJFBI" class="h-7 opacity-40 mx-auto mb-2 block">
     St. Joseph Fish Brokerage Inc. — Navotas City, Philippines
   </div>
 
@@ -615,7 +398,10 @@ document.querySelectorAll('.star-group').forEach(function(group) {
   var current = 0;
 
   function fill(n) {
-    stars.forEach(function(s, i) { s.classList.toggle('filled', i < n); });
+    stars.forEach(function(s, i) {
+      s.classList.toggle('fill-amber-500', i < n);
+      s.classList.toggle('fill-gray-200', i >= n);
+    });
     if (label) label.textContent = n ? ratingLabels[n] : 'Click to rate';
   }
 
@@ -651,8 +437,9 @@ function renderPreviews(itemId, input) {
     var reader = new FileReader();
     reader.onload = function(e) {
       var div = document.createElement('div');
-      div.className = 'photo-thumb';
-      div.innerHTML = '<img src="' + e.target.result + '" alt=""><button type="button" class="rm-btn" data-idx="' + i + '" data-item="' + itemId + '">×</button>';
+      div.className = 'relative w-[72px] h-[72px] rounded-xl overflow-hidden border border-gray-200';
+      div.innerHTML = '<img src="' + e.target.result + '" alt="" class="w-full h-full object-cover">'
+        + '<button type="button" class="absolute top-0.5 right-0.5 w-[18px] h-[18px] rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center cursor-pointer border-0 leading-none" data-idx="' + i + '" data-item="' + itemId + '">×</button>';
       container.appendChild(div);
     };
     reader.readAsDataURL(file);
@@ -662,18 +449,18 @@ function renderPreviews(itemId, input) {
   if (input) input.files = dt.files;
 }
 document.addEventListener('click', function(e) {
-  if (e.target.classList.contains('rm-btn')) {
+  if (e.target.matches('[data-idx][data-item]')) {
     var idx    = parseInt(e.target.dataset.idx);
     var itemId = e.target.dataset.item;
     photoFiles[itemId].splice(idx, 1);
     renderPreviews(itemId, document.getElementById('photos-' + itemId));
   }
 });
-function dragOver(e, el)  { e.preventDefault(); el.classList.add('dragover'); }
-function dragLeave(el)    { el.classList.remove('dragover'); }
+function dragOver(e, el)  { e.preventDefault(); el.classList.add('border-brand-600', 'bg-brand-50'); el.classList.remove('border-gray-200', 'bg-gray-50'); }
+function dragLeave(el)    { el.classList.remove('border-brand-600', 'bg-brand-50'); el.classList.add('border-gray-200', 'bg-gray-50'); }
 function dropFiles(e, itemId) {
   e.preventDefault();
-  document.getElementById('zone-' + itemId).classList.remove('dragover');
+  dragLeave(document.getElementById('zone-' + itemId));
   if (!photoFiles[itemId]) photoFiles[itemId] = [];
   Array.from(e.dataTransfer.files).forEach(function(f) {
     if (photoFiles[itemId].length >= 5) return;
@@ -687,8 +474,13 @@ document.getElementById('reviewForm')?.addEventListener('submit', function() {
   var btn = document.getElementById('submitBtn');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Submitting…';
+    btn.innerHTML = '<svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Submitting…';
   }
+});
+
+// Preline UI component init (accordions, dropdowns, etc. if added later)
+window.addEventListener('load', function() {
+  if (window.HSStaticMethods) window.HSStaticMethods.autoInit();
 });
 </script>
 </body>

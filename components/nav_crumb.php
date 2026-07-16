@@ -9,6 +9,7 @@ $pageMap = [
     'Careers' => '/sjfbi-js/careers.php',
     'Register' => '/sjfbi-js/register.php',
     'Blogs' => '/sjfbi-js/blogs/',
+    'Events' => '/sjfbi-js/events/',
     'Reviews' => '/sjfbi-js/reviews.php/',
     'Track' => '/sjfbi-js/track.php/',
     'Contact' => '/sjfbi-js/contact.php/',
@@ -20,13 +21,15 @@ $pageMap = [
 $currentUri = $_SERVER['REQUEST_URI'];
 $isBlogPost = strpos($currentUri, '/blogs/') !== false && $currentUri !== '/sjfbi-js/blogs/' && $currentUri !== '/sjfbi-js/blogs/index.php';
 $isBlogListing = $currentUri === '/sjfbi-js/blogs/' || $currentUri === '/sjfbi-js/blogs/index.php';
+$isEventPost = strpos($currentUri, '/events/') !== false && $currentUri !== '/sjfbi-js/events/' && $currentUri !== '/sjfbi-js/events/index.php';
+$isEventListing = $currentUri === '/sjfbi-js/events/' || $currentUri === '/sjfbi-js/events/index.php';
 $isShopPage = strpos($currentUri, 'shop') !== false || strpos($currentUri, 'shop.php') !== false;
 $isProductPage = strpos($currentUri, '/item/') !== false || strpos($currentUri, 'item.php') !== false;
 ?>
 
 <!-- Breadcrumb Navigation -->
 <div class="max-w-[85rem] pb-4 
-     <?= ($isBlogListing || $isBlogPost || $isProductPage) 
+     <?= ($isBlogListing || $isBlogPost || $isEventListing || $isEventPost || $isProductPage) 
           ? 'block' // Always show on blog pages AND product pages 
           : 'block sm:block md:hidden lg:hidden xl:hidden' // Show only on SM/XS for other pages
      ?>">
@@ -55,6 +58,21 @@ $isProductPage = strpos($currentUri, '/item/') !== false || strpos($currentUri, 
             </li>
             <?php endif; ?>
 
+            <!-- Event Listing (if on event page) -->
+            <?php if ($isEventListing || $isEventPost): ?>
+            <li class="flex items-center">
+                <svg class="shrink-0 mx-2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 6l6 6-6 6"/>
+                </svg>
+            </li>
+            <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" class="flex items-center text-gray-800">
+                <a href="/sjfbi-js/events/" itemprop="item" class="hover:text-orange-600">
+                    <span itemprop="name">Events</span>
+                </a>
+                <meta itemprop="position" content="2" />
+            </li>
+            <?php endif; ?>
+
             <!-- Shop/Product Breadcrumb -->
             <?php if ($isShopPage || $isProductPage): ?>
             <li class="flex items-center">
@@ -71,7 +89,7 @@ $isProductPage = strpos($currentUri, '/item/') !== false || strpos($currentUri, 
             <?php endif; ?>
 
             <!-- Regular Pages (except shop and blog) -->
-            <?php if (!empty($pageTitle) && $pageTitle !== 'Home' && isset($pageMap[$pageTitle]) && !$isBlogPost && !$isBlogListing && !$isShopPage && !$isProductPage): ?>
+            <?php if (!empty($pageTitle) && $pageTitle !== 'Home' && isset($pageMap[$pageTitle]) && !$isBlogPost && !$isBlogListing && !$isEventPost && !$isEventListing && !$isShopPage && !$isProductPage): ?>
             <li class="flex items-center">
                 <svg class="shrink-0 mx-2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 6l6 6-6 6"/>

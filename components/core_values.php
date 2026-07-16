@@ -27,9 +27,9 @@
               ['id'=>'iam',          'key'=>'I AM',             'value'=>'Integrity',   'desc'=>'Doing the right thing at all times, even when no one is watching. We uphold honesty and strong moral principles in every action we take, ensuring that our word is our bond in the global marketplace.'],
               ['id'=>'imakeithappen','key'=>'I MAKE IT HAPPEN',  'value'=>'Commitment',  'desc'=>'We take ownership and responsibility to deliver results. Our dedication drives us to turn promises into reality, overcoming challenges with determination and perseverance.'],
               ['id'=>'biglove',      'key'=>'BIG LOVE',          'value'=>'Passion',     'desc'=>'We pour our hearts into everything we do. This passion fuels our creativity, energy, and dedication to serving our customers and community with genuine care and enthusiasm.'],
-              ['id'=>'powerofone',   'key'=>'THE POWER OF ONE',  'value'=>'Unity',       'desc'=>'Every individual contributes to our collective success. We believe that one person can make a difference, and together, we can achieve extraordinary things through collaboration and teamwork.'],
+              ['id'=>'powerofone',   'key'=>'THE POWER OF ONE',  'value'=>'Teamwork',       'desc'=>'Every individual contributes to our collective success. We believe that one person can make a difference, and together, we can achieve extraordinary things through collaboration and teamwork.'],
               ['id'=>'livemark',     'key'=>'I LIVE MY MARK',    'value'=>'Excellence',  'desc'=>'We strive to leave a positive legacy in everything we do. Our actions today create lasting impact for tomorrow, inspiring others through our example of excellence and integrity.'],
-              ['id'=>'ican',         'key'=>'I CAN',             'value'=>'Empowerment', 'desc'=>'We embrace a can-do attitude that turns challenges into opportunities. With confidence and capability, we believe in our ability to grow, adapt, and succeed in any situation.'],
+              ['id'=>'ican',         'key'=>'I CAN',             'value'=>'Trust', 'desc'=>'We embrace a can-do attitude that turns challenges into opportunities. With confidence and capability, we believe in our ability to grow, adapt, and succeed in any situation.'],
             ];
             foreach ($coreValues as $idx => $cv): ?>
               <div id="content-<?= $cv['id'] ?>" class="core-content <?= $idx > 0 ? 'hidden' : '' ?>">
@@ -38,28 +38,6 @@
                   <h3 class="ff-display text-4xl font-bold text-slate-900 leading-tight"><?= $cv['key'] ?></h3>
                 </div>
                 <p class="text-slate-500 leading-relaxed text-[.95rem] max-w-md"><?= $cv['desc'] ?></p>
-              </div>
-            <?php endforeach; ?>
-          </div>
-
-          <!-- Stats grid under content -->
-          <div class="mt-10 grid grid-cols-2 gap-3 pt-8 border-t border-orange-200">
-            <?php
-            $cvStats = [
-              ['icon'=>'M12 2v20 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6', 'num'=>'40+',    'label'=>'Years of Excellence'],
-              ['icon'=>'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',                'num'=>'100%',   'label'=>'Quality Assured'],
-              ['icon'=>'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10', 'num'=>'Global', 'label'=>'Supply Network'],
-              ['icon'=>'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', 'num'=>'500+', 'label'=>'Trusted Partners'],
-            ];
-            foreach ($cvStats as $s): ?>
-              <div class="flex items-center gap-3 p-4 bg-white border border-orange-100 rounded-2xl hover:border-orange-200 hover:shadow-sm transition-all">
-                <span class="bg-grad flex items-center justify-center w-10 h-10 rounded-xl shrink-0">
-                  <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2" aria-hidden="true"><path d="<?= $s['icon'] ?>"/></svg>
-                </span>
-                <div>
-                  <strong class="block text-xl font-bold text-slate-900 leading-none"><?= $s['num'] ?></strong>
-                  <span class="text-[.68rem] font-bold text-slate-400 uppercase tracking-wide"><?= $s['label'] ?></span>
-                </div>
               </div>
             <?php endforeach; ?>
           </div>

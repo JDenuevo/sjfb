@@ -8,9 +8,43 @@ $showMobileCategories = false;
 
 $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 
-$productName = isset($_GET['name']) ? urldecode(str_replace('-', ' ', $_GET['name'])) : '';
+if (!function_exists('fp_slugify')) {
+    /**
+     * Same slug rule used in components/products_card.php when building
+     * the /item/... links. Lowercase a-z0-9 and single hyphens only —
+     * any run of spaces, slashes, parentheses, etc. collapses to one
+     * hyphen. Keep both copies of this function in sync if you ever
+     * change one of them.
+     */
+    function fp_slugify(string $text): string {
+        $slug = strtolower($text);
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        return trim($slug, '-');
+    }
+}
 
-if (empty($productName)) {
+$requestedSlug = isset($_GET['name']) ? trim($_GET['name']) : '';
+
+if (empty($requestedSlug)) {
+    header("HTTP/1.0 404 Not Found");
+    include('404.php');
+    die();
+}
+
+// Slugifying is one-way (punctuation gets discarded), so the only safe
+// way to find the product is to slugify every name the same way the
+// link was built and compare forward — not to turn hyphens in the
+// slug back into spaces and hope the name reconstructs exactly.
+$matchedProductId = null;
+$slugLookup = $conn->query("SELECT product_id, product_name FROM products WHERE is_deleted = 0");
+while ($row = $slugLookup->fetch_assoc()) {
+    if (fp_slugify($row['product_name']) === $requestedSlug) {
+        $matchedProductId = $row['product_id'];
+        break;
+    }
+}
+
+if ($matchedProductId === null) {
     header("HTTP/1.0 404 Not Found");
     include('404.php');
     die();
@@ -31,12 +65,12 @@ $productsQuery = "SELECT p.*,
           LEFT JOIN product_category_links pcl ON p.product_id = pcl.product_id
           LEFT JOIN product_categories pc ON pcl.category_id = pc.category_id
           LEFT JOIN product_categories pc2 ON pc.parent_id = pc2.category_id
-          WHERE LOWER(REPLACE(p.product_name, ' ', '-')) = LOWER(REPLACE(?, ' ', '-'))
+          WHERE p.product_id = ?
           AND p.is_deleted = 0
           ORDER BY p.product_id, pv.variant_id, pi.is_primary DESC";
 
 $stmt = $conn->prepare($productsQuery);
-$stmt->bind_param("s", $productName);
+$stmt->bind_param("i", $matchedProductId);
 $stmt->execute();
 $productsResult = $stmt->get_result();
 
@@ -146,7 +180,7 @@ foreach ($variants as $vid => $v) {
     }
 }
 
-$canonicalUrl = $baseUrl . 'item/' . strtolower(str_replace(' ', '-', $product['product_name']));
+$canonicalUrl = $baseUrl . 'item/' . fp_slugify($product['product_name']);
 $shareUrlNew  = $canonicalUrl;
 $shareTitle   = $product['product_name'];
 $shareText    = 'Check out this fresh seafood: ' . $product['product_name'] . ' from St. Joseph Fish Brokerage Inc.';
@@ -204,6 +238,7 @@ $shareText    = 'Check out this fresh seafood: ' . $product['product_name'] . ' 
 <body>
 
 <?php include('./components/navigation.php'); ?>
+<?php include('./components/preloaders.php'); ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
@@ -616,23 +651,6 @@ $shareText    = 'Check out this fresh seafood: ' . $product['product_name'] . ' 
               </div>
             </div>
             <?php endif; ?>
-          </div>
-
-          <!-- Feature cards -->
-          <div class="grid gap-3">
-            <?php foreach ([
-              ['🐟', 'Fresh Daily',        'Sourced directly from Navotas Fish Port every morning.'],
-              ['✅', 'Quality Guaranteed',  '100% satisfaction — refund if you\'re not happy.'],
-              ['🤝', 'Supports Fishermen',  'Every purchase goes directly to local Filipino fishermen.'],
-            ] as [$icon, $title, $desc]): ?>
-            <div class="flex gap-3.5 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <span class="text-xl leading-none flex-shrink-0"><?= $icon ?></span>
-              <div>
-                <p class="text-sm font-bold text-gray-900 mb-0.5"><?= $title ?></p>
-                <p class="text-xs text-gray-500"><?= $desc ?></p>
-              </div>
-            </div>
-            <?php endforeach; ?>
           </div>
         </div>
       </div>

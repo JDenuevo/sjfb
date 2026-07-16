@@ -195,6 +195,67 @@ elseif (isset($_POST['action']) && $_POST['action'] === 'delete_blog_image') {
     exit;
 }
 
+// ── DELETE EVENT (full record) ────────────────────────────────────────────────
+elseif (isset($_POST['delete_event'])) {
+ 
+    $event_id = (int)$_POST['event_id'];
+    $conn->begin_transaction();
+    try { $fetch = $conn->prepare(" SELECT event_title,event_image FROM company_events WHERE event_id = ? ");
+        $fetch->bind_param("i", $event_id);
+        $fetch->execute();
+        $event = $fetch->get_result()->fetch_assoc();
+        $fetch->close();
+        if (!$event) { throw new Exception("Event not found."); }
+        $stmt = $conn->prepare(" DELETE FROM company_events WHERE event_id = ? ");
+        $stmt->bind_param("i", $event_id);
+        if (!$stmt->execute()) { throw new Exception($stmt->error); }
+        $stmt->close();
+ 
+        if (!empty($event['event_image'])) {
+            $stored = ltrim($event['event_image'], '/');
+            $fullPath = __DIR__ . '/../../' . $stored;
+            if (file_exists($fullPath)) { unlink($fullPath); }
+        }
+ 
+        logActivity( $conn, 'event', $event_id, 'Event deleted', json_encode(['title' => $event['event_title']]), null, "Event '{$event['event_title']}' deleted.", $actorId, $actorType );
+        $conn->commit();
+        redirectWithMessage( "../events.php", "Event deleted successfully.", "success" );
+ 
+    } catch (Exception $e) {
+        $conn->rollback();
+        redirectWithMessage( "../events.php", $e->getMessage(), "error" );
+    }
+}
+
+// ── AJAX: DELETE EVENT IMAGE ONLY ─────────────────────────────────────────────
+elseif (isset($_POST['action']) && $_POST['action'] === 'delete_event_image') {
+    header('Content-Type: application/json');
+    $event_id = (int)($_POST['event_id'] ?? 0);
+ 
+    $stmt = $conn->prepare("SELECT event_image FROM company_events WHERE event_id = ?");
+    $stmt->bind_param("i", $event_id);
+    $stmt->execute();
+    $event = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+ 
+    if (!$event || empty($event['event_image'])) {
+        echo json_encode(['success' => false, 'message' => 'No image found.']);
+        exit;
+    }
+ 
+    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $event['event_image'];
+    if (file_exists($fullPath)) { unlink($fullPath); }
+ 
+    $up = $conn->prepare("UPDATE company_events SET event_image = NULL WHERE event_id = ?");
+    $up->bind_param("i", $event_id);
+    $success = $up->execute();
+    $up->close();
+ 
+    echo json_encode(['success' => (bool)$success]);
+    exit;
+}
+ 
+
 // Delete Cooking Suggestion
 elseif (isset($_POST['delete_suggestion'])) {
     $suggestion_id = intval($_POST['suggestion_id']);

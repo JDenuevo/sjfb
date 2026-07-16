@@ -178,67 +178,36 @@ $currentStepSafe = min($currentStep, $lastStep);
   <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
   <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
 
   <style>
+    /* Only what Tailwind's utility classes genuinely can't express is kept here:
+       the site-wide display font and the two keyframe-driven progress transitions
+       that need a gradient fill animated by an inline (PHP-computed) width. */
     body { font-family: 'Lexend', sans-serif; }
-    .track-hero { background: linear-gradient(135deg,#f8fafc 0%,#eef2f7 60%,#e2e8f0 100%); }
-    .track-input { background:rgba(255,255,255,.7);border:1px solid rgba(148,163,184,.35);color:#0f172a; }
-    .track-input::placeholder { color:#64748b; }
-    .track-input:hover { background:rgba(255,255,255,.9); }
-    .track-input:focus { border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.15); }
-    .os-stepper-wrap { background:#fff; border:1px solid #f3f4f6; border-radius:1rem; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-    .os-progress-track { width:100%; height:6px; background:#f3f4f6; border-radius:9999px; overflow:hidden; margin-bottom:1.5rem; }
-    .os-progress-fill { height:100%; border-radius:9999px; background:linear-gradient(90deg,#f97316,#fbbf24); transition:width .7s cubic-bezier(.4,0,.2,1); }
-    .os-bar-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-    .os-bar-header span:first-child { font-size:12px; font-weight:600; color:#6b7280; }
-    .os-bar-header span:last-child  { font-size:12px; font-weight:700; color:#f97316; }
-    .os-steps { position:relative; display:flex; align-items:flex-start; justify-content:space-between; }
-    .os-connector-bg, .os-connector-fill { position:absolute; top:20px; left:20px; right:20px; height:2px; pointer-events:none; }
-    .os-connector-bg   { background:#e5e7eb; z-index:0; }
-    .os-connector-fill { background:linear-gradient(90deg,#f97316,#fbbf24); z-index:1; transition:width .7s cubic-bezier(.4,0,.2,1); }
-    .os-step { display:flex; flex-direction:column; align-items:center; gap:8px; position:relative; z-index:10; flex:1; }
-    .os-bubble { width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-size:18px; line-height:1; flex-shrink:0; transition:background .3s,box-shadow .3s,border-color .3s; }
-    .os-bubble.done   { background:#f97316; box-shadow:0 4px 12px rgba(249,115,22,.35); border:2px solid #f97316; color:#fff; }
-    .os-bubble.active { background:#fff; border:2px solid #f97316; box-shadow:0 0 0 5px rgba(249,115,22,.15); }
-    .os-bubble.idle   { background:#f9fafb; border:2px solid #e5e7eb; }
-    .os-dot { width:10px; height:10px; border-radius:9999px; display:inline-block; }
-    .os-dot.active { background:#fdba74; }
-    .os-dot.idle   { background:#d1d5db; }
-    .os-step-label { font-size:11px; text-align:center; line-height:1.3; max-width:64px; transition:color .3s; }
-    .os-step-label.done   { color:#ea580c; font-weight:600; }
-    .os-step-label.active { color:#f97316; font-weight:500; }
-    .os-step-label.idle   { color:#9ca3af; }
-    .os-status-strip { display:flex; align-items:center; gap:12px; margin-top:1.25rem; padding-top:1rem; border-top:1px solid #f3f4f6; }
-    .os-status-icon { width:36px; height:36px; border-radius:10px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
-    .os-status-strip p:first-child { font-size:14px; font-weight:600; color:#1f2937; margin:0; }
-    .os-status-strip p:last-child  { font-size:12px; color:#6b7280; margin:2px 0 0; }
-    .dl-step { display:flex;align-items:flex-start;gap:.75rem;position:relative; }
-    .dl-step:not(:last-child)::after { content:'';position:absolute;left:11px;top:24px;bottom:-12px;width:2px;background:#e5e7eb;z-index:0; }
-    .dl-dot { width:24px;height:24px;border-radius:9999px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;z-index:1;position:relative; }
-    .dl-dot.done { background:#f97316;color:#fff; }
-    .dl-dot.idle { background:#f3f4f6;border:2px solid #e5e7eb;color:#9ca3af; }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-    .anim-1 { animation:fadeUp .5s ease both; }
-    .anim-2 { animation:fadeUp .5s .1s ease both; }
-    .anim-3 { animation:fadeUp .5s .2s ease both; }
-    .anim-4 { animation:fadeUp .5s .3s ease both; }
-    .anim-5 { animation:fadeUp .5s .4s ease both; }
-    .receipt-row:not(:last-child) { border-bottom:1px solid #f3f4f6; }
   </style>
 </head>
 
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-T2JQR66S');</script>
 
-<body class="bg-gray-50">
+<body class="bg-gray-50 font-['Lexend',sans-serif]">
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <?php include('./components/preloaders.php'); ?>
@@ -246,8 +215,8 @@ $currentStepSafe = min($currentStep, $lastStep);
 <?php include('./components/nav_crumb.php'); ?>
 
 <!-- Hero / Search -->
-<section class="track-hero py-16 px-4">
-  <div class="max-w-xl mx-auto text-center anim-1">
+<section class="bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 py-16 px-4">
+  <div class="max-w-xl mx-auto text-center" data-aos="fade-up">
     <div class="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-400/30 rounded-full px-4 py-1.5 text-xs font-semibold text-orange-600 uppercase tracking-widest mb-5">
       <svg class="size-3" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
       Real-time tracking
@@ -256,7 +225,7 @@ $currentStepSafe = min($currentStep, $lastStep);
     <p class="text-slate-500 text-sm mb-10">Enter your order code to see live status, items, and delivery info.</p>
 
     <?php if (!empty($_SESSION['error'])): ?>
-    <div class="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+    <div class="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700" role="alert">
       <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <?= htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
     </div>
@@ -267,7 +236,7 @@ $currentStepSafe = min($currentStep, $lastStep);
         <input type="text" name="order_code" required
                value="<?= isset($_GET['order_code']) ? htmlspecialchars($_GET['order_code']) : '' ?>"
                placeholder="e.g. ORD260318VLIBKU"
-               class="py-3 px-4 block border track-input w-full rounded-xl text-sm focus:outline-none transition-all">
+               class="py-3 px-4 block w-full rounded-xl text-sm bg-white/70 border border-slate-300/50 text-slate-900 placeholder:text-slate-500 hover:bg-white/90 focus:bg-white/90 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 focus:outline-none transition-all">
       </div>
       <button type="submit" name="track_order"
               class="shrink-0 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-semibold text-sm rounded-xl px-6 py-3 transition-all">
@@ -321,7 +290,7 @@ $currentStepSafe = min($currentStep, $lastStep);
 <div class="max-w-3xl mx-auto space-y-5">
 
   <!-- Order header banner -->
-  <div class="anim-2 relative overflow-hidden bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-6 text-white shadow-sm">
+  <div class="relative overflow-hidden bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-6 text-white shadow-sm" data-aos="fade-up">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
       <div>
         <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Order Reference</p>
@@ -357,7 +326,7 @@ $currentStepSafe = min($currentStep, $lastStep);
 
   <?php if ($isCancelled): ?>
   <!-- Cancelled -->
-  <div class="anim-3 bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+  <div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center" data-aos="fade-up">
     <div class="size-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
       <svg class="size-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
     </div>
@@ -372,9 +341,8 @@ $currentStepSafe = min($currentStep, $lastStep);
 
     <!-- Pickup-specific "Ready for Pickup" notice -->
   <?php if ($isPickup && $orderStatus === 'Completed'): ?>
-  <div class="anim-3 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4">
-    
-    <!-- Replaced 📦 emoji -->
+  <div class="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4" data-aos="fade-up">
+
     <div class="size-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
       <svg class="size-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -394,9 +362,8 @@ $currentStepSafe = min($currentStep, $lastStep);
 
   <!-- Pickup-specific "Already picked up" notice -->
   <?php if ($isPickup && $orderStatus === 'Delivered'): ?>
-  <div class="anim-3 flex items-start gap-3 bg-green-50 border border-green-200 rounded-2xl p-4">
-    
-    <!-- Replaced ✅ emoji -->
+  <div class="flex items-start gap-3 bg-green-50 border border-green-200 rounded-2xl p-4" data-aos="fade-up">
+
     <div class="size-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
       <svg class="size-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path d="M20 6 9 17l-5-5"/>
@@ -413,50 +380,57 @@ $currentStepSafe = min($currentStep, $lastStep);
   <?php endif; ?>
 
   <!-- Progress stepper -->
-  <div class="anim-3 os-stepper-wrap">
-    <div class="os-bar-header">
-      <span><?= $isPickup ? 'Pickup Progress' : 'Delivery Progress' ?></span>
-      <span><?= $fillPct ?>% complete</span>
+  <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm" data-aos="fade-up">
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="text-xs font-semibold text-gray-500"><?= $isPickup ? 'Pickup Progress' : 'Delivery Progress' ?></span>
+      <span class="text-xs font-bold text-orange-500"><?= $fillPct ?>% complete</span>
     </div>
-    <div class="os-progress-track">
-      <div class="os-progress-fill" style="width:<?= $fillPct ?>%"></div>
+    <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-6">
+      <div class="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-700 ease-in-out" style="width:<?= $fillPct ?>%"></div>
     </div>
-    <div class="os-steps">
-      <div class="os-connector-bg"></div>
-      <div class="os-connector-fill" style="width:<?= $lastStep > 0 ? min(100, round(($currentStep / $lastStep) * 100)) : 0 ?>%"></div>
+    <div class="relative flex items-start justify-between">
+      <div class="absolute top-5 left-5 right-5 h-0.5 bg-gray-200 z-0"></div>
+      <div class="absolute top-5 left-5 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 z-[1] transition-all duration-700 ease-in-out" style="width:<?= $lastStep > 0 ? min(100, round(($currentStep / $lastStep) * 100)) : 0 ?>%"></div>
       <?php foreach ($steps as $i => $step):
         $done   = $i <= $currentStep;
         $active = $i === $currentStep;
-        $sc     = $done ? 'done' : ($active ? 'active' : 'idle');
       ?>
-      <div class="os-step">
-        <div class="os-bubble <?= $sc ?>">
-          <?php if ($done && !$active): ?>
-            <!-- Completed steps show a checkmark -->
-            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-              <path d="M20 6 9 17l-5-5"/>
-            </svg>
-          <?php else: ?>
-            <!-- Active / idle steps show their own icon -->
-            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <?= $step['icon'] ?>
-            </svg>
-          <?php endif; ?>
+      <div class="flex flex-col items-center gap-2 relative z-10 flex-1">
+        <?php if ($done && !$active): ?>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 bg-orange-500 border-2 border-orange-500 text-white shadow-[0_4px_12px_rgba(249,115,22,0.35)]">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
         </div>
-        <span class="os-step-label <?= $sc ?>"><?= htmlspecialchars($step['label']) ?></span>
+        <span class="text-[11px] text-center leading-tight max-w-16 transition-colors duration-300 text-orange-600 font-semibold"><?= htmlspecialchars($step['label']) ?></span>
+        <?php elseif ($active): ?>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 bg-white border-2 border-orange-500 shadow-[0_0_0_5px_rgba(249,115,22,0.15)] text-orange-500">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <?= $step['icon'] ?>
+          </svg>
+        </div>
+        <span class="text-[11px] text-center leading-tight max-w-16 transition-colors duration-300 text-orange-500 font-medium"><?= htmlspecialchars($step['label']) ?></span>
+        <?php else: ?>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 bg-gray-50 border-2 border-gray-200 text-gray-400">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <?= $step['icon'] ?>
+          </svg>
+        </div>
+        <span class="text-[11px] text-center leading-tight max-w-16 transition-colors duration-300 text-gray-400"><?= htmlspecialchars($step['label']) ?></span>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
-    <div class="os-status-strip">
+    <div class="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
       <?php $safeStep = $steps[$currentStepSafe] ?? $steps[0]; ?>
-      <div class="os-status-icon">
-        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <div class="w-9 h-9 rounded-[10px] bg-orange-50 flex items-center justify-center shrink-0">
+        <svg class="size-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <?= $safeStep['icon'] ?>
         </svg>
       </div>
       <div>
-        <p><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
-        <p><?= $statusMessages[$orderStatus] ?? '' ?></p>
+        <p class="text-sm font-semibold text-gray-800 m-0"><?= $statusDisplay[$orderStatus] ?? $orderStatus ?></p>
+        <p class="text-xs text-gray-500 mt-0.5 m-0"><?= $statusMessages[$orderStatus] ?? '' ?></p>
       </div>
     </div>
   </div>
@@ -465,7 +439,7 @@ $currentStepSafe = min($currentStep, $lastStep);
 
   <!-- Pickup store info card (shown while not yet delivered) -->
   <?php if ($isPickup && !$isCancelled && $orderStatus !== 'Delivered'): ?>
-  <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-aos="fade-up">
     <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
       <span class="size-7 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm">🏠</span>
       <div>
@@ -496,7 +470,7 @@ $currentStepSafe = min($currentStep, $lastStep);
 
   <!-- Delivery / Rider section (delivery orders only) -->
   <?php if ($showDelivery): ?>
-  <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-aos="fade-up">
     <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
       <span class="size-7 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-sm">🛵</span>
       <div>
@@ -592,8 +566,10 @@ $currentStepSafe = min($currentStep, $lastStep);
             $ts   = $delivery[$step['key']] ?? null;
             $done = !empty($ts);
           ?>
-          <div class="dl-step">
-            <div class="dl-dot <?= $done ? 'done' : 'idle' ?>"><?= $done ? $step['icon'] : ($si + 1) ?></div>
+          <div class="flex items-start gap-3 relative after:content-[''] after:absolute after:left-[11px] after:top-6 after:-bottom-3 after:w-0.5 after:bg-gray-200 after:z-0 last:after:hidden">
+            <div class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[11px] z-10 relative <?= $done ? 'bg-orange-500 text-white' : 'bg-gray-100 border-2 border-gray-200 text-gray-400' ?>">
+              <?= $done ? $step['icon'] : ($si + 1) ?>
+            </div>
             <div class="flex-1 min-w-0 pb-1">
               <p class="text-xs font-semibold <?= $done ? 'text-gray-800' : 'text-gray-400' ?> leading-snug"><?= $step['label'] ?></p>
               <?php if ($done): ?>
@@ -628,7 +604,7 @@ $currentStepSafe = min($currentStep, $lastStep);
   <?php endif; /* showDelivery */ ?>
 
   <!-- Order receipt card -->
-  <div class="anim-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="orderReceipt">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="orderReceipt" data-aos="fade-up">
     <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/60">
       <div class="flex items-center gap-3">
         <img src="./assets/icons/logo.svg" alt="SJFBI Logo" class="size-10">
@@ -694,7 +670,7 @@ $currentStepSafe = min($currentStep, $lastStep);
           $unitPrice = (float)($item['price'] ?? $item['variant_price'] ?? 0);
           $lineTotal = $unitPrice * (float)($item['quantity'] ?? 1);
         ?>
-        <div class="receipt-row flex items-center gap-4 px-6 py-3.5">
+        <div class="flex items-center gap-4 px-6 py-3.5">
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-800 truncate"><?= htmlspecialchars($item['product_name']) ?></p>
             <p class="text-xs text-gray-400"><?= htmlspecialchars($item['variant_name'] ?? '—') ?></p>
@@ -747,7 +723,7 @@ $currentStepSafe = min($currentStep, $lastStep);
   </div>
 
   <!-- Action buttons -->
-  <div class="flex flex-col sm:flex-row gap-3 anim-5">
+  <div class="flex flex-col sm:flex-row gap-3" data-aos="fade-up">
     <a id="downloadPdfBtn"
       class="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
       href="./functions/export_receipt.php?order_code=<?= urlencode($orderCode) ?>"
@@ -787,8 +763,9 @@ $currentStepSafe = min($currentStep, $lastStep);
 <?php include('./components/footer.php'); ?>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
-<script>AOS.init();</script>
-<script src="node_modules/preline/dist/preline.js"></script>
+<script>AOS.init({ once: true, duration: 500, easing: 'ease-out', offset: 40 });</script>
+<!-- Fixed: previous src pointed at a local node_modules path, which isn't served in production and 404s, so Preline's JS-driven behaviors never initialized. Pinned to jsdelivr instead. -->
+<script src="https://cdn.jsdelivr.net/npm/preline@2.5.1/dist/preline.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
 <?php include('live_chat.php'); ?>
 </body>

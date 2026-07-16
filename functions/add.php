@@ -5,6 +5,7 @@ require_once '../vendor/autoload.php';
 require_once 'paymongo_helper.php';
 require_once '../functions/activity_log_helper.php';
 require_once '../functions/order_helper.php';
+require_once 'mail_functions.php';   // ← added: gives you sendVerificationEmail()
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
@@ -80,12 +81,12 @@ function validateCartItems(mysqli $conn, array $cart): array {
     return $errors;
 }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-        // ─────────────────────────────────────────────────────────────────────────
-        // REGISTER
-        // ─────────────────────────────────────────────────────────────────────────
-        if (isset($_POST['register_account'])) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // REGISTER
+    // ─────────────────────────────────────────────────────────────────────────
+    if (isset($_POST['register_account'])) {
 
         if (isset($_SESSION['account_id'])) {
             header("Location: ../account/shop.php");
@@ -132,10 +133,18 @@ function validateCartItems(mysqli $conn, array $cart): array {
         }
         $stmt->close();
 
-        $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("INSERT INTO accounts (account_email, username, password_hash, role) VALUES (?, ?, ?, ?)");
+        // ── Generate verification token ────────────────────────────────────
+        $hashed       = password_hash($password, PASSWORD_DEFAULT);
+        $verifyToken  = bin2hex(random_bytes(32));                 // 64-char token
+        $verifyExpiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+        $stmt = $conn->prepare("
+            INSERT INTO accounts
+                (account_email, username, password_hash, role, email_verified, verification_token, verification_expiry)
+            VALUES (?, ?, ?, ?, 0, ?, ?)
+        ");
         if (!$stmt) redirectWithMessage('../register.php', "A system error occurred. Please try again.");
-        $stmt->bind_param("ssss", $email, $username, $hashed, $role);
+        $stmt->bind_param("ssssss", $email, $username, $hashed, $role, $verifyToken, $verifyExpiry);
         if (!$stmt->execute()) {
             error_log("Register error: " . $stmt->error);
             $stmt->close();
@@ -150,13 +159,133 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $newAccountId, 'customer');
         }
 
+        // ── Send verification email (uses mail_functions.php) ───────────────
+        $verifyLink = rtrim($_ENV['APP_URL'], '/') . '/verify.php?token=' . $verifyToken;
+        $emailSent  = sendVerificationEmail($email, $username, $verifyLink);
+
+        // ── Auto-login (restricted until verified — enforce with require_verified.php) ──
         session_regenerate_id(true);
         $_SESSION['account_id']     = $newAccountId;
         $_SESSION['username']       = $username;
         $_SESSION['role']           = 'customer';
         $_SESSION['loggedinasuser'] = true;
+        $_SESSION['email_verified'] = false;
+
         $conn->close();
-        redirectWithMessage('../account/shop.php', "Welcome aboard, {$username}! Your account has been created.", 'success');
+
+        if ($emailSent) {
+            redirectWithMessage(
+                '../verify_pending.php',
+                "Welcome aboard, {$username}! We've sent a verification link to {$email}.",
+                'success'
+            );
+        } else {
+            redirectWithMessage(
+                '../verify_pending.php',
+                "Your account was created, but we couldn't send the verification email right now. Use the resend button below.",
+                'error'
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RESEND VERIFICATION EMAIL
+    // ─────────────────────────────────────────────────────────────────────────
+    elseif (isset($_POST['resend_verification'])) {
+
+        if (!isset($_SESSION['account_id'])) {
+            redirectWithMessage('../register.php', "Please log in first.");
+        }
+
+        $accountId = intval($_SESSION['account_id']);
+
+        $stmt = $conn->prepare("SELECT account_email, username, email_verified FROM accounts WHERE account_id = ? LIMIT 1");
+        $stmt->bind_param("i", $accountId);
+        $stmt->execute();
+        $account = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$account) {
+            redirectWithMessage('../register.php', "Account not found. Please log in again.");
+        }
+
+        if ($account['email_verified']) {
+            redirectWithMessage('../verify_pending.php', "Your email is already verified.", 'success');
+        }
+
+        $verifyToken  = bin2hex(random_bytes(32));
+        $verifyExpiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+        $stmt = $conn->prepare("UPDATE accounts SET verification_token = ?, verification_expiry = ? WHERE account_id = ?");
+        $stmt->bind_param("ssi", $verifyToken, $verifyExpiry, $accountId);
+        $stmt->execute();
+        $stmt->close();
+
+        $verifyLink = rtrim($_ENV['APP_URL'], '/') . '/verify.php?token=' . $verifyToken;
+        $emailSent  = sendVerificationEmail($account['account_email'], $account['username'], $verifyLink);
+
+        $conn->close();
+
+        if ($emailSent) {
+            redirectWithMessage('../verify_pending.php', "Verification email resent to {$account['account_email']}.", 'success');
+        } else {
+            redirectWithMessage('../verify_pending.php', "Couldn't send the email right now. Please try again in a few minutes.");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // COMPLETE PROFILE
+    // ─────────────────────────────────────────────────────────────────────────
+    elseif (isset($_POST['complete_profile'])) {
+
+        if (!isset($_SESSION['account_id'])) {
+            redirectWithMessage('../register.php', "Please log in first.");
+        }
+
+        $accountId = intval($_SESSION['account_id']);
+
+        $firstName  = trim($_POST['first_name']  ?? '');
+        $lastName   = trim($_POST['last_name']   ?? '');
+        $phone      = trim($_POST['phone']       ?? '');
+        $address    = trim($_POST['address']     ?? '');
+        $city       = trim($_POST['city']        ?? '');
+        $postalCode = trim($_POST['postal_code'] ?? '');
+
+        if (empty($firstName) || empty($lastName) || empty($address) || empty($city) || empty($postalCode))
+            redirectWithMessage('../account/complete_profile.php', "Please fill in all required fields.");
+
+        if ($phone !== '' && !preg_match('/^[0-9+\-\s()]{7,20}$/', $phone))
+            redirectWithMessage('../account/complete_profile.php', "Please enter a valid phone number.");
+
+        $stmt = $conn->prepare("
+            UPDATE accounts
+            SET account_first_name = ?,
+                account_last_name  = ?,
+                account_phone      = ?,
+                account_address    = ?,
+                city               = ?,
+                postal_code        = ?,
+                profile_completed  = 1
+            WHERE account_id = ?
+        ");
+        if (!$stmt) redirectWithMessage('../account/complete_profile.php', "A system error occurred. Please try again.");
+        $phoneParam = $phone !== '' ? $phone : null;
+        $stmt->bind_param("ssssssi", $firstName, $lastName, $phoneParam, $address, $city, $postalCode, $accountId);
+        if (!$stmt->execute()) {
+            error_log("Complete profile error: " . $stmt->error);
+            $stmt->close();
+            redirectWithMessage('../account/complete_profile.php', "Something went wrong saving your profile. Please try again.");
+        }
+        $stmt->close();
+
+        if (function_exists('logActivity')) {
+            logActivity($conn, 'account', $accountId, 'Profile completed', null, null,
+                "Customer completed profile: {$firstName} {$lastName}",
+                $accountId, 'customer');
+        }
+
+        $conn->close();
+        redirectWithMessage('../account/home.php', "Your profile is all set. Welcome to St. Joseph Fish Brokerage!", 'success');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -678,6 +807,9 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
     // ─────────────────────────────────────────────────────────────────────────
     // SUBMIT REVIEW
+    // (review.php is display-only — all processing for the review form lives
+    // here, matching the redirect-with-message pattern used everywhere else
+    // in this file.)
     // ─────────────────────────────────────────────────────────────────────────
     elseif (isset($_POST['submit_review'])) {
         $orderCode = trim($_POST['order_code'] ?? '');
@@ -685,6 +817,45 @@ function validateCartItems(mysqli $conn, array $cart): array {
 
         function generateReviewToken(string $orderCode, string $email, string $salt = 'sjfbi_review_2025'): string {
             return strtoupper(substr(hash('sha256', $orderCode . $email . $salt), 0, 12));
+        }
+
+        // Safe photo handler — no Imagick required. HEIC/HEIF is stored as-is
+        // (most browsers can't render it, but admins can still download it);
+        // everything else is sniffed with mime_content_type() rather than
+        // trusting the client-supplied Content-Type header.
+        function handleReviewPhoto(
+            string $tmpPath,
+            string $origName,
+            int    $fileSize,
+            string $mimeType,
+            string $uploadDir,
+            int    $reviewId,
+            int    $index
+        ): ?array {
+            $isHeic = str_contains(strtolower($mimeType), 'heic') ||
+                      in_array(strtolower(pathinfo($origName, PATHINFO_EXTENSION)), ['heic', 'heif']);
+
+            $uid      = uniqid();
+            $baseName = "review_{$reviewId}_{$index}_{$uid}";
+
+            if ($isHeic) {
+                $destName = $baseName . '.heic';
+                $destPath = $uploadDir . $destName;
+                if (move_uploaded_file($tmpPath, $destPath)) {
+                    return ['path' => 'uploads/reviews/' . $destName, 'name' => $destName, 'size' => $fileSize, 'mime' => 'image/heic'];
+                }
+            } else {
+                $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION)) ?: 'jpg';
+                $ext = preg_replace('/[^a-z0-9]/', '', $ext) ?: 'jpg';
+                $destName = $baseName . '.' . $ext;
+                $destPath = $uploadDir . $destName;
+                if (move_uploaded_file($tmpPath, $destPath)) {
+                    return ['path' => 'uploads/reviews/' . $destName, 'name' => $destName, 'size' => $fileSize, 'mime' => $mimeType];
+                }
+            }
+
+            error_log("Failed to save review photo: " . $origName);
+            return null;
         }
 
         $redirectBase = "../review.php?order={$orderCode}&token={$token}";
@@ -709,17 +880,30 @@ function validateCartItems(mysqli $conn, array $cart): array {
         if (strtoupper($_POST['token']) !== strtoupper($token))
             redirectWithMessage($redirectBase, 'Security check failed.', 'error');
 
+        // Fetch every item so we can tell "already fully reviewed" apart from
+        // "nothing left to process" — review.php recomputes this on its own,
+        // but bailing out early here avoids doing any writes for nothing.
         $iStmt = $conn->prepare("
             SELECT oi.*, p.product_name, p.product_id,
                 pv.variant_name, pv.variant_price
             FROM order_items oi
             LEFT JOIN products p  ON oi.product_id  = p.product_id
             LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
-            WHERE oi.order_id = ? AND oi.is_reviewed = 0
+            WHERE oi.order_id = ?
         ");
         $iStmt->bind_param('i', $order['order_id']); $iStmt->execute();
-        $orderItems = $iStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $allItems = $iStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $iStmt->close();
+
+        $alreadyReviewed = !empty($allItems) && array_reduce($allItems, fn($carry, $i) => $carry && $i['is_reviewed'], true);
+        if ($alreadyReviewed) {
+            // Nothing to do — send them back, review.php will show the
+            // "already reviewed" state on its own.
+            header("Location: ../review.php?order={$orderCode}&token={$token}");
+            exit();
+        }
+
+        $orderItems = array_values(array_filter($allItems, fn($i) => !$i['is_reviewed']));
 
         $validationErrors = [];
         $reviewedCount    = 0;
@@ -768,32 +952,41 @@ function validateCartItems(mysqli $conn, array $cart): array {
                 $reviewId = $conn->insert_id;
                 $rStmt->close();
 
+                // ── Photo upload handling ───────────────────────────────────
                 $photoKey = "photos_{$itemId}";
                 if (!empty($_FILES[$photoKey]['name'][0])) {
-                    $uploadDir    = __DIR__ . '/../uploads/reviews/';
+                    $uploadDir = __DIR__ . '/../uploads/reviews/';
                     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                    $allowedMimes = ['image/jpeg','image/png','image/webp','image/gif'];
-                    foreach ($_FILES[$photoKey]['tmp_name'] as $idx => $tmpPath) {
-                        if (!is_uploaded_file($tmpPath)) continue;
-                        $mimeType = $_FILES[$photoKey]['type'][$idx];
-                        $fileSize = $_FILES[$photoKey]['size'][$idx];
-                        if ($fileSize > 5 * 1024 * 1024)        continue;
-                        if (!in_array($mimeType, $allowedMimes)) continue;
+
+                    $allowedMimes = ['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif'];
+                    $photoCount   = count($_FILES[$photoKey]['tmp_name']);
+                    $saved        = 0;
+
+                    for ($idx = 0; $idx < $photoCount && $saved < 5; $idx++) {
+                        if ($_FILES[$photoKey]['error'][$idx] !== UPLOAD_ERR_OK) continue;
+
+                        $tmpPath  = $_FILES[$photoKey]['tmp_name'][$idx];
                         $origName = $_FILES[$photoKey]['name'][$idx];
-                        $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                        $fileName = 'review_'.$reviewId.'_'.$idx.'_'.uniqid().'.'.$ext;
-                        $destPath = $uploadDir . $fileName;
-                        if (move_uploaded_file($tmpPath, $destPath)) {
-                            $relPath   = 'uploads/reviews/'.$fileName;
-                            $uploadOrd = $idx + 1;
-                            $aStmt = $conn->prepare("
-                                INSERT INTO review_attachments
-                                    (review_id, file_path, file_name, file_size, mime_type, upload_order)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                            ");
-                            $aStmt->bind_param('issiis', $reviewId, $relPath, $fileName, $fileSize, $mimeType, $uploadOrd);
-                            $aStmt->execute(); $aStmt->close();
-                        }
+                        $fileSize = (int)$_FILES[$photoKey]['size'][$idx];
+                        $mimeType = strtolower(mime_content_type($tmpPath));
+
+                        if ($fileSize > 5 * 1024 * 1024) continue;
+                        if (!in_array($mimeType, $allowedMimes)) continue;
+
+                        $result = handleReviewPhoto($tmpPath, $origName, $fileSize, $mimeType, $uploadDir, $reviewId, $idx);
+                        if (!$result) continue;
+
+                        $uploadOrder = $saved + 1;
+
+                        $aStmt = $conn->prepare("
+                            INSERT INTO review_attachments
+                                (review_id, file_path, file_name, file_size, mime_type, upload_order)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        $aStmt->bind_param('issiis', $reviewId, $result['path'], $result['name'], $result['size'], $result['mime'], $uploadOrder);
+                        $aStmt->execute();
+                        $aStmt->close();
+                        $saved++;
                     }
                 }
 

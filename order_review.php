@@ -195,22 +195,25 @@ foreach ($trackerSteps as $i => $s) {
   <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
   <meta name="twitter:image"       content="https://fishbrokers.net/assets/icons/logo.svg">
 
-  <link rel="shortcut icon"            href="./assets/icons/logo.ico">
+  <link rel="shortcut icon" href="./assets/icons/logo.ico">
   <link rel="icon" type="image/x-icon" href="./assets/icons/logo.ico" sizes="16x16 32x32">
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
-  <link rel="apple-touch-icon"         href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lexend:wght@100..900&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
-  <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+  <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css" />
+  <link href="https://cdn.jsdelivr.net/npm/preline/dist/preline.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
 
+  <script src="https://cdn.tailwindcss.com"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>window.CART_BASE = '';</script>
+  <script src="./functions/cart_process.js"></script>
 
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T2JQR66S" height="0" width="0" style="display:none;visibility:hidden"></iframe>
@@ -218,6 +221,9 @@ foreach ($trackerSteps as $i => $s) {
 </head>
 
 <style>
+  /* Only what Tailwind's utilities genuinely can't express is kept here:
+     the site-wide display font and the SVG stroke-draw keyframes for the
+     success / failure hero icon (dash-offset animation has no utility equivalent). */
   body { font-family: 'Lexend', sans-serif; }
   .font-display { font-family: 'Playfair Display', serif; }
 
@@ -225,15 +231,6 @@ foreach ($trackerSteps as $i => $s) {
   .anim-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: dash .9s ease forwards .2s; }
   .anim-tick   { stroke-dasharray: 48;  stroke-dashoffset: 48;  animation: dash .4s ease forwards .9s; }
   .anim-line   { stroke-dasharray: 30;  stroke-dashoffset: 30;  animation: dash .3s ease forwards .8s; }
-
-  .step-done   .t-dot { background: #16a34a; border-color: #16a34a; }
-  .step-done   .t-label { color: #111827; font-weight: 600; }
-  .step-active .t-dot { background: #f97316; border-color: #f97316; box-shadow: 0 0 0 4px rgba(249,115,22,.2); }
-  .step-active .t-label { color: #ea580c; font-weight: 700; }
-  .step-future .t-dot { background: #fff; border-color: #d1d5db; }
-  .step-future .t-label { color: #9ca3af; }
-
-  @media print { .no-print { display: none !important; } }
 </style>
 
 <body>
@@ -316,7 +313,7 @@ foreach ($trackerSteps as $i => $s) {
       <div class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm mt-3">
         <span class="text-xs text-gray-400">Order Code</span>
         <span class="font-mono font-bold text-orange-600 tracking-widest text-sm"><?= htmlspecialchars($orderCode) ?></span>
-        <button onclick="copyOrderCode()" id="copyBtn" title="Copy order code" class="text-gray-300 hover:text-orange-500 transition-colors no-print">
+        <button onclick="copyOrderCode()" id="copyBtn" title="Copy order code" class="text-gray-300 hover:text-orange-500 transition-colors print:hidden">
           <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
       </div>
@@ -332,7 +329,7 @@ foreach ($trackerSteps as $i => $s) {
 
     <!-- COD / Pickup reminder banner -->
     <?php if ($isCOD && $paymentStatus !== 'Failed'): ?>
-    <div class="flex items-start gap-3 <?= $isPickup ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200' ?> border rounded-2xl p-4 mb-6 no-print" data-aos="fade-up" data-aos-delay="70">
+    <div class="flex items-start gap-3 <?= $isPickup ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200' ?> border rounded-2xl p-4 mb-6 print:hidden" data-aos="fade-up" data-aos-delay="70">
       <div class="size-9 rounded-xl <?= $isPickup ? 'bg-blue-100' : 'bg-amber-100' ?> flex items-center justify-center shrink-0">
         <?php if ($isPickup): ?>
         <svg class="size-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -373,18 +370,30 @@ foreach ($trackerSteps as $i => $s) {
 
           <div class="flex flex-col p-4 sm:p-10 bg-white shadow-md rounded-xl" id="orderReceipt" data-aos="fade-up" data-aos-delay="100">
             <!-- Header -->
-            <div class="flex justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div>
-                <img src="./assets/icons/logo.svg" class="w-24 h-24 hover:scale-110 duration-200" alt="St. Joseph Fish Brokerage Inc. Logo">
-                <h1 class="mt-2 md:text-lg font-semibold text-orange-600">St. Joseph Fish Brokerage Inc.</h1>
+                <img src="./assets/icons/logo.svg" class="w-16 h-16 sm:w-20 sm:h-20" alt="St. Joseph Fish Brokerage Inc.">
+                <p class="mt-2 text-sm font-semibold text-orange-600">St. Joseph Fish Brokerage Inc.</p>
               </div>
-              <div class="text-end">
-                <h2 class="text-2xl md:text-3xl font-semibold text-gray-800">Order Code</h2>
-                <span class="mt-1 block text-gray-500 text-lg"><?= htmlspecialchars($order['order_code']) ?></span>
-                <address class="mt-4 not-italic text-gray-800">
-                  Bulungan Avenue corner HACCP St.<br>
-                  NFPC NBBS, Navotas, Philippines<br>
-                  Boulevard South Proper, Navotas, Philippines<br>
+              <div class="sm:text-right">
+                <div class="inline-flex items-center gap-3 bg-gray-50 border rounded-xl px-4 py-3 w-full sm:w-auto">
+                  <div class="flex-1 sm:flex-none">
+                    <p class="text-xs uppercase text-gray-400 tracking-wide">Order Code</p>
+                    <p class="font-bold text-base text-gray-900 font-mono break-all"><?= htmlspecialchars($order['order_code']) ?></p>
+                  </div>
+                  <a href="./functions/export_receipt.php?order_code=<?= urlencode($orderCode) ?>"
+                    target="_blank"
+                    title="Download receipt"
+                    class="print:hidden shrink-0 inline-flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                      <path d="M7 11l5 5 5-5M12 4v12"/>
+                    </svg>
+                  </a>
+                </div>
+                <address class="not-italic text-xs text-gray-500 mt-3 leading-relaxed">
+                  Bulungan Ave corner HACCP St., NFPC NBBS<br>
+                  Boulevard South Proper, Navotas, Philippines
                 </address>
               </div>
             </div>
@@ -516,7 +525,7 @@ foreach ($trackerSteps as $i => $s) {
         <!-- /left col -->
 
         <!-- RIGHT sidebar -->
-        <div class="space-y-5 no-print">
+        <div class="space-y-5 print:hidden">
 
           <!-- Delivery / Pickup progress tracker -->
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-aos="fade-up" data-aos-delay="110">
@@ -542,20 +551,31 @@ foreach ($trackerSteps as $i => $s) {
                   <?php foreach ($trackerSteps as $i => $step):
                     $isDone    = in_array($orderStatus, $step['done']) && !$isCancelled;
                     $isCurrent = ($i === $activeIdx) && !$isCancelled;
-                    $cls = $isDone ? 'step-done' : ($isCurrent ? 'step-active' : 'step-future');
                   ?>
-                  <li class="flex items-start gap-3 <?= $cls ?>">
-                    <div class="t-dot size-6 rounded-full border-2 flex items-center justify-center shrink-0 bg-white mt-0.5">
-                      <?php if ($isDone): ?>
-                        <svg class="size-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
-                      <?php elseif ($isCurrent): ?>
-                        <span class="size-2 rounded-full bg-orange-500 animate-pulse"></span>
-                      <?php endif; ?>
+                  <li class="flex items-start gap-3">
+                    <?php if ($isDone): ?>
+                    <div class="size-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 bg-green-600 border-green-600">
+                      <svg class="size-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
                     </div>
                     <div>
-                      <p class="t-label text-sm leading-tight"><?= $step['label'] ?></p>
+                      <p class="text-sm leading-tight font-semibold text-gray-900"><?= $step['label'] ?></p>
                       <p class="text-xs text-gray-400 mt-0.5"><?= $step['sub'] ?></p>
                     </div>
+                    <?php elseif ($isCurrent): ?>
+                    <div class="size-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 bg-orange-500 border-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.2)]">
+                      <span class="size-2 rounded-full bg-white animate-pulse"></span>
+                    </div>
+                    <div>
+                      <p class="text-sm leading-tight font-bold text-orange-600"><?= $step['label'] ?></p>
+                      <p class="text-xs text-gray-400 mt-0.5"><?= $step['sub'] ?></p>
+                    </div>
+                    <?php else: ?>
+                    <div class="size-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 bg-white border-gray-300"></div>
+                    <div>
+                      <p class="text-sm leading-tight text-gray-400"><?= $step['label'] ?></p>
+                      <p class="text-xs text-gray-400 mt-0.5"><?= $step['sub'] ?></p>
+                    </div>
+                    <?php endif; ?>
                   </li>
                   <?php endforeach; ?>
 
@@ -688,7 +708,7 @@ foreach ($trackerSteps as $i => $s) {
       </div>
 
       <!-- Buttons -->
-      <div class="mt-6 flex justify-end gap-x-3 no-print" data-aos="fade-up" data-aos-delay="160">
+      <div class="mt-6 flex justify-end gap-x-3 print:hidden" data-aos="fade-up" data-aos-delay="160">
         <a id="downloadPdfBtn"
           class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-red-600 text-white hover:bg-red-700 focus:outline-hidden focus:bg-red-700 cursor-pointer"
           href="./functions/export_receipt.php?order_code=<?= urlencode($orderCode) ?>"
@@ -746,8 +766,9 @@ foreach ($trackerSteps as $i => $s) {
 </script>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
-<script>AOS.init();</script>
-<script src="node_modules/preline/dist/preline.js"></script>
+<script>AOS.init({ once: true, duration: 500, easing: 'ease-out', offset: 40 });</script>
+<!-- Fixed: previous src pointed at a local node_modules path, which isn't served in production and 404s, so Preline's JS-driven behaviors never initialized. Pinned to jsdelivr instead. -->
+<script src="https://cdn.jsdelivr.net/npm/preline@2.5.1/dist/preline.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
 <?php include('live_chat.php'); ?>
 

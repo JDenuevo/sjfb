@@ -16,6 +16,15 @@ RewriteRule ^admin/?$ admin/index.php [L,QSA]
 RewriteRule ^admin/([^/.]+)/?$ admin/$1.php [L,QSA]
 RewriteRule ^admin/([^/.]+)/([^/.]+)/?$ admin/$1.php?action=$2 [L,QSA]
 
+# ITEM RULES
+# NOTE: these must come BEFORE the "USER AREA RULES" block below.
+# ^account/([^/.]+)/([^/.]+)/?$ (the generic 2-segment account rule) would
+# otherwise match /account/item/<slug> first and rewrite it to
+# account/item.php?action=<slug> instead of ?name=<slug>, since both patterns
+# match a 2-segment path and Apache stops at the first [L] match it hits.
+RewriteRule ^item/([a-zA-Z0-9-]+)$ item.php?name=$1 [L,QSA]
+RewriteRule ^account/item/([a-zA-Z0-9-]+)$ account/item.php?name=$1 [L,QSA]
+
 # ===== USER AREA RULES =====
 RewriteRule ^account/?$ account/index.php [L,QSA]
 RewriteRule ^account/([^/.]+)/?$ account/$1.php [L,QSA]
@@ -33,9 +42,12 @@ RewriteRule ^blogs/?$ blogs/index.php [L,QSA]
 # Second: Single blog post (must have something after blogs/)
 RewriteRule ^blogs/(.+)$ blogs/single.php?slug=$1 [L,QSA]
 
-# ITEM RULES
-RewriteRule ^item/([a-zA-Z0-9-]+)$ item.php?name=$1 [L,QSA]
-RewriteRule ^account/item/([a-zA-Z0-9-]+)$ account/item.php?name=$1 [L,QSA]
+# BLOGS RULES - ORDER IS IMPORTANT!
+# First: Blog listing page (exact match /events or /events/)
+RewriteRule ^events/?$ events/index.php [L,QSA]
+
+# Second: Single blog post (must have something after events/)
+RewriteRule ^events/(.+)$ events/single.php?slug=$1 [L,QSA]
 
 # MEMBERS
 RewriteRule ^about/members/([^/]+)/?$ about/members/single.php [L,QSA]

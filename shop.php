@@ -144,6 +144,13 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 
   </div>
 
+  <!-- ══════════════════════════════════════════════
+       TESTIMONIALS COMPONENT
+  ══════════════════════════════════════════════ -->
+  <div class="relative overflow-hidden">
+    <?php include('./components/testimonials.php'); ?>
+  </div>
+
   <!-- ═══════════════════════════════════════
        WHY BUY FROM US
   ═══════════════════════════════════════ -->

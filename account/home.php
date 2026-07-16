@@ -101,6 +101,14 @@ function img_url($image_path) {
     return 'http://localhost/sjfbi-js/uploads/products/default.png';
 }
 
+if (!function_exists('fp_slugify')) {
+    function fp_slugify(string $text): string {
+        $slug = strtolower($text);
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        return trim($slug, '-');
+    }
+}
+
 $statusConf = [
     'Pending'        => ['label'=>'Pending',          'dot'=>'bg-yellow-400', 'text'=>'text-yellow-600', 'badge'=>'bg-yellow-50 text-yellow-700 border-yellow-200'],
     'Processing'     => ['label'=>'Processing',       'dot'=>'bg-blue-400',   'text'=>'text-blue-600',   'badge'=>'bg-blue-50 text-blue-700 border-blue-200'],
@@ -178,11 +186,36 @@ $statusConf = [
 
 <?php include './components/navigation.php'; ?>
 
+<?php
+/**
+ * Drop this near the top of accounts/home.php.
+ * Requires $_SESSION['email_verified'] to be set (it is, from functions/add.php / verify.php).
+ */
+if (isset($_SESSION['account_id']) && empty($_SESSION['email_verified'])):
+?>
+<div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        <span class="text-sm">
+            Please verify your email to unlock ordering. Check your inbox for the verification link.
+        </span>
+    </div>
+    <form action="../functions/add.php" method="POST" class="shrink-0">
+        <button type="submit" name="resend_verification"
+                class="text-sm font-medium text-[#E85D20] hover:underline whitespace-nowrap">
+            Resend email
+        </button>
+    </form>
+</div>
+<?php endif; ?>
 
 <!-- ══ HERO — Personalized Welcome ══════════════════════════════════════════════════════ -->
 <div class="relative overflow-hidden welcome-hero pt-10 pb-20 px-4">
   <div class="relative z-10">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-7xl mx-auto">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <!-- Greeting -->
         <div class="fade-up delay-1">
@@ -241,7 +274,7 @@ $statusConf = [
 <!-- ══════════════════════════════════════════════════════════════
      QUICK ACTIONS
 ══════════════════════════════════════════════════════════════ -->
-<section class="max-w-5xl mx-auto px-4 -mt-4 mb-8 fade-up delay-2">
+<section class="max-w-7xl mx-auto px-4 -mt-4 mb-8 fade-up delay-2">
   <div class="grid grid-cols-4 gap-3">
     <?php
     $actions = [
@@ -264,7 +297,7 @@ $statusConf = [
      CATEGORIES
 ══════════════════════════════════════════════════════════════ -->
 <?php if (!empty($categories)): ?>
-<section class="max-w-5xl mx-auto px-4 mb-10">
+<section class="max-w-7xl mx-auto px-4 mb-10">
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-base font-bold text-gray-800">Browse Categories</h2>
     <a href="shop.php" class="text-xs text-orange-500 font-semibold hover:underline">See all →</a>
@@ -288,7 +321,7 @@ $statusConf = [
 <!-- ══════════════════════════════════════════════════════════════
      TODAY'S FRESH CATCH — Product Grid
 ══════════════════════════════════════════════════════════════ -->
-<section class="max-w-5xl mx-auto px-4 mb-10">
+<section class="max-w-7xl mx-auto px-4 mb-10">
   <div class="flex items-center justify-between mb-5">
     <div>
       <div class="flex items-center gap-2 mb-1">
@@ -314,12 +347,11 @@ $statusConf = [
       $isLow = (int)$p['total_stock'] > 0 && (int)$p['total_stock'] <= 10;
       $isNew = strtotime($p['created_at']) > strtotime('-7 days');
     ?>
-    <a href="<?= $baseUrl ?>item/<?= urlencode(strtolower(str_replace(' ', '-', $product_name))) ?>" class="product-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
+    <a href="<?= $baseUrl ?>item/<?= urlencode(fp_slugify($p['product_name'])) ?>" class="product-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
       <div class="relative">
         <img src="<?= htmlspecialchars($imgUrl) ?>" 
              alt="<?= htmlspecialchars($p['product_name']) ?>"
-             class="w-full h-36 object-cover"
-             onerror="this.src='http://localhost/sjfbi-js/uploads/products/default.png'">
+             class="w-full h-36 object-cover">
 
         <!-- Badges -->
         <div class="absolute top-2 left-2 flex flex-col gap-1">
@@ -381,27 +413,6 @@ $statusConf = [
   </div>
 </section>
 <?php endif; ?>
-
-<!-- ══════════════════════════════════════════════════════════════
-     TRUST STRIP
-══════════════════════════════════════════════════════════════ -->
-<section class="max-w-5xl mx-auto px-4 mb-12">
-  <div class="grid grid-cols-3 gap-3">
-    <?php
-    $trust = [
-      ['i'=>'🐟', 'h'=>'Fresh Daily',          's'=>'Direct from Navotas Port'],
-      ['i'=>'❄️', 'h'=>'Cold Chain Delivery',  's'=>'Maintained temperature'],
-      ['i'=>'🤝', 'h'=>'Local Fishermen',       's'=>'Supporting Filipino farmers'],
-    ];
-    foreach ($trust as $t): ?>
-    <div class="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
-      <div class="text-2xl mb-2"><?= $t['i'] ?></div>
-      <p class="text-xs font-bold text-gray-800"><?= $t['h'] ?></p>
-      <p class="text-[10px] text-gray-400 mt-0.5"><?= $t['s'] ?></p>
-    </div>
-    <?php endforeach; ?>
-  </div>
-</section>
 
 <script src="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/preline/dist/preline.min.js"></script>

@@ -477,6 +477,84 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_blog'])) {
     exit;
 }
 
+// ── ADD EVENT ────────────────────────────────────────────────────────────────
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_event'])) {
+
+    $event_title            = trim($_POST['event_title']);
+    $event_slug             = getUniqueSlug($conn, $event_title, 'company_events');
+    $event_status           = $_POST['event_status'] ?? 'draft';
+    $event_date             = $_POST['event_date'];
+    $event_end_date         = $_POST['event_end_date'] ?: null;
+    $event_time             = trim($_POST['event_time']);
+    $event_location         = trim($_POST['event_location']);
+    $event_address          = trim($_POST['event_address']);
+    $event_category         = trim($_POST['event_category']);
+    $event_audience         = trim($_POST['event_audience']);
+    $event_excerpt          = trim($_POST['event_excerpt']);
+    $event_content          = cleanContent($_POST['event_content']);
+    $event_rsvp_url         = trim($_POST['event_rsvp_url']);
+    $event_rsvp_deadline    = $_POST['event_rsvp_deadline'] ?: null;
+    $event_meta_title       = trim($_POST['event_meta_title'] ?? '');
+    $event_meta_description = trim($_POST['event_meta_description'] ?? '');
+    $event_meta_keywords    = trim($_POST['event_meta_keywords'] ?? '');
+
+    $conn->begin_transaction();
+    try {
+        $stmt = $conn->prepare("INSERT INTO company_events (event_title, event_slug, event_status, event_date, event_end_date, event_time, event_location, event_address, event_category, event_audience, event_excerpt, event_content, event_rsvp_url, event_rsvp_deadline, event_meta_title, event_meta_description, event_meta_keywords) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? ) ");
+        $stmt->bind_param("sssssssssssssssss", $event_title, $event_slug, $event_status, $event_date, $event_end_date, $event_time, $event_location, $event_address, $event_category, $event_audience, $event_excerpt, $event_content, $event_rsvp_url, $event_rsvp_deadline, $event_meta_title, $event_meta_description, $event_meta_keywords);
+        if (!$stmt->execute()) { throw new Exception($stmt->error);}
+        $event_id = $conn->insert_id;
+        $stmt->close();
+
+        // Upload Event Image
+        $event_image = '';
+
+        if ( isset($_FILES['event_image']) && !empty($_FILES['event_image']['name'])) {
+            $target_dir = "../../uploads/events/";
+            if (!file_exists($target_dir)) { mkdir($target_dir, 0777, true); }
+            $tmp_name = $_FILES['event_image']['tmp_name'];
+            if (strpos(mime_content_type($tmp_name), 'image/') !== 0) {throw new Exception("Only image files are allowed."); }
+            if ($_FILES['event_image']['size'] > 5 * 1024 * 1024) { throw new Exception("File size must be less than 5MB."); }
+            $ext = strtolower(pathinfo($_FILES['event_image']['name'], PATHINFO_EXTENSION));
+            $filename = uniqid() . '_' . time() . '.' . $ext;
+
+            if (move_uploaded_file($tmp_name, $target_dir . $filename)) {
+                $event_image = '/sjfbi-js/uploads/events/' . $filename;
+                $up = $conn->prepare("UPDATE company_events SET event_image = ? WHERE event_id = ? ");
+                $up->bind_param("si", $event_image, $event_id);
+                $up->execute();
+                $up->close();
+            }
+        }
+
+        logActivity($conn, 'event', $event_id, 'Event created', null,
+            json_encode([
+                'title' => $event_title,
+                'status' => $event_status
+            ]),
+            "Event '{$event_title}' created.",
+            $actorId,
+            $actorType
+        );
+
+        $conn->commit();
+
+        $_SESSION['message'] = [
+            'type' => 'success',
+            'text' => 'Event created successfully!'
+        ];
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        $_SESSION['message'] = [
+            'type' => 'error',
+            'text' => $e->getMessage()
+        ];
+    }
+    header("Location: ../events.php");
+    exit;
+}
+
 // ── ADD SUGGESTION ────────────────────────────────────────────────────────────
 elseif (isset($_POST['add_suggestion'])) {
     $product_id  = intval($_POST['product_id']);
@@ -527,7 +605,12 @@ elseif (isset($_POST['add_market'])) {
     $location_full = htmlspecialchars(trim($_POST['location_full']));
     $description   = htmlspecialchars(trim($_POST['description']));
     $stall_count   = intval($_POST['stall_count']);
-    $map_embed     = htmlspecialchars(trim($_POST['map_embed'] ?? ''));
+    $raw_map_input = trim($_POST['map_embed'] ?? '');
+    preg_match('/src=["\']([^"\']+)["\']/', $raw_map_input, $map_matches);
+    $map_embed = isset($map_matches[1])
+        ? filter_var($map_matches[1], FILTER_SANITIZE_URL)
+        : filter_var($raw_map_input, FILTER_SANITIZE_URL);
+        
     $accent_color  = $_POST['accent_color'] ?? '#f97316';
     $display_order = intval($_POST['display_order'] ?? 0);
 

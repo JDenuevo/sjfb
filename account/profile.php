@@ -44,10 +44,8 @@ $row = $result->fetch_assoc();
 
   <!-- CSS Files -->
   <link href="../style.css" rel="stylesheet">
-  <link href="../output.css" rel="stylesheet">
-
-  <!-- CSS Preline -->
-   
+  <script src="https://cdn.tailwindcss.com"></script>
+  
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
 </head>
 

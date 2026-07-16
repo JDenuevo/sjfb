@@ -12,10 +12,10 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 </div>
 
 <footer class="text-gray-400" style="background-color: #0F172A;">
-  <div class="max-w-6xl mx-auto px-6 pt-10 pb-7">
+  <div class="max-w-7xl mx-auto px-6 pt-12 pb-8">
 
     <!-- ── Main grid ── -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
 
       <!-- Brand -->
       <div class="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
@@ -25,8 +25,8 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
                class="h-11 w-auto"
                loading="lazy">
         </a>
-        <p class="text-sm text-white leading-relaxed max-w-xs">
-          Freshness you can trust, delivered with integrity.
+        <p class="text-sm text-white/80 leading-relaxed max-w-xs">
+          Isda sa Hapag ng Bawat Isa.
         </p>
         <!-- Socials -->
         <div class="flex gap-2 mt-1">
@@ -40,7 +40,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
             </svg>
           </a>
           <!-- TikTok -->
-          <a href="https://www.tiktok.com/@stjosephfishbroke"
+          <a href="https://www.tiktok.com/@sjfbinc"
              target="_blank" rel="noopener"
              title="TikTok"
              class="w-9 h-9 flex items-center justify-center rounded-full border border-white/10 text-white hover:bg-orange-600 hover:border-orange-600 hover:text-white hover:-translate-y-0.5 transition-all duration-200">
@@ -59,22 +59,22 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
         </div>
       </div>
 
-      <!-- Company links -->
+      <!-- Explore (site navigation) -->
       <div>
-        <h5 class="text-[0.7rem] font-bold uppercase tracking-widest text-orange-500 mb-4">Company</h5>
+        <h5 class="text-[0.7rem] font-bold uppercase tracking-widest text-orange-500 mb-4">Explore</h5>
         <nav class="flex flex-col gap-2">
           <?php
           $pages = [
             'Home'           => '',
             'Shop'           => 'shop.php',
             'About'          => 'about.php',
-            'Sustainability' => 'sustainability.php',
+            'Events'         => 'events.php',
             'Services'       => 'services.php',
             'Contact'        => 'contact.php',
           ];
           foreach ($pages as $label => $path): ?>
           <a href="<?= $baseUrl . $path ?>"
-             class="group flex items-center gap-1.5 text-sm text-white hover:text-orange-400 transition-colors duration-150">
+             class="group flex items-center gap-1.5 text-sm text-white/80 hover:text-orange-400 transition-colors duration-150">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                  class="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150">
               <path d="M9 18l6-6-6-6"/>
@@ -82,6 +82,29 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
             <?= $label ?>
           </a>
           <?php endforeach; ?>
+        </nav>
+      </div>
+
+      <!-- Legal -->
+      <div>
+        <h5 class="text-[0.7rem] font-bold uppercase tracking-widest text-orange-500 mb-4">Legal</h5>
+        <nav class="flex flex-col gap-2">
+          <button type="button" onclick="openModal('privacyModal')"
+            class="group flex items-center gap-1.5 text-sm text-white/80 hover:text-orange-400 transition-colors duration-150 text-left">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 class="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+            Privacy Policy
+          </button>
+          <button type="button" onclick="openModal('termsModal')"
+            class="group flex items-center gap-1.5 text-sm text-white/80 hover:text-orange-400 transition-colors duration-150 text-left">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 class="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+            Terms &amp; Conditions
+          </button>
         </nav>
       </div>
 
@@ -97,7 +120,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
             </span>
-            <p class="text-white">Bulungan Ave. corner HACCP St., NFPC NBBS, Navotas, Philippines</p>
+            <p class="text-white/80">Bulungan Ave. corner HACCP St., NFPC NBBS, Navotas, Philippines</p>
           </div>
 
           <!-- Phone -->
@@ -107,7 +130,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
             </span>
-            <a href="tel:+639464973689" class="text-white hover:text-orange-400 transition-colors duration-150">(+63) 946-497-3689</a>
+            <a href="tel:+639464973689" class="text-white/80 hover:text-orange-400 transition-colors duration-150">(+63) 946-497-3689</a>
           </div>
 
           <!-- Email -->
@@ -117,7 +140,7 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
               </svg>
             </span>
-            <a href="mailto:stjosephbrokerage23@gmail.com" class="text-white hover:text-orange-400 transition-colors duration-150 break-all">stjosephbrokerage23@gmail.com</a>
+            <a href="mailto:stjosephbrokerage23@gmail.com" class="text-white/80 hover:text-orange-400 transition-colors duration-150 break-all">stjosephbrokerage23@gmail.com</a>
           </div>
 
           <!-- Hours badge -->
@@ -133,16 +156,18 @@ $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
 
     <!-- ── Bottom bar ── -->
     <div class="mt-10 pt-5 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
-      <p class="text-xs white">
+      <p class="text-xs text-white/50">
         © <?= date('Y') ?> St. Joseph Fish Brokerage Inc. All rights reserved.
       </p>
-      <div class="flex items-center gap-2 text-xs white">
-        <a href="<?= $baseUrl ?>#.php" class="hover:text-orange-500 transition-colors duration-150">Privacy Policy</a>
-        <span class="text-gray-700">·</span>
-        <a href="<?= $baseUrl ?>#.php" class="hover:text-orange-500 transition-colors duration-150">Terms of Use</a>
-      </div>
+      <p class="text-xs text-white/50">
+        Made with care in Navotas City, Philippines
+      </p>
     </div>
 
   </div>
 </footer>
 <!-- ========== END FOOTER ========== -->
+
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/privacy_policy.php'; ?>
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/terms_condition.php'; ?>
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/sjfbi-js/components/shipping_refund.php'; ?>

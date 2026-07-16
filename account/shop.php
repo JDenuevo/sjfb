@@ -37,6 +37,23 @@ $productsQuery = "SELECT p.*,
     ORDER BY p.created_at DESC";
 
 $productsResult = $conn->query($productsQuery);
+
+// ✅ BEST PRACTICE: Define baseUrl ONCE at the top (project root)
+// This was missing — it's why images break on a plain page load but work
+// once fetch_products.php runs (that endpoint sets its own $baseUrl).
+$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://')
+         . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+
+// ✅ Image helper function
+if (!function_exists('img_url')) {
+    function img_url($image_path) {
+        global $baseUrl;
+        if (!empty($image_path)) {
+            return $baseUrl . 'uploads/products/' . ltrim($image_path, '/');
+        }
+        return $baseUrl . 'uploads/products/default.png';
+    }
+}
 ?>
  
 <!DOCTYPE html>
@@ -184,6 +201,11 @@ $productsResult = $conn->query($productsQuery);
         Live Inventory — Updated Today
       </div>
     </div>
+
+    <?php
+      $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://')
+              . $_SERVER['HTTP_HOST'] . '/sjfbi-js/';
+    ?>
 
     <?php include('./components/products.php'); ?>
 

@@ -108,7 +108,6 @@ $blogs = mysqli_fetch_all($blogsResult, MYSQLI_ASSOC);
 
   <?php include('../components/preloaders.php'); ?>
   <?php include('../components/navigation.php'); ?>
-  <?php include('../components/nav_crumb.php'); ?>
 
   <!-- Blog Grid -->
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

@@ -1,41 +1,10 @@
 <?php
+// checkout.php
 session_start();
 include '../conn.php';
 require_once 'functions/cleanup_orders.php';
 
 $pageTitle = 'Checkout';
-
-// Check if the user is logged in as user and account_id exists
-if (!isset($_SESSION["loggedinasuser"]) || $_SESSION["loggedinasuser"] !== true || !isset($_SESSION['account_id'])) {
-    header("Location: ../index.php");
-    exit;
-}
-
-// Fetch all products with their primary image and variants
-$productQuery = "SELECT p.product_id, p.product_name, p.product_description, 
-                 pi.image_path, 
-                 v.variant_id, v.variant_name, v.variant_price, v.discount_price
-          FROM products p
-          LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
-          LEFT JOIN product_variants v ON p.product_id = v.product_id
-          ORDER BY p.created_at DESC";
-
-$productResult = $conn->query($productQuery);
-
-if (!$productResult) {
-    die("Error fetching products: " . $conn->error);
-}
-
-// Initialize user details array
-$userDetails = [];
-
-// Check if user is logged in
-if (isset($_SESSION['account_id'])) {
-    
-    $accountId = $_SESSION['account_id'];
-  
-}
-
 
 // Handle cancelled payment return
 if (isset($_GET['cancel']) && $_GET['cancel'] == 1) {
@@ -132,10 +101,10 @@ if (!empty($savedData)) {
   <meta name="twitter:description" content="Professional fish brokerage services with excellence and integrity.">
   <meta name="twitter:image"       content="https://fishbrokers.net/assets/icons/logo.svg">
 
-  <link rel="shortcut icon"             href="../assets/icons/logo.ico">
-  <link rel="icon" type="image/x-icon"  href="../assets/icons/logo.ico" sizes="16x16 32x32">
-  <link rel="icon" type="image/svg+xml" href="../assets/icons/logo.svg">
-  <link rel="apple-touch-icon"          href="../assets/icons/logo.svg">
+  <link rel="shortcut icon"             href="./assets/icons/logo.ico">
+  <link rel="icon" type="image/x-icon"  href="./assets/icons/logo.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg">
+  <link rel="apple-touch-icon"          href="./assets/icons/logo.svg">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -144,6 +113,8 @@ if (!empty($savedData)) {
   <link rel="stylesheet" href="https://unpkg.com/aos@3.0.0-beta.6/dist/aos.css">
   <link rel="stylesheet" href="https://preline.co/assets/css/main.min.css">
   <link href="style.css" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
@@ -163,7 +134,7 @@ if (!empty($savedData)) {
 </head>
 <body class="bg-gray-50">
 
-<?php include('../components/preloaders.php'); ?>
+<?php include('./components/preloaders.php'); ?>
 <?php include('./components/navigation.php'); ?>
 
 <!-- Flash messages -->
@@ -240,6 +211,6 @@ if (!empty($savedData)) {
 <script src="node_modules/preline/dist/preline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
 
-<?php include('../live_chat.php'); ?>
+<?php include('live_chat.php'); ?>
 </body>
 </html>
